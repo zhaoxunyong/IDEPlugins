@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+
+   <extension
+         point="org.eclipse.ui.popupMenus">
+      <objectContribution
+            id="com.aeasycredit.DeployPlugin.JavaElements"
+            objectClass="org.eclipse.jdt.core.IJavaElement">
+         <menu
+               id="com.aeasycredit.DeployPlugin.menu1"
+               label="Aeasycredit Plugin"
+               path="additions">
+            <separator
+                  name="com.aeasycredit.DeployPlugin.JavaElementsGroup">
+            </separator>
+         </menu>
+         <action
+               class="com.aeasycredit.deployplugin.popup.actions.ChangeVersionAction:com.aeasycredit.DeployPlugin.commands.changeVersionCommand"
+               definitionId="com.aeasycredit.DeployPlugin.commands.changeVersionCommand"
+               enablesFor="1"
+               id="com.aeasycredit.DeployPlugin.changeVersionAction"
+               label="ChangeVersion"
+               menubarPath="com.aeasycredit.DeployPlugin.menu1/com.aeasycredit.DeployPlugin.JavaElementsGroup">
+         </action>
+         <action
+               class="com.aeasycredit.deployplugin.popup.actions.NewBranchAction:com.aeasycredit.DeployPlugin.commands.newBranchCommand"
+               definitionId="com.aeasycredit.DeployPlugin.commands.newBranchCommand"
+               enablesFor="1"
+               id="com.aeasycredit.DeployPlugin.newBranchAction"
+               label="New Branch"
+               menubarPath="com.aeasycredit.DeployPlugin.menu1/com.aeasycredit.DeployPlugin.JavaElementsGroup">
+         </action>
+         <action
+               class="com.aeasycredit.deployplugin.popup.actions.ReleaseAction:com.aeasycredit.DeployPlugin.commands.releaseCommand"
+               definitionId="com.aeasycredit.DeployPlugin.commands.releaseCommand"
+               enablesFor="1"
+               id="com.aeasycredit.DeployPlugin.releaseAction"
+               label="Release"
+               menubarPath="com.aeasycredit.DeployPlugin.menu1/com.aeasycredit.DeployPlugin.JavaElementsGroup">
+         </action>
+         <action
+               class="com.aeasycredit.deployplugin.popup.actions.MybatisGenAction:com.aeasycredit.DeployPlugin.commands.mybatisGenCommand"
+               definitionId="com.aeasycredit.DeployPlugin.commands.mybatisGenCommand"
+               enablesFor="1"
+               id="com.aeasycredit.DeployPlugin.mybatisGenAction"
+               label="Mybatis Gen"
+               menubarPath="com.aeasycredit.DeployPlugin.menu1/com.aeasycredit.DeployPlugin.JavaElementsGroup">
+         </action>
+      </objectContribution>
+      <objectContribution
+            id="com.aeasycredit.DeployPlugin.Project"
+            objectClass="org.eclipse.core.resources.IProject">
+         <menu
+               id="com.aeasycredit.DeployPlugin.menu1"
+               label="Aeasycredit Plugin"
+               path="additions">
+            <separator
+                  name="com.aeasycredit.DeployPlugin.ProjectGroup">
+            </separator>
+         </menu>
+         <action
+               class="com.aeasycredit.deployplugin.popup.actions.ChangeVersionAction:com.aeasycredit.DeployPlugin.commands.changeVersionCommand"
+               definitionId="com.aeasycredit.DeployPlugin.commands.changeVersionCommand"
+               enablesFor="1"
+               id="com.aeasycredit.DeployPlugin.changeVersionAction"
+               label="ChangeVersion"
+               menubarPath="com.aeasycredit.DeployPlugin.menu1/com.aeasycredit.DeployPlugin.ProjectGroup">
+         </action>
+         <action
+               class="com.aeasycredit.deployplugin.popup.actions.NewBranchAction:com.aeasycredit.DeployPlugin.commands.newBranchCommand"
+               definitionId="com.aeasycredit.DeployPlugin.commands.newBranchCommand"
+               enablesFor="1"
+               id="com.aeasycredit.DeployPlugin.newBranchAction"
+               label="New Branch"
+               menubarPath="com.aeasycredit.DeployPlugin.menu1/com.aeasycredit.DeployPlugin.ProjectGroup">
+         </action>
+         <action
+               class="com.aeasycredit.deployplugin.popup.actions.ReleaseAction:com.aeasycredit.DeployPlugin.commands.releaseCommand"
+               definitionId="com.aeasycredit.DeployPlugin.commands.releaseCommand"
+               enablesFor="1"
+               id="com.aeasycredit.DeployPlugin.releaseAction"
+               label="Release"
+               menubarPath="com.aeasycredit.DeployPlugin.menu1/com.aeasycredit.DeployPlugin.ProjectGroup">
+         </action>
+         <action
+               class="com.aeasycredit.deployplugin.popup.actions.MybatisGenAction:com.aeasycredit.DeployPlugin.commands.mybatisGenCommand"
+               definitionId="com.aeasycredit.DeployPlugin.commands.mybatisGenCommand"
+               enablesFor="1"
+               id="com.aeasycredit.DeployPlugin.mybatisGenAction"
+               label="Mybatis Gen"
+               menubarPath="com.aeasycredit.DeployPlugin.menu1/com.aeasycredit.DeployPlugin.ProjectGroup">
+         </action>
+      </objectContribution>
+      <objectContribution
+            id="com.aeasycredit.DeployPlugin.File"
+            objectClass="org.eclipse.jdt.internal.core.CompilationUnit">
+         <action
+               class="com.aeasycredit.deployplugin.popup.actions.CodeGenAction:com.aeasycredit.DeployPlugin.commands.codeGenCommand"
+               definitionId="com.aeasycredit.DeployPlugin.commands.codeGenCommand"
+               enablesFor="1"
+               id="com.aeasycredit.DeployPlugin.codeGenAction"
+               label="Code Gen"
+               menubarPath="com.aeasycredit.DeployPlugin.menu1/com.aeasycredit.DeployPlugin.FileGroup">
+         </action>
+      </objectContribution>
+   </extension>
+   <extension
+         point="org.eclipse.ui.commands">
+      <category
+            id="com.aeasycredit.DeployPlugin.commands.category"
+            name="DeployPlugin Category">
+      </category>
+      <command
+            categoryId="com.aeasycredit.DeployPlugin.commands.category"
+            id="com.aeasycredit.DeployPlugin.commands.newBranchCommand"
+            name="New Branch Command">
+      </command>
+      <command
+            categoryId="com.aeasycredit.DeployPlugin.commands.category"
+            id="com.aeasycredit.DeployPlugin.commands.changeVersionCommand"
+            name="Change Version Command">
+      </command>
+      <command
+            categoryId="com.aeasycredit.DeployPlugin.commands.category"
+            id="com.aeasycredit.DeployPlugin.commands.releaseCommand"
+            name="Release Command">
+      </command>
+      <command
+            categoryId="com.aeasycredit.DeployPlugin.commands.category"
+            id="com.aeasycredit.DeployPlugin.commands.mybatisGenCommand"
+            name="Mybatis Gen Command">
+      </command>
+   </extension>
+   <extension
+         point="org.eclipse.ui.handlers">
+      <handler
+            class="com.aeasycredit.deployplugin.handlers.ChangeVersionHandler"
+            commandId="com.aeasycredit.DeployPlugin.commands.changeVersionCommand">
+      </handler>
+      <handler
+            class="com.aeasycredit.deployplugin.handlers.NewBranchHandler"
+            commandId="com.aeasycredit.DeployPlugin.commands.newBranchCommand">
+      </handler>
+      <handler
+            class="com.aeasycredit.deployplugin.handlers.ReleaseHandler"
+            commandId="com.aeasycredit.DeployPlugin.commands.releaseCommand">
+      </handler>
+      <handler
+            class="com.aeasycredit.deployplugin.handlers.MybatisGenHandler"
+            commandId="com.aeasycredit.DeployPlugin.commands.mybatisGenCommand">
+      </handler>
+   </extension>
+   <extension
+         point="org.eclipse.ui.bindings">
+      <key
+            commandId="com.aeasycredit.DeployPlugin.commands.changeVersionCommand"
+            contextId="org.eclipse.ui.contexts.window"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration"
+            sequence="Ctrl+Shift+D">
+      </key>
+      <key
+            commandId="com.aeasycredit.DeployPlugin.commands.newBranchCommand"
+            contextId="org.eclipse.ui.contexts.window"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration"
+            sequence="Ctrl+Shift+M">
+      </key>
+      <key
+            commandId="com.aeasycredit.DeployPlugin.commands.releaseCommand"
+            contextId="org.eclipse.ui.contexts.window"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration"
+            sequence="Ctrl+Shift+J">
+      </key>
+      <key
+            commandId="com.aeasycredit.DeployPlugin.commands.mybatisGenCommand"
+            contextId="org.eclipse.ui.contexts.window"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration"
+            sequence="Ctrl+Shift+P">
+      </key>
+   </extension>
+   <extension
+         point="org.eclipse.ui.menus">
+      <menuContribution
+            locationURI="toolbar:org.eclipse.ui.main.toolbar?after=additions">
+         <toolbar
+               id="com.chinatime.SlicePlugin.toolbars.slice2javaToolbar"
+               label="DeployPlugin">
+            <command
+                  commandId="com.aeasycredit.DeployPlugin.commands.changeVersionCommand"
+                  icon="icons/deploy.gif"
+                  id="com.aeasycredit.DeployPlugin.toolbars.changeVersionCommand"
+                  label="Change Version"
+                  tooltip="Change Version">
+            </command>
+            <command
+                  commandId="com.aeasycredit.DeployPlugin.commands.newBranchCommand"
+                  icon="icons/newBranch.gif"
+                  id="com.aeasycredit.DeployPlugin.toolbars.newBranchCommand"
+                  label="New Branch"
+                  tooltip="New Branch">
+            </command>
+            <command
+                  commandId="com.aeasycredit.DeployPlugin.commands.releaseCommand"
+                  icon="icons/windows.gif"
+                  id="com.aeasycredit.DeployPlugin.toolbars.releaseCommand"
+                  label="Release"
+                  tooltip="Release">
+            </command>
+            <command
+                  commandId="com.aeasycredit.DeployPlugin.commands.mybatisGenCommand"
+                  icon="icons/mybatisgen.gif"
+                  id="com.aeasycredit.DeployPlugin.toolbars.mybatisGenCommand"
+                  label="Mybatis Gen"
+                  tooltip="Mybatis Gen">
+            </command>
+         </toolbar>
+      </menuContribution>
+   </extension>
+   <extension
+         point="org.eclipse.ui.preferencePages">
+      <page
+            class="com.aeasycredit.deployplugin.preferences.DeployPluginPerencePage"
+            id="com.aeasycredit.deployplugin.preferences.DeployPluginPerencePage"
+            name="DeployPlugin">
+      </page>
+   </extension>
+   <extension
+         point="org.eclipse.core.runtime.preferences">
+      <initializer
+            class="com.aeasycredit.deployplugin.preferences.PreferenceInitializer">
+      </initializer>
+   </extension>
+   
+   
+</plugin>

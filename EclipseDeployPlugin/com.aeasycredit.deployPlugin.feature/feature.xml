@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feature
+      id="com.aeasycredit.deployPlugin.feature"
+      label="com.aeasycredit.deployplugin"
+      version="1.1.29"
+      provider-name="zerofinance"
+      plugin="com.aeasycredit.DeployPlugin">
+
+   <description url="https://appbuild.zerofinance.hk/eclipse/">
+      Using &quot;https://appbuild.zerofinance.hk/eclipse/&quot; to be up-to-date.
+   </description>
+
+   <copyright url="http://www.zerofinance.cn/copyright">
+      http://www.zerofinance.cn/copyright
+   </copyright>
+
+   <license url="http://www.zerofinance.cn/license">
+      http://www.zerofinance.cn/license
+   </license>
+
+   <url>
+      <update label="com.aeasycredit.deployplugin" url="https://appbuild.zerofinance.hk/eclipse/"/>
+   </url>
+
+   <plugin
+         id="com.aeasycredit.DeployPlugin"
+         download-size="0"
+         install-size="0"
+         version="1.1.29"
+         unpack="false"/>
+
+</feature>

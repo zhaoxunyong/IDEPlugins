@@ -1,0 +1,80 @@
+<!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
+<idea-plugin>
+    <!-- Unique identifier of the plugin. It should be FQN. It cannot be changed between the plugin versions. -->
+    <id>com.zerofinance.ZeroGitDeployToolkit</id>
+
+    <!-- Public plugin name should be written in Title Case.
+         Guidelines: https://plugins.jetbrains.com/docs/marketplace/plugin-overview-page.html#plugin-name -->
+    <name>Zero Git Deploy Toolkit</name>
+
+    <!-- A displayed Vendor name or Organization ID displayed on the Plugins Page. -->
+    <vendor email="dave.zhao@zerofinance.com" url="https://www.zerofinance.com">ZeroFinance</vendor>
+
+    <!-- Description of the plugin displayed on the Plugin Page and IDE Plugin Manager.
+         Simple HTML elements (text formatting, paragraphs, and lists) can be added inside of <![CDATA[ ]]> tag.
+         Guidelines: https://plugins.jetbrains.com/docs/marketplace/plugin-overview-page.html#plugin-description -->
+    <description><![CDATA[
+    A Zero Git Deploy Toolkit for Intellij IDEA, which can help us deploy git project more convenient. <br />
+    Before we released git branch manually, but made some mistakes often, so we developed this toolkit to help our developer release git branch automatically. <br /><br />
+    <b>features:</b>
+    <ul>
+        <li>1. Release: Creating a new branch from local repository and push it to a remote git branch automatically.</li>
+        <li>2. NewBranch: Creating a new branch from local repository automatically.</li>
+        <li>3. ChangVersion: Changing a new maven version from local repository automatically.</li>
+        <li>4. MybatisGen: Executing the plugin("mybatis-generator-maven-plugin") to generate mybatis sql files automatically.</li>
+    </ul>
+    ]]></description>
+
+    <change-notes><![CDATA[
+    <ul>
+        <li>1.0.0 : init </li>
+    </ul>
+    ]]>
+    </change-notes>
+
+    <!-- Product and plugin compatibility requirements.
+         Read more: https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html -->
+    <depends>com.intellij.modules.platform</depends>
+    <depends>org.jetbrains.plugins.terminal</depends>
+
+    <!-- Extension points defined by the plugin.
+         Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Add your extensions here -->
+        <toolWindow id="GitDeployPlugin"
+                    icon="AllIcons.Actions.ChangeView"
+                    anchor="bottom"
+                    factoryClass="com.zerofinance.zerogitdeploy.ZeroGitDeploy"></toolWindow>
+        <notificationGroup id="Custom Notification Group"
+                           displayType="BALLOON" />
+        <applicationConfigurable instance="com.zerofinance.zerogitdeploy.setting.ZeroGitDeploySetting" dynamic="true"/>
+    </extensions>
+
+    <actions>
+
+        <!--<action id="PopupAction" class="com.zerofinance.zerogitdeploy.PopupAction" text="PopupAction"
+                description="PopupAction">
+            <add-to-group group-id="EditorPopupMenu" anchor="first"/>
+        </action>-->
+        <!--<action id="MenuAction" class="com.zerofinance.zerogitdeploy.MenuAction" text="MenuAction"
+                description="MenuAction">
+            <add-to-group group-id="ToolsMenu" anchor="first"/>
+        </action>-->
+        <!--<action id="ZeroMainAction" class="com.zerofinance.zerogitdeploy.action.ReleaseAction" text="ZeroGitDeploy"
+                description="A git deploy plugin tool">
+            <add-to-group group-id="MainMenu" anchor="after" relative-to-action="ToolsMenu"/>
+        </action>-->
+
+        <group id="ZeroMainAction" text="Zero" description="A git deploy plugin tool">
+            <add-to-group group-id="MainMenu" anchor="after" relative-to-action="ToolsMenu"/>
+            <!-- icon can see: https://intellij-icons.jetbrains.design/ -->
+            <action id="Release" class="com.zerofinance.zerogitdeploy.action.ReleaseAction" icon="AllIcons.Actions.Lightning" text="Release" description="Git Release" />
+            <separator/>
+            <action id="NewBranch" class="com.zerofinance.zerogitdeploy.action.NewBranchAction" icon="AllIcons.Actions.OpenNewTab" text="NewBranch" description="New Branch" />
+            <separator/>
+            <action id="ChangeVersion" class="com.zerofinance.zerogitdeploy.action.ChangeVersionAction" icon="AllIcons.Actions.ChangeView" text="ChangeVersion" description="Change Version" />
+            <separator/>
+            <action id="MybatisGen" class="com.zerofinance.zerogitdeploy.action.MybatisGenAction" icon="AllIcons.Actions.InlayRenameInNoCodeFilesActive" text="MybatisGen" description="Mybatis Gen" />
+        </group>
+    </actions>
+</idea-plugin>
