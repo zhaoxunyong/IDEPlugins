@@ -99,7 +99,7 @@ public final class DeployPluginHandler {
                 if (result != null && result.getCode() != 0) {
                     throw new DeployPluginException(result.getResult());
                 } else {
-                    isConfirm = Messages.showYesNoDialog("Did you forget merging some modified code?\n\n" + result.getResult(), moduleName+": Committed Log Confirm?", Messages.getQuestionIcon()) == 0;
+                    isConfirm = Messages.showYesNoDialog("Making sure you don't forget merging some modified code.\n\n" + result.getResult(), moduleName+": Committed Log Confirm?", Messages.getQuestionIcon()) == 0;
                 }
             } catch (Exception e) {
                 // Skipping check when the committedLogs.sh isn't existing
