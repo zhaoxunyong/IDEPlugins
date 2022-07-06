@@ -4,13 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="2dd5e85f-3834-40d4-acbf-af10224ec20d" name="Changes" comment="Mod: Adjusting some tips.">
+    <list default="true" id="2dd5e85f-3834-40d4-acbf-af10224ec20d" name="Changes" comment="Mod: Adding this toolkit to toolbar and popup menu.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build.gradle.kts" beforeDir="false" afterPath="$PROJECT_DIR$/build.gradle.kts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/action/ReleaseAction.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/action/ReleaseAction.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/handler/DeployPluginHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/handler/DeployPluginHandler.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/tools/DeployCmdExecuter.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/tools/DeployCmdExecuter.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/META-INF/plugin.xml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/META-INF/plugin.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/setting/ZeroGitDeploySetting.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/setting/ZeroGitDeploySetting.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -90,7 +86,7 @@
     "project.structure.last.edited": "Modules",
     "project.structure.proportion": "0.15",
     "project.structure.side.proportion": "0.2",
-    "settings.editor.selected.configurable": "preferences.keymap"
+    "settings.editor.selected.configurable": "com.zerofinance.zerogitdeploy.setting.ZeroGitDeploySetting"
   }
 }]]></component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
@@ -126,16 +122,5 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Mod: Adjusting some tips." />
     <option name="LAST_COMMIT_MESSAGE" value="Mod: Adjusting some tips." />
-  </component>
-  <component name="XDebuggerManager">
-    <breakpoint-manager>
-      <breakpoints>
-        <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/tools/DeployCmdExecuter.java</url>
-          <line>121</line>
-          <option name="timeStamp" value="9" />
-        </line-breakpoint>
-      </breakpoints>
-    </breakpoint-manager>
   </component>
 </project>

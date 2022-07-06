@@ -69,7 +69,7 @@ public class ZeroGitDeploySetting implements Configurable {
     @Nls(capitalization = Nls.Capitalization.Title)
     @Override
     public String getDisplayName() {
-        return DeployCmdExecuter.PLUGIN_ID;
+        return "Git Deploy Settings";
     }
 
 
