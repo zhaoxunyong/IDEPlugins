@@ -27,6 +27,7 @@
 
     <change-notes><![CDATA[
     <ul>
+        <li>1.0.1 : Add to toolbar and popup menu. </li>
         <li>1.0.0 : init </li>
     </ul>
     ]]>
@@ -51,30 +52,44 @@
     </extensions>
 
     <actions>
-
-        <!--<action id="PopupAction" class="com.zerofinance.zerogitdeploy.PopupAction" text="PopupAction"
-                description="PopupAction">
-            <add-to-group group-id="EditorPopupMenu" anchor="first"/>
-        </action>-->
-        <!--<action id="MenuAction" class="com.zerofinance.zerogitdeploy.MenuAction" text="MenuAction"
-                description="MenuAction">
-            <add-to-group group-id="ToolsMenu" anchor="first"/>
-        </action>-->
-        <!--<action id="ZeroMainAction" class="com.zerofinance.zerogitdeploy.action.ReleaseAction" text="ZeroGitDeploy"
-                description="A git deploy plugin tool">
-            <add-to-group group-id="MainMenu" anchor="after" relative-to-action="ToolsMenu"/>
-        </action>-->
-
+        <!-- main menu -->
         <group id="ZeroMainAction" text="Zero" description="A git deploy plugin tool">
-            <add-to-group group-id="MainMenu" anchor="after" relative-to-action="ToolsMenu"/>
+            <add-to-group group-id="MainMenu"  anchor="after" relative-to-action="ToolsMenu" />
             <!-- icon can see: https://intellij-icons.jetbrains.design/ -->
-            <action id="Release" class="com.zerofinance.zerogitdeploy.action.ReleaseAction" icon="AllIcons.Actions.Lightning" text="Release" description="Git Release" />
+            <action id="ReleaseMainMenu" class="com.zerofinance.zerogitdeploy.action.ReleaseAction" icon="AllIcons.Actions.Lightning" text="Release" description="Git Release" />
             <separator/>
-            <action id="NewBranch" class="com.zerofinance.zerogitdeploy.action.NewBranchAction" icon="AllIcons.Actions.OpenNewTab" text="NewBranch" description="New Branch" />
+            <action id="NewBranchMainMenu" class="com.zerofinance.zerogitdeploy.action.NewBranchAction" icon="AllIcons.Actions.OpenNewTab" text="NewBranch" description="New Branch" />
             <separator/>
-            <action id="ChangeVersion" class="com.zerofinance.zerogitdeploy.action.ChangeVersionAction" icon="AllIcons.Actions.ChangeView" text="ChangeVersion" description="Change Version" />
+            <action id="ChangeVersionMainMenu" class="com.zerofinance.zerogitdeploy.action.ChangeVersionAction" icon="AllIcons.Actions.ChangeView" text="ChangeVersion" description="Change Version" />
             <separator/>
-            <action id="MybatisGen" class="com.zerofinance.zerogitdeploy.action.MybatisGenAction" icon="AllIcons.Actions.InlayRenameInNoCodeFilesActive" text="MybatisGen" description="Mybatis Gen" />
+            <action id="MybatisGenMainMenu" class="com.zerofinance.zerogitdeploy.action.MybatisGenAction" icon="AllIcons.Actions.InlayRenameInNoCodeFilesActive" text="MybatisGen" description="Mybatis Gen" />
+        </group>
+
+        <!-- popup menu -->
+        <!-- https://xujin.org/guides/idea-01/ -->
+        <group id="ZeroPopupMenuAction" text="Zero" popup="true" icon="AllIcons.Actions.Colors">
+            <separator/>
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="after" relative-to-action="WeighingNewGroup" />
+            <!-- icon can see: https://intellij-icons.jetbrains.design/ -->
+            <action id="ReleasePopupMenu" class="com.zerofinance.zerogitdeploy.action.ReleaseAction" icon="AllIcons.Actions.Lightning" text="Release" description="Git Release" />
+            <separator/>
+            <action id="NewBranchPopupMenu" class="com.zerofinance.zerogitdeploy.action.NewBranchAction" icon="AllIcons.Actions.OpenNewTab" text="NewBranch" description="New Branch" />
+            <separator/>
+            <action id="ChangeVersionPopupMenu" class="com.zerofinance.zerogitdeploy.action.ChangeVersionAction" icon="AllIcons.Actions.ChangeView" text="ChangeVersion" description="Change Version" />
+            <separator/>
+            <action id="MybatisGenPopupMenu" class="com.zerofinance.zerogitdeploy.action.MybatisGenAction" icon="AllIcons.Actions.InlayRenameInNoCodeFilesActive" text="MybatisGen" description="Mybatis Gen" />
+        </group>
+
+        <!-- toolbar -->
+        <group id="ZeroToolbarAction" icon="AllIcons.Actions.Colors">
+            <add-to-group group-id="ToolbarRunGroup" anchor="first" />
+            <!-- icon can see: https://intellij-icons.jetbrains.design/ -->
+            <action class="com.zerofinance.zerogitdeploy.action.ZeroToolbarLabelAction" id="ZeroToolbarLabelAction" />
+            <action id="ReleaseToolbar" class="com.zerofinance.zerogitdeploy.action.ReleaseAction" icon="AllIcons.Actions.Lightning" text="Release" description="Git Release" />
+            <action id="NewBranchToolbar" class="com.zerofinance.zerogitdeploy.action.NewBranchAction" icon="AllIcons.Actions.OpenNewTab" text="NewBranch" description="New Branch" />
+            <action id="ChangeVersionToolbar" class="com.zerofinance.zerogitdeploy.action.ChangeVersionAction" icon="AllIcons.Actions.ChangeView" text="ChangeVersion" description="Change Version" />
+            <action id="MybatisGenToolbar" class="com.zerofinance.zerogitdeploy.action.MybatisGenAction" icon="AllIcons.Actions.InlayRenameInNoCodeFilesActive" text="MybatisGen" description="Mybatis Gen" />
+            <separator/>
         </group>
     </actions>
 </idea-plugin>

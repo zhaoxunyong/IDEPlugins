@@ -1,23 +1,17 @@
 package com.zerofinance.zerogitdeploy.tools;
 
+import com.google.common.base.Joiner;
+import com.intellij.execution.ui.ConsoleView;
+import com.intellij.execution.ui.ConsoleViewContentType;
+import com.zerofinance.zerogitdeploy.setting.ZeroGitDeploySetting;
+import org.apache.commons.exec.*;
+import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.SystemUtils;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
-
-import com.intellij.execution.ui.ConsoleView;
-import com.intellij.execution.ui.ConsoleViewContentType;
-import com.zerofinance.zerogitdeploy.setting.ZeroGitDeploySetting;
-import org.apache.commons.exec.CommandLine;
-import org.apache.commons.exec.DefaultExecutor;
-import org.apache.commons.exec.ExecuteException;
-import org.apache.commons.exec.Executor;
-import org.apache.commons.exec.LogOutputStream;
-import org.apache.commons.exec.PumpStreamHandler;
-import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang.SystemUtils;
-
-import com.google.common.base.Joiner;
 
 /**
  * DeployPluginHelper
@@ -33,53 +27,6 @@ import com.google.common.base.Joiner;
 public class DeployCmdExecuter {
     public final static String PLUGIN_ID = "GitDeployPlugin";
     public final static String PLUGIN_TITLE = "Git Deploy";
-
-//    public static void success(Shell shell, String context){
-//        MessageDialog.openInformation(shell, SLICE_PLUGIN, context);
-//    }
-//    
-//    public static void error(Shell shell, String name, String context){
-//        MessageDialog.openError(shell, name, context);
-//    }
-
-    /*private static MessageConsoleStream createConsole(String consoleName, boolean clean) {
-        MessageConsole console = findConsole(consoleName);
-        MessageConsoleStream cs = console.newMessageStream();
-        cs.setEncoding("utf-8");
-        cs.setColor(Display.getDefault().getSystemColor(SWT.COLOR_BLACK));
-        if(clean){
-            console.clearConsole();
-        }
-        console.activate();
-        return cs;
-    }
-
-    private static ConsoleView findConsole(String name) {
-        ConsolePlugin plugin = ConsolePlugin.getDefault();
-        IConsoleManager conMan = plugin.getConsoleManager();
-        IConsole[] existing = conMan.getConsoles();
-        for (int i = 0; i < existing.length; i++) {
-            if (name.equals(existing[i].getName())) {
-                return (MessageConsole) existing[i];
-            }
-        }
-        // no console found -> create new one
-        MessageConsole newConsole = new MessageConsole(name, null);
-        conMan.addConsoles(new IConsole[]{ newConsole });
-        return newConsole;
-    }
-
-
-
-    public static MessageConsole findConsole() {
-        return findConsole(DEPLOY_PLUGIN);
-    }
-
-    public static MessageConsoleStream console(boolean clean){
-        MessageConsoleStream console = createConsole(DEPLOY_PLUGIN, clean);
-        return console;
-    }*/
-
 
     public static ExecuteResult exec(String workHome, String command, List<String> params, boolean isBatchScript) throws InterruptedException, IOException {
         return exec(null, workHome, command, params, isBatchScript);
@@ -175,17 +122,21 @@ public class DeployCmdExecuter {
     	executor.setExitValues(codes);
 //        String out = "";
         ExecuteResult executeResult;
+        StringBuilder okMsgs = new StringBuilder();
+        StringBuilder errMsgs = new StringBuilder();
         if(console!=null) {
             executor.setStreamHandler(new PumpStreamHandler(new LogOutputStream() {
 
                 @Override
                 protected void processLine(String line, int level) {
+                    okMsgs.append(line+"\n");
                     console.print(line+"\n", ConsoleViewContentType.NORMAL_OUTPUT);
                 }
             }, new LogOutputStream() {
 
                 @Override
                 protected void processLine(String line, int level) {
+                    errMsgs.append(line+"\n");
                     console.print(line+"\n", ConsoleViewContentType.NORMAL_OUTPUT);
                 }
             }));
@@ -193,8 +144,10 @@ public class DeployCmdExecuter {
 //            int code = executor.execute(cmdLine);
             try {
             	int code = executor.execute(cmdLine);
-                executeResult = new ExecuteResult(code, ""+code);
+                String msg = code == 0 ? okMsgs.toString() : errMsgs.toString();
+                executeResult = new ExecuteResult(code, msg);
             }catch(ExecuteException e) {
+                e.printStackTrace();
                 executeResult = new ExecuteResult(-1, e.getMessage());
             }
         } else {
@@ -205,8 +158,10 @@ public class DeployCmdExecuter {
             executor.setStreamHandler(streamHandler);
             try {
             	int code = executor.execute(cmdLine);
-                executeResult = new ExecuteResult(code, outputStream.toString("utf-8"));
+                String msg = code == 0 ? outputStream.toString("utf-8") : errorStream.toString("utf-8");
+                executeResult = new ExecuteResult(code, msg);
             }catch(ExecuteException e) {
+                e.printStackTrace();
                 executeResult = new ExecuteResult(-1, e.getMessage());
             }
         }

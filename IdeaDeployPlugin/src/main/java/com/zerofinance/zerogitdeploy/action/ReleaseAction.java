@@ -4,12 +4,16 @@ import com.intellij.notification.NotificationType;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.PlatformDataKeys;
+import com.intellij.openapi.module.Module;
+import com.intellij.openapi.module.ModuleUtil;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.roots.ModuleRootManager;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.zerofinance.zerogitdeploy.tools.CommandUtils;
 import com.zerofinance.zerogitdeploy.handler.DeployPluginHandler;
 import com.zerofinance.zerogitdeploy.tools.MessagesUtils;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 
@@ -26,6 +30,10 @@ public class ReleaseAction extends AnAction {
             MessagesUtils.showMessage(project, "Please pick up a valid module!", "Error:", NotificationType.ERROR);
             return;
         }
+//        @Nullable Module module = ModuleUtil.findModuleForFile(vFile, project);
+//        String moduleRootPath = ModuleRootManager.getInstance(module).getContentRoots()[0].getPath();
+//        System.out.println("module--->"+module.getName()+"/"+module.getModuleFilePath());
+//        System.out.println("moduleRootPath--->"+moduleRootPath);
         String modulePath = vFile.getPath();
         String rootProjectPath = CommandUtils.getRootProjectPath(modulePath);
         String moduleName = new File(rootProjectPath).getName();
