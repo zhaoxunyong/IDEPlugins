@@ -122,21 +122,20 @@ public class DeployCmdExecuter {
     	executor.setExitValues(codes);
 //        String out = "";
         ExecuteResult executeResult;
-        StringBuilder okMsgs = new StringBuilder();
-        StringBuilder errMsgs = new StringBuilder();
+        StringBuilder msgs = new StringBuilder();
         if(console!=null) {
             executor.setStreamHandler(new PumpStreamHandler(new LogOutputStream() {
 
                 @Override
                 protected void processLine(String line, int level) {
-                    okMsgs.append(line+"\n");
+                    msgs.append(line+"\n");
                     console.print(line+"\n", ConsoleViewContentType.NORMAL_OUTPUT);
                 }
             }, new LogOutputStream() {
 
                 @Override
                 protected void processLine(String line, int level) {
-                    errMsgs.append(line+"\n");
+//                    msgs.append(line+"\n");
                     console.print(line+"\n", ConsoleViewContentType.NORMAL_OUTPUT);
                 }
             }));
@@ -144,8 +143,9 @@ public class DeployCmdExecuter {
 //            int code = executor.execute(cmdLine);
             try {
             	int code = executor.execute(cmdLine);
-                String msg = code == 0 ? okMsgs.toString() : errMsgs.toString();
-                executeResult = new ExecuteResult(code, msg);
+//                String msg = code == 0 ? okMsgs.toString() : errMsgs.toString();
+//                executeResult = new ExecuteResult(code, msg);
+                executeResult = new ExecuteResult(code, msgs.toString());
             }catch(ExecuteException e) {
                 e.printStackTrace();
                 executeResult = new ExecuteResult(-1, e.getMessage());
@@ -158,8 +158,10 @@ public class DeployCmdExecuter {
             executor.setStreamHandler(streamHandler);
             try {
             	int code = executor.execute(cmdLine);
-                String msg = code == 0 ? outputStream.toString("utf-8") : errorStream.toString("utf-8");
-                executeResult = new ExecuteResult(code, msg);
+//                String msg = code == 0 ? outputStream.toString("utf-8") : errorStream.toString("utf-8");
+//                executeResult = new ExecuteResult(code, msg);
+                // errorStream never occurred
+                executeResult = new ExecuteResult(code, outputStream.toString("utf-8"));
             }catch(ExecuteException e) {
                 e.printStackTrace();
                 executeResult = new ExecuteResult(-1, e.getMessage());

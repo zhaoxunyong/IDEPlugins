@@ -430,17 +430,17 @@ public final class DeployPluginHandler {
                 String pomVersion = getMavenPomVersion(rootProjectPath);
                 String defaultValue = pomVersion.replace("-SNAPSHOT", "") + "." + releaseType;
 
-                String inputedVersion = input("Please input a available branch name", moduleName+": Input a branch name", defaultValue).trim();
-                if (inputedVersion.indexOf(" ") != -1) {
+                String inputtedVersion = input("Please input a available branch name", moduleName+": Input a branch name", defaultValue).trim();
+                if (inputtedVersion.indexOf(" ") != -1) {
                     throw new DeployPluginException("The version is invalid.");
                 }
 
-                if (StringUtils.isNotBlank(inputedVersion)) {
+                if (StringUtils.isNotBlank(inputtedVersion)) {
 //		                String projectPath = project.getLocation().toFile().getPath();
 //		                String rootProjectPath = getParentProject(projectPath, cmd);
 
                     String desc = desc();
-                    List<String> parameters = Lists.newArrayList(inputedVersion, dateString, "false", "\"" + desc + "\"");
+                    List<String> parameters = Lists.newArrayList(inputtedVersion, dateString, "false", "\"" + desc + "\"");
                     CmdBuilder cmdBuilder = new CmdBuilder(rootProjectPath, cmdFile, true, parameters);
                     runJob(cmdBuilder);
                 }
