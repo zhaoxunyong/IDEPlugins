@@ -12,6 +12,7 @@ build/
 *.iws
 *.iml
 *.ipr
+workspace.xml
 out/
 !**/src/main/**/out/
 !**/src/test/**/out/
