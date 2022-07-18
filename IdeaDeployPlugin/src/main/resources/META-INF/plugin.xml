@@ -44,7 +44,7 @@
     <extensions defaultExtensionNs="com.intellij">
         <!-- Add your extensions here -->
         <toolWindow id="GitDeployPlugin"
-                    icon="AllIcons.Actions.InlayRenameInCommentsActive"
+                    icon="AllIcons.Actions.ChangeView"
                     anchor="bottom"
                     factoryClass="com.zerofinance.zerogitdeploy.ZeroGitDeploy"></toolWindow>
         <notificationGroup id="Custom Notification Group"
