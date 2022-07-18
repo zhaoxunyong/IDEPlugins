@@ -32,16 +32,6 @@ public class DeployCmdExecuter {
         return exec(null, workHome, command, params, isBatchScript);
     }
     
-    /**
-     *
-     * @param console
-     * @param workHome
-     * @param command
-     * @param params
-     * @return
-     * @throws IOException
-     * @throws InterruptedException
-     */
     public static ExecuteResult exec(final ConsoleView console, String workHome, String command, List<String> parameters, boolean isBatchScript) throws IOException, InterruptedException {
         String debug = ZeroGitDeploySetting.isDebug() ? "-x" : "";
         String moreDetails = ZeroGitDeploySetting.isMoreDetails() ? "-v" : "";

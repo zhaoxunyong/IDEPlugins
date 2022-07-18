@@ -14,9 +14,6 @@ public class DeployPluginException extends RuntimeException {
 
     private static final long serialVersionUID = 7718770093867602818L;
 
-    /**
-     * @param string
-     */
     public DeployPluginException(String message) {
         super(message);
     }

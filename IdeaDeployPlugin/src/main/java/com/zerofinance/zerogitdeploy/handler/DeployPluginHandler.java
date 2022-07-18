@@ -57,14 +57,15 @@ public final class DeployPluginHandler {
     private final String moduleName;
 
     private final static String CHANGEVERSION_BAT = "./changeVersion.sh";
+
     private final static String RELEASE_BAT = "./release.sh";
+
     private final static String NEWBRANCH_BAT = "./newBranch.sh";
-    private final static String TAG_BAT = "./tag.sh";
+
     private final static String GITCHECK_BAT = "./gitCheck.sh";
+
     private final static String COMMITED_LOGS_BAT = "./committedLogs.sh";
 
-    @Deprecated
-    private final static String MERGE_BAT = "./merge.sh";
     private final static String MYBATISGEN_BAT = "./mybatisGen.sh";
 
     /**
