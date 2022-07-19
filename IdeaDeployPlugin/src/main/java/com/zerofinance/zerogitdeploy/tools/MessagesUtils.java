@@ -14,7 +14,7 @@ public final class MessagesUtils {
         Notification notification = notificationGroup.createNotification(message, type);
         Notifications.Bus.notify(notification);*/
         NotificationGroupManager.getInstance()
-                .getNotificationGroup("Custom Notification Group")
+                .getNotificationGroup("Zero Notification Group")
                 .createNotification(title, message, type)
                 .notify(project);
     }

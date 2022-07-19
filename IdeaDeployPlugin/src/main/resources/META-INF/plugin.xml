@@ -47,7 +47,7 @@
                     icon="AllIcons.Actions.ChangeView"
                     anchor="bottom"
                     factoryClass="com.zerofinance.zerogitdeploy.ZeroGitDeploy"></toolWindow>
-        <notificationGroup id="Custom Notification Group"
+        <notificationGroup id="Zero Notification Group"
                            displayType="BALLOON" />
         <applicationConfigurable instance="com.zerofinance.zerogitdeploy.setting.ZeroGitDeploySetting" dynamic="true"/>
     </extensions>
