@@ -78,11 +78,9 @@ public final class DeployPluginHandler {
         String gitHome = ZeroGitDeploySetting.getGitHome();
         if (SystemUtils.IS_OS_WINDOWS && StringUtils.isBlank(gitHome)) {
             throw new DeployPluginException("Please configure Git Home Path from:\n" +
-                    "File -> Settings -> GitDeployPlugin");
+                    "File -> Settings -> Git Deploy Settings");
         }
     }
-
-
     public boolean preCheck() {
         boolean isConfirm = true;
         ExecuteResult result = null;
