@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 
+import com.zerofinance.zerogitdeploy.exception.DeployPluginException;
 import com.zerofinance.zerogitdeploy.setting.ZeroGitDeploySetting;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
@@ -16,15 +17,19 @@ public final class CommandUtils {
 	private CommandUtils() {}
     
 	public static String getRootProjectPath(String projectPath) {
+        try {
 //        String projectPath = project.getLocation().toFile().getPath();
-        if (!new File(projectPath + File.separator + ".git").exists()) {
-        	String parent = new File(projectPath).getParent();
-        	return getRootProjectPath(parent);
+            if (!new File(projectPath + File.separator + ".git").exists()) {
+                String parent = new File(projectPath).getParent();
+                return getRootProjectPath(parent);
+            }
+            if(SystemUtils.IS_OS_WINDOWS) {
+                projectPath = projectPath.replace("\\", "/");
+            }
+            return projectPath;
+        } catch (Exception e) {
+            throw new DeployPluginException("Making sure this is a git project!", e);
         }
-        if(SystemUtils.IS_OS_WINDOWS) {
-        	projectPath = projectPath.replace("\\", "/");
-        }
-        return projectPath;
     }
     
     public static String processScript(String projectPath, String scriptName) throws Exception {

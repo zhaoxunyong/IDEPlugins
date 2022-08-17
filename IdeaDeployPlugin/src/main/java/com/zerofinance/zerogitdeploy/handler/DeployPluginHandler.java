@@ -91,19 +91,21 @@ public final class DeployPluginHandler {
             MessagesUtils.showMessage(project, "Skipping checking the status of local git repository!", moduleName+": Information:", NotificationType.INFORMATION);
         }
         if (result != null && result.getCode() != 0) {
-            throw new DeployPluginException(result.getResult());
-        } else {
-            try {
-                result = this.committedLogWarn();
-                if (result != null && result.getCode() != 0) {
-                    throw new DeployPluginException(result.getResult());
-                } else {
-                    isConfirm = Messages.showYesNoDialog("Making sure you don't forget merging some modified code.\n\n" + result.getResult(), moduleName+": Committed Log Confirm?", Messages.getQuestionIcon()) == 0;
-                }
-            } catch (Exception e) {
-                // Skipping check when the committedLogs.sh isn't existing
-                MessagesUtils.showMessage(project, "Skipping checking the latest committed logs!", moduleName+": Information:", NotificationType.INFORMATION);
+            isConfirm = Messages.showYesNoDialog(result.getResult(), moduleName+": Want to continue?", Messages.getQuestionIcon()) == 0;
+            if(!isConfirm) {
+                throw new DeployPluginException(result.getResult());
             }
+        }
+        try {
+            result = this.committedLogWarn();
+            if (result != null && result.getCode() != 0) {
+                throw new DeployPluginException(result.getResult());
+            } else {
+                isConfirm = Messages.showYesNoDialog("Making sure you don't forget merging some modified code.\n\n" + result.getResult(), moduleName+": Committed Log Confirm?", Messages.getQuestionIcon()) == 0;
+            }
+        } catch (Exception e) {
+            // Skipping check when the committedLogs.sh isn't existing
+            MessagesUtils.showMessage(project, "Skipping checking the latest committed logs!", moduleName+": Information:", NotificationType.INFORMATION);
         }
         return isConfirm;
     }

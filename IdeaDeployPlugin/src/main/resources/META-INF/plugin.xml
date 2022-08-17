@@ -27,6 +27,7 @@
 
     <change-notes><![CDATA[
     <ul>
+        <li>1.0.3 : Fixed some issues. </li>
         <li>1.0.2 : Changed the icons and fixed some issues. </li>
         <li>1.0.1 : Added to toolbar and popup menu. </li>
         <li>1.0.0 : init </li>
