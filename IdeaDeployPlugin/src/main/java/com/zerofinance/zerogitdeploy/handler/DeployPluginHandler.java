@@ -91,8 +91,12 @@ public final class DeployPluginHandler {
             MessagesUtils.showMessage(project, "Skipping checking the status of local git repository!", moduleName+": Information:", NotificationType.INFORMATION);
         }
         if (result != null && result.getCode() != 0) {
-            isConfirm = Messages.showYesNoDialog(result.getResult(), moduleName+": Want to continue?", Messages.getQuestionIcon()) == 0;
-            if(!isConfirm) {
+            if(ZeroGitDeploySetting.isSkipRepoChangeConfirmKey()) {
+                isConfirm = Messages.showYesNoDialog(result.getResult(), moduleName+" repo is changed, want to continue?", "Confirm", "Cancel", Messages.getQuestionIcon()) == 0;
+                if(!isConfirm) {
+                    throw new DeployPluginException(result.getResult());
+                }
+            } else {
                 throw new DeployPluginException(result.getResult());
             }
         }

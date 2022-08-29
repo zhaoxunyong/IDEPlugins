@@ -5,8 +5,10 @@ import com.intellij.openapi.fileChooser.FileChooser;
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
 import com.intellij.openapi.options.Configurable;
 import com.intellij.openapi.options.ConfigurationException;
+import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.zerofinance.zerogitdeploy.tools.DeployCmdExecuter;
+import com.zerofinance.zerogitdeploy.tools.MessagesUtils;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.jetbrains.annotations.Nls;
@@ -30,6 +32,8 @@ public class ZeroGitDeploySetting implements Configurable {
     private JTextField scriptURLField;
     private JCheckBox runningInTerminalCheckBox;
 
+    private JCheckBox skipRepoChangeConfirmCheckBox;
+
     private static final String GIT_HOME_KEY = "gitDeployPluginGitHomeKey";
 
     private static final String SCRIPT_URL_KEY = "gitDeployPluginScriptURLKey";
@@ -37,6 +41,8 @@ public class ZeroGitDeploySetting implements Configurable {
     private static final String MORE_DETAILS_KEY = "gitDeployPluginMoreDetailsKey";
 
     private static final String RUNNING_IN_TERMINAL_KEY = "gitDeployPluginRunningInTerminalKey";
+
+    private static final String SKIP_REPO_CHANGE_CONFIRM_KEY = "skipRepoChangeConfirmKey";
 
     public ZeroGitDeploySetting() {
         textField.setText(PropertiesComponent.getInstance().getValue(GIT_HOME_KEY));
@@ -49,6 +55,7 @@ public class ZeroGitDeploySetting implements Configurable {
         needDebugCheckBox.setSelected(isDebug());
         moreDetailsCheckBox.setSelected(isMoreDetails());
         runningInTerminalCheckBox.setSelected(isRunnInTerminal());
+        skipRepoChangeConfirmCheckBox.setSelected(isSkipRepoChangeConfirmKey());
         button1.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -62,6 +69,14 @@ public class ZeroGitDeploySetting implements Configurable {
                         }
                     }
                 });
+            }
+        });
+        runningInTerminalCheckBox.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if(runningInTerminalCheckBox.isSelected()) {
+                    Messages.showInfoMessage("Making sure \"Settings->Tools->Terminal->Shell Path\" is configured as a full path of bash.exe.", "Information");
+                }
             }
         });
     }
@@ -85,7 +100,8 @@ public class ZeroGitDeploySetting implements Configurable {
                 || !StringUtils.equals(String.valueOf(scriptURLField.getText()),PropertiesComponent.getInstance().getValue(SCRIPT_URL_KEY))
                 || !StringUtils.equals(String.valueOf(needDebugCheckBox.isSelected()),PropertiesComponent.getInstance().getValue(DEBUG_KEY))
                 || !StringUtils.equals(String.valueOf(moreDetailsCheckBox.isSelected()),PropertiesComponent.getInstance().getValue(MORE_DETAILS_KEY))
-                || !StringUtils.equals(String.valueOf(runningInTerminalCheckBox.isSelected()),PropertiesComponent.getInstance().getValue(RUNNING_IN_TERMINAL_KEY));
+                || !StringUtils.equals(String.valueOf(runningInTerminalCheckBox.isSelected()),PropertiesComponent.getInstance().getValue(RUNNING_IN_TERMINAL_KEY))
+                || !StringUtils.equals(String.valueOf(skipRepoChangeConfirmCheckBox.isSelected()),PropertiesComponent.getInstance().getValue(SKIP_REPO_CHANGE_CONFIRM_KEY));
     }
 
     @Override
@@ -95,6 +111,7 @@ public class ZeroGitDeploySetting implements Configurable {
         PropertiesComponent.getInstance().setValue(DEBUG_KEY, String.valueOf(needDebugCheckBox.isSelected()));
         PropertiesComponent.getInstance().setValue(MORE_DETAILS_KEY, String.valueOf(moreDetailsCheckBox.isSelected()));
         PropertiesComponent.getInstance().setValue(RUNNING_IN_TERMINAL_KEY, String.valueOf(runningInTerminalCheckBox.isSelected()));
+        PropertiesComponent.getInstance().setValue(SKIP_REPO_CHANGE_CONFIRM_KEY, String.valueOf(skipRepoChangeConfirmCheckBox.isSelected()));
     }
 
     public static String getGitHome() {
@@ -124,5 +141,12 @@ public class ZeroGitDeploySetting implements Configurable {
             return false;
         }
         return Boolean.valueOf(PropertiesComponent.getInstance().getValue(RUNNING_IN_TERMINAL_KEY));
+    }
+
+    public static boolean isSkipRepoChangeConfirmKey() {
+        if(StringUtils.isBlank(PropertiesComponent.getInstance().getValue(SKIP_REPO_CHANGE_CONFIRM_KEY))) {
+            return false;
+        }
+        return Boolean.valueOf(PropertiesComponent.getInstance().getValue(SKIP_REPO_CHANGE_CONFIRM_KEY));
     }
 }
