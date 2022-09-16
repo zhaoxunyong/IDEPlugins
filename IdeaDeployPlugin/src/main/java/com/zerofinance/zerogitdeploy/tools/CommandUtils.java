@@ -32,23 +32,23 @@ public final class CommandUtils {
         }
     }
     
-    public static String processScript(String projectPath, String scriptName) throws Exception {
+    public static String processScript(String modulePath, String scriptName) throws Exception {
     	String tempFolder = getTempFolder();
 //        String projectPath = project.getLocation().toFile().getPath();
-        String rootProjectPath = getRootProjectPath(projectPath);
-        String cmdFile = getCmdFile(projectPath, scriptName);
-        String changVersionName = FilenameUtils.getName(cmdFile);
+//        String rootProjectPath = getRootProjectPath(modulePath);
+        String cmdFile = getCmdFile(modulePath, scriptName);
+        String fileName = FilenameUtils.getName(cmdFile);
 //        if(SystemUtils.IS_OS_WINDOWS) {
 //            rootProjectPath = rootProjectPath.replace("\\", "\\\\");
 //        }
 //        InputStream input = this.getClass().getResourceAsStream("/merge.sh");
 //        String str = IOUtils.toString(input);
-        File scriptFile = new File(rootProjectPath+File.separator+changVersionName);
+        File scriptFile = new File(modulePath+File.separator+fileName);
         String str = "";
         if(scriptFile.exists()) {
             str = FileUtils.readFileToString(scriptFile, "UTF-8");
         } else {
-        	URL uri = new URL(getRootUrl()+"/"+changVersionName.replace("./", "/"));
+        	URL uri = new URL(getRootUrl()+"/"+fileName.replace("./", "/"));
         	InputStream input = uri.openStream();
         	try {
         		str = IOUtils.toString(input);
@@ -57,7 +57,7 @@ public final class CommandUtils {
         	}
         }
         String script = str;//.replace("#cd #{project}", "cd "+rootProjectPath);
-        File file = new File(tempFolder+File.separator+changVersionName);
+        File file = new File(tempFolder+File.separator+fileName);
         FileUtils.writeStringToFile(file, script);
         if(SystemUtils.IS_OS_WINDOWS) {
             return file.getPath().replace("\\", "/");
@@ -103,13 +103,13 @@ public final class CommandUtils {
 //        return GitDeployPluginSetting.isMoreDetails();
 //    }
 
-    private static String getCmdFile(String projectPath, String cmd) throws IOException {
+    private static String getCmdFile(String modulePath, String cmd) throws IOException {
         String allCmd = cmd.replace(".sh", "All.sh");
-        String cmdFile = getParentCmdFile(projectPath, allCmd);
+        String cmdFile = getParentCmdFile(modulePath, allCmd);
         if (new File(cmdFile).exists()) {
             return cmdFile;
         }
-        return getParentCmdFile(projectPath, cmd);
+        return getParentCmdFile(modulePath, cmd);
     }
 
 }

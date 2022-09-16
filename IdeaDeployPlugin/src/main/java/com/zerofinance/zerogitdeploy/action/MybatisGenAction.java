@@ -4,37 +4,38 @@ import com.intellij.notification.NotificationType;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.PlatformDataKeys;
+import com.intellij.openapi.module.Module;
+import com.intellij.openapi.module.ModuleUtil;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.ui.Messages;
+import com.intellij.openapi.roots.ModuleRootManager;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.zerofinance.zerogitdeploy.tools.CommandUtils;
+import com.intellij.openapi.vfs.VirtualFileManager;
 import com.zerofinance.zerogitdeploy.handler.DeployPluginHandler;
 import com.zerofinance.zerogitdeploy.tools.MessagesUtils;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
-import java.io.File;
+import java.util.Date;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MybatisGenAction extends AnAction {
 
     @Override
     public void actionPerformed(AnActionEvent event) {
         Project project = event.getProject();
-        VirtualFile vFile = event.getData(PlatformDataKeys.VIRTUAL_FILE);
-        if(vFile == null) {
-            // showMessage("Please pick up a valid module!", "Error", NotificationType.ERROR);
-            // Messages.showErrorDialog("Please pick up a valid module!", "Error");
-            MessagesUtils.showMessage(project, "Please pick up a valid module!", "Error:", NotificationType.ERROR);
-            return;
-        }
-        String modulePath = vFile.getPath();
-        String rootProjectPath = CommandUtils.getRootProjectPath(modulePath);
-        String moduleName = new File(rootProjectPath).getName();
-//        MessagesUtils.showMessage(project, "\""+moduleName+"\" was selected!", "Information:", NotificationType.INFORMATION);
-
         try {
-            DeployPluginHandler handler = new DeployPluginHandler(project, modulePath, moduleName);
-            handler.mybatisGen();
-
+            DeployPluginHandler handler = new DeployPluginHandler(event);
+            CountDownLatch latch = new CountDownLatch(1);
+            handler.mybatisGen(t -> {
+                latch.countDown();
+            });
+            latch.await(5, TimeUnit.SECONDS);
+            //刷新不能再线程中，所以使用CountDownLatch
+//                moduleVirtualFile.refresh(true,true);
+            VirtualFileManager.getInstance().syncRefresh();
+            MessagesUtils.showMessage(project, "If you can't see these files, Reloading from disk to refresh!", "Information:", NotificationType.INFORMATION);
         } catch (Exception e) {
             e.printStackTrace();
             MessagesUtils.showMessage(project, e.getMessage(), "Error:", NotificationType.ERROR);

@@ -5,12 +5,18 @@ import com.google.common.collect.Lists;
 import com.intellij.execution.filters.TextConsoleBuilderFactory;
 import com.intellij.execution.impl.ConsoleViewImpl;
 import com.intellij.execution.ui.ConsoleView;
-import com.intellij.notification.*;
+import com.intellij.notification.NotificationType;
+import com.intellij.openapi.actionSystem.AnActionEvent;
+import com.intellij.openapi.actionSystem.PlatformDataKeys;
+import com.intellij.openapi.module.Module;
+import com.intellij.openapi.module.ModuleUtil;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.roots.ModuleRootManager;
 import com.intellij.openapi.ui.InputValidator;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.util.NlsSafe;
 import com.intellij.openapi.util.Pair;
+import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowManager;
 import com.intellij.terminal.JBTerminalWidget;
@@ -38,6 +44,7 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 /**
  * <p>
@@ -56,6 +63,8 @@ public final class DeployPluginHandler {
 
     private final String moduleName;
 
+    private final AnActionEvent event;
+
     private final static String CHANGEVERSION_BAT = "./changeVersion.sh";
 
     private final static String RELEASE_BAT = "./release.sh";
@@ -71,10 +80,27 @@ public final class DeployPluginHandler {
     /**
      *
      */
-    public DeployPluginHandler(Project project, String modulePath, String moduleName) {
-        this.project = project;
-        this.modulePath = modulePath;
-        this.moduleName = moduleName;
+    public DeployPluginHandler(AnActionEvent event) {
+        this.event = event;
+        this.project = event.getProject();
+
+        VirtualFile vFile = event.getData(PlatformDataKeys.VIRTUAL_FILE);
+        if (vFile == null) {
+            // showMessage("Please pick up a valid module!", "Error", NotificationType.ERROR);
+            // Messages.showErrorDialog("Please pick up a valid module!", "Error");
+//            MessagesUtils.showMessage(project, "Please pick up a valid module!", "Error:", NotificationType.ERROR);
+            throw new DeployPluginException("Please pick up a valid module!");
+        }
+        @Nullable Module module = ModuleUtil.findModuleForFile(vFile, project);
+        VirtualFile moduleVirtualFile = ModuleRootManager.getInstance(module).getContentRoots()[0];
+
+        this.modulePath = moduleVirtualFile.getPath();
+        this.moduleName = new File(modulePath).getName();
+//        System.out.println("module--->"+module.getName()+"/"+module.getModuleFilePath());
+//        System.out.println("moduleRootPath--->"+moduleRootPath);
+//        String selectedPath = vFile.getPath();
+//        String rootProjectPath = CommandUtils.getRootProjectPath(modulePath);
+
         String gitHome = ZeroGitDeploySetting.getGitHome();
         if (SystemUtils.IS_OS_WINDOWS && StringUtils.isBlank(gitHome)) {
             throw new DeployPluginException("Please configure Git Home Path from:\n" +
@@ -348,7 +374,7 @@ public final class DeployPluginHandler {
 
             if (parameters != null && !parameters.isEmpty()) {
                 CmdBuilder cmdBuilder = new CmdBuilder(rootProjectPath, cmdFile, true, parameters);
-                runJob(cmdBuilder);
+                runJob(cmdBuilder, null);
             }
         } catch (Exception e) {
             throw new DeployPluginException(e.getMessage(), e);
@@ -377,26 +403,30 @@ public final class DeployPluginHandler {
                 String desc = desc();
                 parameters.add("\"" + desc + "\"");
                 CmdBuilder cmdBuilder = new CmdBuilder(rootProjectPath, cmdFile, true, parameters);
-                runJob(cmdBuilder);
+                runJob(cmdBuilder, null);
             }
         } catch (Exception e) {
             throw new DeployPluginException(e.getMessage(), e);
         }
     }
 
-    public void mybatisGen() {
+    public void mybatisGen(Consumer consumer) {
         try {
-            String rootProjectPath = CommandUtils.getRootProjectPath(modulePath);
-
+//            String rootProjectPath = CommandUtils.getRootProjectPath(modulePath);
+//            VirtualFile vFile = event.getData(PlatformDataKeys.VIRTUAL_FILE);
             String cmdFile = CommandUtils.processScript(modulePath, MYBATISGEN_BAT);
 //        String cmdName = FilenameUtils.getName(cmdFile);
             // Using "projectPath" instead of "rootProjectPath"
-            CmdBuilder cmdBuilder = new CmdBuilder(rootProjectPath, cmdFile, true, Lists.newArrayList());
+            CmdBuilder cmdBuilder = new CmdBuilder(modulePath, cmdFile, true, Lists.newArrayList());
             boolean isConfirm = Messages.showYesNoDialog("Are you sure you want to execute \"mybatis-generator-maven-plugin\"?",
                     moduleName+": Are you sure?", Messages.getQuestionIcon()) == 0;
             // boolean isConfirm = MessageDialog.openConfirm(shell, "Mybatis Gen Confirm?", project.getName() + " Mybatis Gen Confirm?");
             if (isConfirm) {
-                runJob(cmdBuilder);
+                runJob(cmdBuilder, consumer);
+            } else {
+                if(consumer != null) {
+                    consumer.accept(null);
+                }
             }
         } catch (Exception e) {
             throw new DeployPluginException(e.getMessage(), e);
@@ -447,7 +477,7 @@ public final class DeployPluginHandler {
                     String desc = desc();
                     List<String> parameters = Lists.newArrayList(inputtedVersion, dateString, "false", "\"" + desc + "\"");
                     CmdBuilder cmdBuilder = new CmdBuilder(rootProjectPath, cmdFile, true, parameters);
-                    runJob(cmdBuilder);
+                    runJob(cmdBuilder, null);
                 }
             }
         } catch (Exception e) {
@@ -455,9 +485,9 @@ public final class DeployPluginHandler {
         }
     }
 
-    private void runJob(CmdBuilder cmdBuilder) {
+    private void runJob(CmdBuilder cmdBuilder, Consumer consumer) {
         try {
-            String rootProjectPath = cmdBuilder.getWorkHome();
+            String modulePath = cmdBuilder.getWorkHome();
 //            String title = new File(rootProjectPath).getName();
             String title = DeployCmdExecuter.PLUGIN_TITLE;
             if(ZeroGitDeploySetting.isRunnInTerminal()) {
@@ -466,7 +496,7 @@ public final class DeployPluginHandler {
                 //Working via terminal
                 String debug = ZeroGitDeploySetting.isDebug() ? "-x" : "";
                 String moreDetails = ZeroGitDeploySetting.isMoreDetails() ? "-v" : "";
-                command = "bash " + debug + " " + moreDetails + " " + command;
+                command = "cd "+modulePath+" && bash " + debug + " " + moreDetails + " " + command;
                 if (parameters != null && !parameters.isEmpty()) {
                     String params = Joiner.on(" ").join(parameters);
                     command += " " + params;
@@ -507,6 +537,10 @@ public final class DeployPluginHandler {
                         MessagesUtils.showMessage(project, "Git Deploy Done, please check if Terminal has any error appeared!", moduleName+": Done", NotificationType.INFORMATION);
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);
+                    } finally {
+                        if(consumer != null) {
+                            consumer.accept(null);
+                        }
                     }
                 }).start();
             } else {
@@ -544,7 +578,7 @@ public final class DeployPluginHandler {
                     List<String> parameters = cmdBuilder.getParams();
                     ExecuteResult result = null;
                     try {
-                        result = DeployCmdExecuter.exec(console, rootProjectPath, command, parameters, true);
+                        result = DeployCmdExecuter.exec(console, modulePath, command, parameters, true);
                         if (result != null && result.getCode() != 0) {
                             MessagesUtils.showMessage(project, "Something went wrong, please check the log messages!", moduleName+": Error", NotificationType.ERROR);
                         } else {
@@ -553,6 +587,10 @@ public final class DeployPluginHandler {
                     } catch (Exception e) {
 //                        MessagesUtils.showMessage(project, e.getMessage(), moduleName+": Error", NotificationType.ERROR);
                         throw new RuntimeException(e);
+                    } finally {
+                        if(consumer != null) {
+                            consumer.accept(null);
+                        }
                     }
                 }).start();
             }

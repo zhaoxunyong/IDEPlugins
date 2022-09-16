@@ -9,6 +9,7 @@ import com.intellij.openapi.module.ModuleUtil;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.ModuleRootManager;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.openapi.vfs.VirtualFileManager;
 import com.zerofinance.zerogitdeploy.tools.CommandUtils;
 import com.zerofinance.zerogitdeploy.handler.DeployPluginHandler;
 import com.zerofinance.zerogitdeploy.tools.MessagesUtils;
@@ -22,33 +23,16 @@ public class ReleaseAction extends AnAction {
     @Override
     public void actionPerformed(AnActionEvent event) {
         Project project = event.getProject();
-
-        VirtualFile vFile = event.getData(PlatformDataKeys.VIRTUAL_FILE);
-        if(vFile == null) {
-            // showMessage("Please pick up a valid module!", "Error", NotificationType.ERROR);
-            // Messages.showErrorDialog("Please pick up a valid module!", "Error");
-            MessagesUtils.showMessage(project, "Please pick up a valid module!", "Error:", NotificationType.ERROR);
-            return;
-        }
-//        @Nullable Module module = ModuleUtil.findModuleForFile(vFile, project);
-//        String moduleRootPath = ModuleRootManager.getInstance(module).getContentRoots()[0].getPath();
-//        System.out.println("module--->"+module.getName()+"/"+module.getModuleFilePath());
-//        System.out.println("moduleRootPath--->"+moduleRootPath);
-        String modulePath = vFile.getPath();
-        String rootProjectPath = CommandUtils.getRootProjectPath(modulePath);
-        String moduleName = new File(rootProjectPath).getName();
-//        MessagesUtils.showMessage(project, "\""+moduleName+"\" was selected!", "Information:", NotificationType.INFORMATION);
-
         try {
-            DeployPluginHandler handler = new DeployPluginHandler(project, modulePath, moduleName);
-            if(handler.preCheck()) {
+            DeployPluginHandler handler = new DeployPluginHandler(event);
+            if (handler.preCheck()) {
                 handler.release();
             }
 
         } catch (Exception e) {
             e.printStackTrace();
 //            Messages.showErrorDialog(e.getMessage(), "Error");
-            MessagesUtils.showMessage(project, e.getMessage(), moduleName+"： Error:", NotificationType.ERROR);
+            MessagesUtils.showMessage(project, e.getMessage(), "Error:", NotificationType.ERROR);
         }
     }
 
