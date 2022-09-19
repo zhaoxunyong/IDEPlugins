@@ -29,7 +29,6 @@ public class NewBranchAction extends AnAction {
             if (handler.preCheck()) {
                 handler.newBranch();
             }
-
         } catch (Exception e) {
             e.printStackTrace();
             MessagesUtils.showMessage(project, e.getMessage(), "Error:", NotificationType.ERROR);

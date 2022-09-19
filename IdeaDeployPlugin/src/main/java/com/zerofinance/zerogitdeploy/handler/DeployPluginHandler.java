@@ -10,6 +10,10 @@ import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.PlatformDataKeys;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleUtil;
+import com.intellij.openapi.progress.ProgressIndicator;
+import com.intellij.openapi.progress.ProgressManager;
+import com.intellij.openapi.progress.Task;
+import com.intellij.openapi.progress.impl.BackgroundableProcessIndicator;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.ModuleRootManager;
 import com.intellij.openapi.ui.InputValidator;
@@ -44,7 +48,6 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 
 /**
  * <p>
@@ -62,6 +65,8 @@ public final class DeployPluginHandler {
     private final String modulePath;
 
     private final String moduleName;
+
+    private final VirtualFile moduleVirtualFile;
 
     private final AnActionEvent event;
 
@@ -92,7 +97,7 @@ public final class DeployPluginHandler {
             throw new DeployPluginException("Please pick up a valid module!");
         }
         @Nullable Module module = ModuleUtil.findModuleForFile(vFile, project);
-        VirtualFile moduleVirtualFile = ModuleRootManager.getInstance(module).getContentRoots()[0];
+        this.moduleVirtualFile = ModuleRootManager.getInstance(module).getContentRoots()[0];
 
         this.modulePath = moduleVirtualFile.getPath();
         this.moduleName = new File(modulePath).getName();
@@ -374,7 +379,7 @@ public final class DeployPluginHandler {
 
             if (parameters != null && !parameters.isEmpty()) {
                 CmdBuilder cmdBuilder = new CmdBuilder(rootProjectPath, cmdFile, true, parameters);
-                runJob(cmdBuilder, null);
+                runJob(cmdBuilder);
             }
         } catch (Exception e) {
             throw new DeployPluginException(e.getMessage(), e);
@@ -403,14 +408,14 @@ public final class DeployPluginHandler {
                 String desc = desc();
                 parameters.add("\"" + desc + "\"");
                 CmdBuilder cmdBuilder = new CmdBuilder(rootProjectPath, cmdFile, true, parameters);
-                runJob(cmdBuilder, null);
+                runJob(cmdBuilder);
             }
         } catch (Exception e) {
             throw new DeployPluginException(e.getMessage(), e);
         }
     }
 
-    public void mybatisGen(Consumer consumer) {
+    public void mybatisGen() {
         try {
 //            String rootProjectPath = CommandUtils.getRootProjectPath(modulePath);
 //            VirtualFile vFile = event.getData(PlatformDataKeys.VIRTUAL_FILE);
@@ -422,11 +427,7 @@ public final class DeployPluginHandler {
                     moduleName+": Are you sure?", Messages.getQuestionIcon()) == 0;
             // boolean isConfirm = MessageDialog.openConfirm(shell, "Mybatis Gen Confirm?", project.getName() + " Mybatis Gen Confirm?");
             if (isConfirm) {
-                runJob(cmdBuilder, consumer);
-            } else {
-                if(consumer != null) {
-                    consumer.accept(null);
-                }
+                runJob(cmdBuilder);
             }
         } catch (Exception e) {
             throw new DeployPluginException(e.getMessage(), e);
@@ -477,7 +478,7 @@ public final class DeployPluginHandler {
                     String desc = desc();
                     List<String> parameters = Lists.newArrayList(inputtedVersion, dateString, "false", "\"" + desc + "\"");
                     CmdBuilder cmdBuilder = new CmdBuilder(rootProjectPath, cmdFile, true, parameters);
-                    runJob(cmdBuilder, null);
+                    runJob(cmdBuilder);
                 }
             }
         } catch (Exception e) {
@@ -485,7 +486,7 @@ public final class DeployPluginHandler {
         }
     }
 
-    private void runJob(CmdBuilder cmdBuilder, Consumer consumer) {
+    private void runJob(CmdBuilder cmdBuilder) {
         try {
             String modulePath = cmdBuilder.getWorkHome();
 //            String title = new File(rootProjectPath).getName();
@@ -528,19 +529,17 @@ public final class DeployPluginHandler {
                     }
                 }
                 final ShellTerminalWidget finalTerminal = terminal;
-                        new Thread(()->{
+                new Thread(()->{
                     try {
                         TimeUnit.SECONDS.sleep(1L);
                         while(finalTerminal.hasRunningCommands()) {
                             TimeUnit.MILLISECONDS.sleep(100L);
                         }
+                        // Refresh the module space:
+                        moduleVirtualFile.refresh(false, true);
                         MessagesUtils.showMessage(project, "Git Deploy Done, please check if Terminal has any error appeared!", moduleName+": Done", NotificationType.INFORMATION);
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);
-                    } finally {
-                        if(consumer != null) {
-                            consumer.accept(null);
-                        }
                     }
                 }).start();
             } else {
@@ -570,29 +569,29 @@ public final class DeployPluginHandler {
                     }
                 }
                 ConsoleView console = consoleView;
-                //consoleView.clear();
-                //consoleView.print("Hello from MyPlugin!"+new Date().toString(), ConsoleViewContentType.NORMAL_OUTPUT);
-                //command = "./gradlew build";
-                new Thread(()-> {
-                    String command = cmdBuilder.getCommand();
-                    List<String> parameters = cmdBuilder.getParams();
-                    ExecuteResult result = null;
-                    try {
-                        result = DeployCmdExecuter.exec(console, modulePath, command, parameters, true);
-                        if (result != null && result.getCode() != 0) {
-                            MessagesUtils.showMessage(project, "Something went wrong, please check the log messages!", moduleName+": Error", NotificationType.ERROR);
-                        } else {
-                            MessagesUtils.showMessage(project, "Git Deploy Ok!", moduleName+": Done", NotificationType.INFORMATION);
-                        }
-                    } catch (Exception e) {
-//                        MessagesUtils.showMessage(project, e.getMessage(), moduleName+": Error", NotificationType.ERROR);
-                        throw new RuntimeException(e);
-                    } finally {
-                        if(consumer != null) {
-                            consumer.accept(null);
+
+                Task.Backgroundable task = new Task.Backgroundable(project, "Processing...") {
+                    @Override
+                    public void run(@NotNull ProgressIndicator indicator) {
+                        String command = cmdBuilder.getCommand();
+                        List<String> parameters = cmdBuilder.getParams();
+                        ExecuteResult result = null;
+                        try {
+                            result = DeployCmdExecuter.exec(console, modulePath, command, parameters, true);
+                            if (result != null && result.getCode() != 0) {
+                                MessagesUtils.showMessage(project, "Something went wrong, please check the log messages!", moduleName+": Error", NotificationType.ERROR);
+                            } else {
+                                MessagesUtils.showMessage(project, "Git Deploy Ok!", moduleName+": Done", NotificationType.INFORMATION);
+                            }
+                            // Refresh the module space:
+                            moduleVirtualFile.refresh(false, true);
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
                         }
                     }
-                }).start();
+                };
+//                ProgressManager.getInstance().runProcessWithProgressAsynchronously(task, new BackgroundableProcessIndicator(task));
+                ProgressManager.getInstance().run(task);
             }
         } catch (Exception e) {
             throw new RuntimeException(e);

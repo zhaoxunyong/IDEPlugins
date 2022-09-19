@@ -27,15 +27,7 @@ public class MybatisGenAction extends AnAction {
         Project project = event.getProject();
         try {
             DeployPluginHandler handler = new DeployPluginHandler(event);
-            CountDownLatch latch = new CountDownLatch(1);
-            handler.mybatisGen(t -> {
-                latch.countDown();
-            });
-            latch.await(5, TimeUnit.SECONDS);
-            //刷新不能再线程中，所以使用CountDownLatch
-//                moduleVirtualFile.refresh(true,true);
-            VirtualFileManager.getInstance().syncRefresh();
-            MessagesUtils.showMessage(project, "If you can't see these files, Reloading from disk to refresh!", "Information:", NotificationType.INFORMATION);
+            handler.mybatisGen();
         } catch (Exception e) {
             e.printStackTrace();
             MessagesUtils.showMessage(project, e.getMessage(), "Error:", NotificationType.ERROR);
