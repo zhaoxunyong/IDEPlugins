@@ -570,6 +570,7 @@ public final class DeployPluginHandler {
                 }
                 ConsoleView console = consoleView;
 
+                // https://plugins.jetbrains.com/docs/intellij/general-threading-rules.html#background-processes-and-processcanceledexception
                 Task.Backgroundable task = new Task.Backgroundable(project, "Processing...") {
                     @Override
                     public void run(@NotNull ProgressIndicator indicator) {
