@@ -16,10 +16,12 @@ import com.intellij.openapi.progress.Task;
 import com.intellij.openapi.progress.impl.BackgroundableProcessIndicator;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.ModuleRootManager;
+import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.ui.InputValidator;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.util.NlsSafe;
 import com.intellij.openapi.util.Pair;
+import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowManager;
@@ -32,8 +34,11 @@ import com.zerofinance.zerogitdeploy.tools.*;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.DirectoryFileFilter;
 import org.apache.commons.io.filefilter.FileFilterUtils;
+import org.apache.commons.io.filefilter.NameFileFilter;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.SystemUtils;
+import org.apache.commons.lang3.CharSetUtils;
+import org.apache.commons.lang3.RandomUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.plugins.terminal.ShellTerminalWidget;
@@ -43,11 +48,11 @@ import org.jetbrains.plugins.terminal.TerminalView;
 import javax.swing.*;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
-import java.util.Collection;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 /**
  * <p>
@@ -72,7 +77,7 @@ public final class DeployPluginHandler {
 
     private final static String CHANGEVERSION_BAT = "./changeVersion.sh";
 
-    private final static String RELEASE_BAT = "./release.sh";
+    private final static String RELEASE_BAT = "./release-dave.sh";
 
     private final static String NEWBRANCH_BAT = "./newBranch.sh";
 
@@ -362,6 +367,52 @@ public final class DeployPluginHandler {
         return "";
     }
 
+
+
+    private String getPreparingVersionFile() throws Exception {
+        String preparingVersionFile = "";
+        String rootProjectPath = CommandUtils.getRootProjectPath(modulePath);
+        MavenDependency mavenDependency = MavenUtils.getDependencies(rootProjectPath);
+        Map<String, String> dependencies = mavenDependency.getDependencies();
+        System.out.println("dependencies===>"+dependencies);
+        File pomFile = mavenDependency.getPomFile();
+        if(dependencies!=null &&!dependencies.isEmpty()) {
+            // Show dialog to change version
+            DependenciesDialogWrapper dialogWrapper = new DependenciesDialogWrapper(dependencies);//.showAndGet();
+            dialogWrapper.show();
+            int exitCode = dialogWrapper.getExitCode();
+            if(exitCode == DialogWrapper.OK_EXIT_CODE) {
+                // ok
+                preparingVersionFile = CommandUtils.getTempFolder()+File.separator+ UUID.randomUUID();
+                Map<String, JTextField> textFields = dialogWrapper.getTextFields();
+                // Checking text field
+                textFields.forEach((key, textField)->{
+                    String text = textField.getText();
+                    System.out.println("key===>"+key);
+                    System.out.println("textField===>"+text);
+                    if(StringUtils.isBlank(text)) {
+                        throw new DeployPluginException("Please give a available current dependency version.");
+                    }
+                });
+                if(new File(preparingVersionFile).exists()) {
+                    new File(preparingVersionFile).delete();
+                }
+                FileUtils.write(new File(preparingVersionFile), pomFile+"\n", StandardCharsets.UTF_8, true);
+
+                for (Map.Entry<String, JTextField> entry : textFields.entrySet()) {
+                    String key = entry.getKey();
+                    JTextField textField = entry.getValue();
+                    String text = textField.getText();
+                    String value = key + ":" + text+"\n";
+                    FileUtils.write(new File(preparingVersionFile), value, StandardCharsets.UTF_8, true);
+                }
+                preparingVersionFile = preparingVersionFile.replace("\\", "/");
+                System.out.println("preparingVersionFile===>"+preparingVersionFile);
+            }
+        }
+        return preparingVersionFile;
+    }
+
     public void changeVersion() {
         try {
             String cmdFile = CommandUtils.processScript(modulePath, CHANGEVERSION_BAT);
@@ -436,6 +487,7 @@ public final class DeployPluginHandler {
 
     public void release() {
         try {
+            String preparingVersionFile = getPreparingVersionFile();
             String rootProjectPath = CommandUtils.getRootProjectPath(modulePath);
 
             boolean continute = true;
@@ -476,7 +528,7 @@ public final class DeployPluginHandler {
 //		                String rootProjectPath = getParentProject(projectPath, cmd);
 
                     String desc = desc();
-                    List<String> parameters = Lists.newArrayList(inputtedVersion, dateString, "false", "\"" + desc + "\"");
+                    List<String> parameters = Lists.newArrayList(inputtedVersion, dateString, "false", "\"" + desc + "\"", preparingVersionFile);
                     CmdBuilder cmdBuilder = new CmdBuilder(rootProjectPath, cmdFile, true, parameters);
                     runJob(cmdBuilder);
                 }
