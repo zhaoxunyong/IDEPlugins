@@ -56,7 +56,7 @@ public final class CommandUtils {
         		IOUtils.closeQuietly(input);
         	}
         }
-        String script = str;//.replace("#cd #{project}", "cd "+rootProjectPath);
+        String script = str.replace("#cd #{project}", "cd "+modulePath);
         File file = new File(tempFolder+File.separator+fileName);
         FileUtils.writeStringToFile(file, script);
         if(SystemUtils.IS_OS_WINDOWS) {
