@@ -13,10 +13,7 @@ import javax.swing.*;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Pattern;
 
 /**
@@ -58,7 +55,7 @@ public final class MavenUtils {
     public static MavenDependency getDependencies(String rootProjectPath) throws IOException {
         NameFileFilter nameFileFilter = new NameFileFilter("pom.xml");
         Collection<File> files = FileUtils.listFiles(new File(rootProjectPath), nameFileFilter, DirectoryFileFilter.DIRECTORY);
-        Map<String, String> map = new HashMap<>();
+        Map<String, String> map = new LinkedHashMap<>();
         File pomFile = null;
         if(files != null) {
             for (File file : files) {
