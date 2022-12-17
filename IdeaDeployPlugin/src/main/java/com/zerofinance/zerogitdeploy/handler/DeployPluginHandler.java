@@ -77,7 +77,7 @@ public final class DeployPluginHandler {
 
     private final static String CHANGEVERSION_BAT = "./changeVersion.sh";
 
-    private final static String RELEASE_BAT = "./release-dave.sh";
+    private final static String RELEASE_BAT = "./release.sh";
 
     private final static String NEWBRANCH_BAT = "./newBranch.sh";
 
