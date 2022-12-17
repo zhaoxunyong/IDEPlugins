@@ -6,9 +6,7 @@
   <component name="ChangeListManager">
     <list default="true" id="2dd5e85f-3834-40d4-acbf-af10224ec20d" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/action/AnyToolAction.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/action/AnyToolAction.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/handler/DependenciesDialogWrapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/handler/DependenciesDialogWrapper.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/handler/DeployPluginHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/handler/DeployPluginHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/tools/MavenUtils.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/tools/MavenUtils.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -146,6 +144,7 @@
       <workItem from="1671275067755" duration="591000" />
       <workItem from="1671276368130" duration="370000" />
       <workItem from="1671282948466" duration="1504000" />
+      <workItem from="1671287722642" duration="636000" />
     </task>
     <task id="LOCAL-00001" summary="Mod: Adjusting some tips.">
       <created>1656926991407</created>

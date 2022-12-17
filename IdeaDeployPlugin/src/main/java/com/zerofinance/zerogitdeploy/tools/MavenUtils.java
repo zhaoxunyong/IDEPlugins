@@ -28,28 +28,50 @@ public final class MavenUtils {
     private MavenUtils(){}
 
     public static String getLatestVersion(String pattern, File realPrjParentPath) throws IOException {
-        Collection<File> folders = FileUtil.findFilesOrDirsByMask(Pattern.compile(pattern), realPrjParentPath);//.listFiles(new File(realPrjParentPath), FileFilterUtils.falseFileFilter(), FileFilterUtils.nameFileFilter(realPrj));
         String latestVersion = "";
-        for(File folder : folders) {
-            if(folder.isDirectory()) {
-                String pomFile = folder+File.separator+"pom.xml";
-                if(new File(pomFile).exists()) {
-                    System.out.println("pomFile--->"+pomFile);
-                    List<String> mvnString = FileUtils.readLines(new File(pomFile), StandardCharsets.UTF_8);
-                    for(String mvn: mvnString) {
-                        if(mvn.indexOf("<version>") != -1) {
-                            latestVersion = mvn.replace("<version>","").replace("</version>", "");
-                            break;
-                        }
-                    }
+        String pomFile = realPrjParentPath+File.separator+"pom.xml";
+        if(new File(pomFile).exists()) {
+            System.out.println("pomFile--->"+pomFile);
+            List<String> mvnString = FileUtils.readLines(new File(pomFile), StandardCharsets.UTF_8);
+            for(String mvn: mvnString) {
+                if(mvn.indexOf("<version>") != -1) {
+                    latestVersion = mvn.replace("<version>","").replace("</version>", "");
+                    break;
                 }
             }
-            if(StringUtils.isNotBlank(latestVersion)) {
-                latestVersion = latestVersion.trim();
-                break;
-            }
+        }
+        if(StringUtils.isNotBlank(latestVersion)) {
+            latestVersion = latestVersion.trim();
         }
         return latestVersion;
+
+
+//        Collection<File> folders = FileUtil.findFilesOrDirsByMask(Pattern.compile(pattern), realPrjParentPath);//.listFiles(new File(realPrjParentPath), FileFilterUtils.falseFileFilter(), FileFilterUtils.nameFileFilter(realPrj));
+//        if(folders == null || folders.isEmpty()) {
+//            folders = new ArrayList<>();
+//            folders.add(realPrjParentPath);
+//        }
+//        String latestVersion = "";
+//        for(File folder : folders) {
+//            if(folder.isDirectory()) {
+//                String pomFile = folder+File.separator+"pom.xml";
+//                if(new File(pomFile).exists()) {
+//                    System.out.println("pomFile--->"+pomFile);
+//                    List<String> mvnString = FileUtils.readLines(new File(pomFile), StandardCharsets.UTF_8);
+//                    for(String mvn: mvnString) {
+//                        if(mvn.indexOf("<version>") != -1) {
+//                            latestVersion = mvn.replace("<version>","").replace("</version>", "");
+//                            break;
+//                        }
+//                    }
+//                }
+//            }
+//            if(StringUtils.isNotBlank(latestVersion)) {
+//                latestVersion = latestVersion.trim();
+//                break;
+//            }
+//        }
+//        return latestVersion;
     }
 
     public static MavenDependency getDependencies(String rootProjectPath) throws IOException {
