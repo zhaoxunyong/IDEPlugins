@@ -475,7 +475,7 @@ public final class DeployPluginHandler {
             // Using "projectPath" instead of "rootProjectPath"
             CmdBuilder cmdBuilder = new CmdBuilder(modulePath, cmdFile, true, Lists.newArrayList());
             boolean isConfirm = Messages.showYesNoDialog("Are you sure?",
-                    moduleName+": Are you sure?", Messages.getQuestionIcon()) == 0;
+                    moduleName, Messages.getQuestionIcon()) == 0;
             // boolean isConfirm = MessageDialog.openConfirm(shell, "Mybatis Gen Confirm?", project.getName() + " Mybatis Gen Confirm?");
             if (isConfirm) {
                 runJob(cmdBuilder);

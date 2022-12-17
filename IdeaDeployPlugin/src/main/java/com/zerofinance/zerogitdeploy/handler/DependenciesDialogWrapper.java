@@ -44,11 +44,11 @@ public class DependenciesDialogWrapper extends DialogWrapper {
     @Override
     protected JComponent createCenterPanel() {
         JPanel component = buildJpanel();
-        component.setPreferredSize(new Dimension(650, 300));
+        component.setPreferredSize(new Dimension(850, 300));
         // 设置布局
         component.setLayout(new BorderLayout());
         // 设置窗口最小尺寸
-        component.setMinimumSize(new Dimension(650, 300));
+        component.setMinimumSize(new Dimension(850, 300));
         component.setVisible(true);
         // 设置窗口尺寸是否固定不变
         return component;
@@ -72,12 +72,12 @@ public class DependenciesDialogWrapper extends DialogWrapper {
         int x2 = 220;
         int x3 = x2+width;
 
-//        dbPanel.add(buildJLabel("请确认对应的依赖版本:", x1, 0, width, height));
-
-        dbPanel.add(buildJLabel("项目依赖模块", x1, 0, width, height));
-        dbPanel.add(buildJLabel("本地当前版本", x2, 0, width, height));
-        dbPanel.add(buildJLabel("本地最新版本", x3, 0, width, height));
-
+        dbPanel.add(buildJTextArea("\"项目当前版本\"为当前项目所依赖的其他项目的版本号。\"依赖项目当前版本\"为所依赖的项目本地环境的当前版本。\n插件会根据\"项目当前版本\"自动替换掉当前项目中所依赖的版本信息。", x1, 0, 810, 50));
+        y+=15;
+        dbPanel.add(buildJLabel("项目依赖模块", x1, y, width, height));
+        dbPanel.add(buildJLabel("项目当前版本", x2, y, width, height));
+        dbPanel.add(buildJLabel("依赖项目当前版本", x3, y, width, height));
+        y+=height;
         int index = 0;
         for (Map.Entry<String, String> entry : map.entrySet()) {
             String key = entry.getKey();
@@ -174,6 +174,13 @@ public class DependenciesDialogWrapper extends DialogWrapper {
         label.setBounds(x, y, width, height);
 
         return label;
+    }
+
+    private JTextArea buildJTextArea(String name, int x, int y, int width, int height) {
+        JTextArea area = new JTextArea(name);
+        area.setBounds(x, y, width, height);
+
+        return area;
     }
 
 //    private void buildFrame(JComponent component) {
