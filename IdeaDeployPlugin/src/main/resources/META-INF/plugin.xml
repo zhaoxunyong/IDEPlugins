@@ -21,12 +21,13 @@
         <li>1. Release: Creating a new branch from local repository and push it to a remote git branch automatically.</li>
         <li>2. NewBranch: Creating a new branch from local repository automatically.</li>
         <li>3. ChangVersion: Changing a new maven version from local repository automatically.</li>
-        <li>4. MybatisGen: Executing the plugin("mybatis-generator-maven-plugin") to generate mybatis sql files automatically.</li>
+        <li>4. AnyTool: Executing the plugin("mybatis-generator-maven-plugin") to generate mybatis sql files automatically.</li>
     </ul>
     ]]></description>
 
     <change-notes><![CDATA[
     <ul>
+        <li>1.0.6 : Added AnyTool. </li>
         <li>1.0.6 : Added Modifying dependency versions. </li>
         <li>1.0.5 : Fixed some issues. </li>
         <li>1.0.4 : Skipping local repository confirm if any files were changed. </li>
@@ -67,7 +68,7 @@
             <separator/>
             <action id="ChangeVersionMainMenu" class="com.zerofinance.zerogitdeploy.action.ChangeVersionAction" icon="AllIcons.Actions.InlayRenameInCommentsActive" text="ChangeVersion" description="Change Version" />
             <separator/>
-            <action id="MybatisGenMainMenu" class="com.zerofinance.zerogitdeploy.action.MybatisGenAction" icon="AllIcons.Actions.InlayRenameInNoCodeFilesActive" text="MybatisGen" description="Mybatis Gen" />
+            <action id="AnyToolMainMenu" class="com.zerofinance.zerogitdeploy.action.AnyToolAction" icon="AllIcons.Actions.InlayRenameInNoCodeFilesActive" text="AnyTool" description="Mybatis Gen" />
         </group>
 
         <!-- popup menu -->
@@ -82,7 +83,7 @@
             <separator/>
             <action id="ChangeVersionPopupMenu" class="com.zerofinance.zerogitdeploy.action.ChangeVersionAction" icon="AllIcons.Actions.InlayRenameInCommentsActive" text="ChangeVersion" description="Change Version" />
             <separator/>
-            <action id="MybatisGenPopupMenu" class="com.zerofinance.zerogitdeploy.action.MybatisGenAction" icon="AllIcons.Actions.InlayRenameInNoCodeFilesActive" text="MybatisGen" description="Mybatis Gen" />
+            <action id="AnyToolPopupMenu" class="com.zerofinance.zerogitdeploy.action.AnyToolAction" icon="AllIcons.Actions.InlayRenameInNoCodeFilesActive" text="AnyTool" description="Mybatis Gen" />
         </group>
 
         <!-- toolbar -->
@@ -93,7 +94,7 @@
             <action id="ReleaseToolbar" class="com.zerofinance.zerogitdeploy.action.ReleaseAction" icon="AllIcons.Actions.Lightning" text="Release" description="Git Release" />
             <action id="NewBranchToolbar" class="com.zerofinance.zerogitdeploy.action.NewBranchAction" icon="AllIcons.Debugger.NextStatement" text="NewBranch" description="New Branch" />
             <action id="ChangeVersionToolbar" class="com.zerofinance.zerogitdeploy.action.ChangeVersionAction" icon="AllIcons.Actions.InlayRenameInCommentsActive" text="ChangeVersion" description="Change Version" />
-            <action id="MybatisGenToolbar" class="com.zerofinance.zerogitdeploy.action.MybatisGenAction" icon="AllIcons.Actions.InlayRenameInNoCodeFilesActive" text="MybatisGen" description="Mybatis Gen" />
+            <action id="AnyToolToolbar" class="com.zerofinance.zerogitdeploy.action.AnyToolAction" icon="AllIcons.Actions.InlayRenameInNoCodeFilesActive" text="AnyTool" description="Mybatis Gen" />
             <separator/>
         </group>
     </actions>

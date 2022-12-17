@@ -85,7 +85,7 @@ public final class DeployPluginHandler {
 
     private final static String COMMITED_LOGS_BAT = "./committedLogs.sh";
 
-    private final static String MYBATISGEN_BAT = "./mybatisGen.sh";
+    private final static String ANY_TOOL_BAT = "./anyTool.sh";
 
     /**
      *
@@ -466,15 +466,15 @@ public final class DeployPluginHandler {
         }
     }
 
-    public void mybatisGen() {
+    public void anyTool() {
         try {
 //            String rootProjectPath = CommandUtils.getRootProjectPath(modulePath);
 //            VirtualFile vFile = event.getData(PlatformDataKeys.VIRTUAL_FILE);
-            String cmdFile = CommandUtils.processScript(modulePath, MYBATISGEN_BAT);
+            String cmdFile = CommandUtils.processScript(modulePath, ANY_TOOL_BAT);
 //        String cmdName = FilenameUtils.getName(cmdFile);
             // Using "projectPath" instead of "rootProjectPath"
             CmdBuilder cmdBuilder = new CmdBuilder(modulePath, cmdFile, true, Lists.newArrayList());
-            boolean isConfirm = Messages.showYesNoDialog("Are you sure you want to execute \"mybatis-generator-maven-plugin\"?",
+            boolean isConfirm = Messages.showYesNoDialog("Are you sure?",
                     moduleName+": Are you sure?", Messages.getQuestionIcon()) == 0;
             // boolean isConfirm = MessageDialog.openConfirm(shell, "Mybatis Gen Confirm?", project.getName() + " Mybatis Gen Confirm?");
             if (isConfirm) {
