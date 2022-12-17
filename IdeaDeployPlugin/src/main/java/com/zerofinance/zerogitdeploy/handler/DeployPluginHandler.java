@@ -468,9 +468,9 @@ public final class DeployPluginHandler {
 
     public void anyTool() {
         try {
-//            String rootProjectPath = CommandUtils.getRootProjectPath(modulePath);
+            String rootProjectPath = CommandUtils.getRootProjectPath(modulePath);
 //            VirtualFile vFile = event.getData(PlatformDataKeys.VIRTUAL_FILE);
-            String cmdFile = CommandUtils.processScript(modulePath, ANY_TOOL_BAT);
+            String cmdFile = CommandUtils.processScript(rootProjectPath, ANY_TOOL_BAT);
 //        String cmdName = FilenameUtils.getName(cmdFile);
             // Using "projectPath" instead of "rootProjectPath"
             CmdBuilder cmdBuilder = new CmdBuilder(modulePath, cmdFile, true, Lists.newArrayList());
