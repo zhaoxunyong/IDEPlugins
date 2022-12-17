@@ -16,6 +16,7 @@ public class AnyToolAction extends AnAction {
         try {
             DeployPluginHandler handler = new DeployPluginHandler(event);
             handler.anyTool();
+            project.getWorkspaceFile().refresh(false, true);
         } catch (Exception e) {
             e.printStackTrace();
             MessagesUtils.showMessage(project, e.getMessage(), "Error:", NotificationType.ERROR);
