@@ -533,7 +533,7 @@ public final class DeployPluginHandler {
 //		                String rootProjectPath = getParentProject(projectPath, cmd);
 
                 String desc = desc();
-                List<String> parameters = Lists.newArrayList(inputtedVersion, dateString, "false", "\"" + desc + "\"", ""+modifyDepenOnVersions, preparingVersionFile);
+                List<String> parameters = Lists.newArrayList(inputtedVersion, dateString, "false", "\"" + desc + "\"", preparingVersionFile, ""+modifyDepenOnVersions);
                 CmdBuilder cmdBuilder = new CmdBuilder(rootProjectPath, cmdFile, true, parameters);
                 runJob(cmdBuilder);
             }
