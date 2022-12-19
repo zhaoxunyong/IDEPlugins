@@ -4,7 +4,9 @@ import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.util.io.FileUtil;
 import com.zerofinance.zerogitdeploy.handler.DependenciesDialogWrapper;
 import com.zerofinance.zerogitdeploy.handler.MavenDependency;
+import com.zerofinance.zerogitdeploy.setting.ZeroGitDeploySetting;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.DirectoryFileFilter;
 import org.apache.commons.io.filefilter.NameFileFilter;
 import org.apache.commons.lang.StringUtils;
@@ -12,6 +14,8 @@ import org.apache.commons.lang.StringUtils;
 import javax.swing.*;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.regex.Pattern;
@@ -27,40 +31,50 @@ public final class MavenUtils {
 
     private MavenUtils(){}
 
-    public static String getLatestVersion(File realPrjParentPath) throws IOException {
-        String latestVersion = "";
-//        String pomFile = realPrjParentPath+File.separator+"pom.xml";
-//        if(new File(realPrjParentPath+File.separator+"pom.xml").exists()) {
-//            System.out.println("pomFile--->"+pomFile);
-//            List<String> mvnString = FileUtils.readLines(new File(pomFile), StandardCharsets.UTF_8);
-//            for(String mvn: mvnString) {
-//                if(mvn.indexOf("<version>") != -1) {
-//                    latestVersion = mvn.replace("<version>","").replace("</version>", "");
+//    public static String getLatestVersion(File realPrjParentPath) throws IOException {
+//        String latestVersion = "";
+//            Collection<File> pomFiles = FileUtil.findFilesOrDirsByMask(Pattern.compile("pom.xml"), realPrjParentPath);//.listFiles(new File(realPrjParentPath), FileFilterUtils.falseFileFilter(), FileFilterUtils.nameFileFilter(realPrj));
+//            for(File pomFile : pomFiles) {
+//                if(pomFile.isFile()) {
+////                    String pomFile = folder+File.separator+"pom.xml";
+//                    System.out.println("pomFile--->"+pomFile);
+//                    List<String> mvnString = FileUtils.readLines(pomFile, StandardCharsets.UTF_8);
+//                    for(String mvn: mvnString) {
+//                        if(mvn.indexOf("<version>") != -1) {
+//                            latestVersion = mvn.replace("<version>","").replace("</version>", "");
+//                            break;
+//                        }
+//                    }
+//                }
+//                if(StringUtils.isNotBlank(latestVersion)) {
 //                    break;
 //                }
 //            }
-//        } else {
-            Collection<File> pomFiles = FileUtil.findFilesOrDirsByMask(Pattern.compile("pom.xml"), realPrjParentPath);//.listFiles(new File(realPrjParentPath), FileFilterUtils.falseFileFilter(), FileFilterUtils.nameFileFilter(realPrj));
-            for(File pomFile : pomFiles) {
-                if(pomFile.isFile()) {
-//                    String pomFile = folder+File.separator+"pom.xml";
-                    System.out.println("pomFile--->"+pomFile);
-                    List<String> mvnString = FileUtils.readLines(pomFile, StandardCharsets.UTF_8);
-                    for(String mvn: mvnString) {
-                        if(mvn.indexOf("<version>") != -1) {
-                            latestVersion = mvn.replace("<version>","").replace("</version>", "");
-                            break;
-                        }
-                    }
-                }
-                if(StringUtils.isNotBlank(latestVersion)) {
+////        }
+//        if(StringUtils.isNotBlank(latestVersion)) {
+//            latestVersion = latestVersion.trim();
+//        }
+//        return latestVersion;
+//    }
+    public static String getLatestVersion(String dependenciesProject) throws IOException {
+        String latestVersion = "";
+        String mavenRepoUrl = ZeroGitDeploySetting.getMavenRepoUrl();
+        // http://nexus.zerofinance.net/service/local/lucene/search?q=merchant-server-api&collapseresults=true
+        String versionUrl = mavenRepoUrl+"/service/local/lucene/search?q='"+dependenciesProject+"'&collapseresults=true";
+        URL uri = new URL(versionUrl);
+        InputStream input = uri.openStream();
+        try {
+            List<String> result = IOUtils.readLines(input, StandardCharsets.UTF_8);
+            for(String r:result) {
+                if(r.indexOf("<latestRelease>") != -1) {
+                    latestVersion = r.replace("<latestRelease>","").replace("</latestRelease>","").trim();
                     break;
                 }
             }
-//        }
-        if(StringUtils.isNotBlank(latestVersion)) {
-            latestVersion = latestVersion.trim();
+        } finally {
+            IOUtils.closeQuietly(input);
         }
+        System.out.println("latestVersion--->"+latestVersion);
         return latestVersion;
     }
 
@@ -87,7 +101,7 @@ public final class MavenUtils {
                             String version = org.apache.commons.lang3.StringUtils.substringBetween(prjAndVersion, ">", "</");
                             String realPrj = prj.replaceAll("[._-]version","");
                             String realPrjParentPath = new File(rootProjectPath).getParent()+File.separator+realPrj.replaceAll("[._-]api$", "");
-                            String latestVersion = MavenUtils.getLatestVersion(new File(realPrjParentPath));
+                            String latestVersion = MavenUtils.getLatestVersion(realPrj);
                             map.put(prj, version+"/"+latestVersion);
                             System.out.println("prjAndVersion--->"+prjAndVersion);
                             System.out.println("map--->"+map);

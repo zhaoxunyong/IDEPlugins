@@ -7,8 +7,6 @@ import com.intellij.openapi.options.Configurable;
 import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.zerofinance.zerogitdeploy.tools.DeployCmdExecuter;
-import com.zerofinance.zerogitdeploy.tools.MessagesUtils;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.jetbrains.annotations.Nls;
@@ -33,6 +31,7 @@ public class ZeroGitDeploySetting implements Configurable {
     private JCheckBox runningInTerminalCheckBox;
 
     private JCheckBox skipRepoChangeConfirmCheckBox;
+    private JTextField mavenRepoUrlField;
 
     private static final String GIT_HOME_KEY = "gitDeployPluginGitHomeKey";
 
@@ -44,14 +43,12 @@ public class ZeroGitDeploySetting implements Configurable {
 
     private static final String SKIP_REPO_CHANGE_CONFIRM_KEY = "skipRepoChangeConfirmKey";
 
+    private static final String MAVEN_REPO_URL_KEY = "mavenRepoUrlFieldKey";
+
     public ZeroGitDeploySetting() {
-        textField.setText(PropertiesComponent.getInstance().getValue(GIT_HOME_KEY));
-        String scriptURL = PropertiesComponent.getInstance().getValue(SCRIPT_URL_KEY);
-        if(StringUtils.isNotBlank(scriptURL)) {
-            scriptURLField.setText(scriptURL);
-        } else {
-            scriptURLField.setText("http://gitlab.zerofinance.net/dave.zhao/deployPlugin/raw/master");
-        }
+        textField.setText(getGitHome());
+        scriptURLField.setText(getScriptURL());
+        mavenRepoUrlField.setText(getMavenRepoUrl());
         needDebugCheckBox.setSelected(isDebug());
         moreDetailsCheckBox.setSelected(isMoreDetails());
         runningInTerminalCheckBox.setSelected(isRunnInTerminal());
@@ -98,6 +95,7 @@ public class ZeroGitDeploySetting implements Configurable {
     public boolean isModified() {
         return !StringUtils.equals(textField.getText(),PropertiesComponent.getInstance().getValue(GIT_HOME_KEY))
                 || !StringUtils.equals(String.valueOf(scriptURLField.getText()),PropertiesComponent.getInstance().getValue(SCRIPT_URL_KEY))
+                || !StringUtils.equals(String.valueOf(mavenRepoUrlField.getText()),PropertiesComponent.getInstance().getValue(MAVEN_REPO_URL_KEY))
                 || !StringUtils.equals(String.valueOf(needDebugCheckBox.isSelected()),PropertiesComponent.getInstance().getValue(DEBUG_KEY))
                 || !StringUtils.equals(String.valueOf(moreDetailsCheckBox.isSelected()),PropertiesComponent.getInstance().getValue(MORE_DETAILS_KEY))
                 || !StringUtils.equals(String.valueOf(runningInTerminalCheckBox.isSelected()),PropertiesComponent.getInstance().getValue(RUNNING_IN_TERMINAL_KEY))
@@ -108,6 +106,7 @@ public class ZeroGitDeploySetting implements Configurable {
     public void apply() throws ConfigurationException {
         PropertiesComponent.getInstance().setValue(GIT_HOME_KEY, textField.getText());
         PropertiesComponent.getInstance().setValue(SCRIPT_URL_KEY, scriptURLField.getText());
+        PropertiesComponent.getInstance().setValue(MAVEN_REPO_URL_KEY, mavenRepoUrlField.getText());
         PropertiesComponent.getInstance().setValue(DEBUG_KEY, String.valueOf(needDebugCheckBox.isSelected()));
         PropertiesComponent.getInstance().setValue(MORE_DETAILS_KEY, String.valueOf(moreDetailsCheckBox.isSelected()));
         PropertiesComponent.getInstance().setValue(RUNNING_IN_TERMINAL_KEY, String.valueOf(runningInTerminalCheckBox.isSelected()));
@@ -119,7 +118,19 @@ public class ZeroGitDeploySetting implements Configurable {
     }
 
     public static String getScriptURL() {
-        return PropertiesComponent.getInstance().getValue(SCRIPT_URL_KEY);
+        String scriptUrl = PropertiesComponent.getInstance().getValue(SCRIPT_URL_KEY);
+        if(StringUtils.isBlank(scriptUrl)) {
+            return "http://gitlab.zerofinance.net/dave.zhao/deployPlugin/raw/master";
+        }
+        return scriptUrl;
+    }
+
+    public static String getMavenRepoUrl() {
+        String mavenRepoUrl = PropertiesComponent.getInstance().getValue(MAVEN_REPO_URL_KEY);
+        if(StringUtils.isBlank(mavenRepoUrl)) {
+            return "http://nexus.zerofinance.net";
+        }
+        return mavenRepoUrl;
     }
 
     public static boolean isDebug() {

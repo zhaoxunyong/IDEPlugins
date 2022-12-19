@@ -77,7 +77,7 @@ public final class DeployPluginHandler {
 
     private final static String CHANGEVERSION_BAT = "./changeVersion.sh";
 
-    private final static String RELEASE_BAT = "./release.sh";
+    private final static String RELEASE_BAT = "./release-dave.sh";
 
     private final static String NEWBRANCH_BAT = "./newBranch.sh";
 
@@ -490,7 +490,7 @@ public final class DeployPluginHandler {
             String preparingVersionFile = getPreparingVersionFile();
             String rootProjectPath = CommandUtils.getRootProjectPath(modulePath);
 
-            boolean continute = true;
+            /*boolean continute = true;
             try {
                 String snapshotPath = checkHasSnapshotVersion(rootProjectPath);
                 if (StringUtils.isNotBlank(snapshotPath)) {
@@ -501,38 +501,43 @@ public final class DeployPluginHandler {
                 }
             } catch (Exception e) {
                 // do nothing
+            }*/
+
+//            if (continute) {
+            boolean modifyDepenOnVersions = false;
+            modifyDepenOnVersions = Messages.showYesNoDialog("Would you like replacing all of the versions which is depended on this project?",
+                    moduleName+": process confirm?",
+                    Messages.getQuestionIcon()) == 0;
+
+            SimpleDateFormat formatter = new SimpleDateFormat("yyyyMMddHHmm");
+            String dateString = formatter.format(new Date());
+
+            String releaseType = Messages.showEditableChooseDialog("Which release type do you want to pick?",
+                    moduleName+": Choose", null, new String[]{"release", "hotfix"}, "release", null);
+            if (!"release".equals(releaseType) && !"hotfix".equals(releaseType)) {
+                throw new DeployPluginException("Please pick up either release or hotfix option.");
             }
-
-            if (continute) {
-                SimpleDateFormat formatter = new SimpleDateFormat("yyyyMMddHHmm");
-                String dateString = formatter.format(new Date());
-
-                String releaseType = Messages.showEditableChooseDialog("Which release type do you want to pick?",
-                        moduleName+": Choose", null, new String[]{"release", "hotfix"}, "release", null);
-                if (!"release".equals(releaseType) && !"hotfix".equals(releaseType)) {
-                    throw new DeployPluginException("Please pick up either release or hotfix option.");
-                }
-                String cmdFile = CommandUtils.processScript(rootProjectPath, RELEASE_BAT);
+            String cmdFile = CommandUtils.processScript(rootProjectPath, RELEASE_BAT);
 //		            String cmdName = FilenameUtils.getName(cmdFile);
 
-                String pomVersion = getMavenPomVersion(rootProjectPath);
-                String defaultValue = pomVersion.replace("-SNAPSHOT", "") + "." + releaseType;
+            String pomVersion = getMavenPomVersion(rootProjectPath);
+            String defaultValue = pomVersion.replace("-SNAPSHOT", "") + "." + releaseType;
 
-                String inputtedVersion = input("Please input a available branch name", moduleName+": Input a branch name", defaultValue).trim();
-                if (inputtedVersion.indexOf(" ") != -1) {
-                    throw new DeployPluginException("The version is invalid.");
-                }
+            String inputtedVersion = input("Please input a available branch name", moduleName+": Input a branch name", defaultValue).trim();
+            if (inputtedVersion.indexOf(" ") != -1) {
+                throw new DeployPluginException("The version is invalid.");
+            }
 
-                if (StringUtils.isNotBlank(inputtedVersion)) {
+            if (StringUtils.isNotBlank(inputtedVersion)) {
 //		                String projectPath = project.getLocation().toFile().getPath();
 //		                String rootProjectPath = getParentProject(projectPath, cmd);
 
-                    String desc = desc();
-                    List<String> parameters = Lists.newArrayList(inputtedVersion, dateString, "false", "\"" + desc + "\"", preparingVersionFile);
-                    CmdBuilder cmdBuilder = new CmdBuilder(rootProjectPath, cmdFile, true, parameters);
-                    runJob(cmdBuilder);
-                }
+                String desc = desc();
+                List<String> parameters = Lists.newArrayList(inputtedVersion, dateString, "false", "\"" + desc + "\"", ""+modifyDepenOnVersions, preparingVersionFile);
+                CmdBuilder cmdBuilder = new CmdBuilder(rootProjectPath, cmdFile, true, parameters);
+                runJob(cmdBuilder);
             }
+//            }
         } catch (Exception e) {
             throw new DeployPluginException(e.getMessage(), e);
         }

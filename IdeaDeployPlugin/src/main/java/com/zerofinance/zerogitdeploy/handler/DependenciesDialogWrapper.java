@@ -71,12 +71,14 @@ public class DependenciesDialogWrapper extends DialogWrapper {
         int x1 = 10;
         int x2 = 220;
         int x3 = x2+width;
+        int x4 = x3+width;
 
-        dbPanel.add(buildJTextArea("\"项目当前版本\"为当前项目所依赖的其他项目的版本号。\"依赖项目当前版本\"为所依赖的项目本地环境的当前版本。\n插件会根据\"项目当前版本\"自动替换掉当前项目中所依赖的版本信息。", x1, 0, 810, 50));
+        dbPanel.add(buildJTextArea("\"项目当前依赖版本\"为当前项目所依赖的其他项目的版本号。\"maven仓库最新release版本\"为maven仓库中最新的release版本。\n插件会根据\"项目当前依赖版本\"自动替换掉当前项目中所依赖的版本信息。", x1, 0, 810, 50));
         y+=15;
         dbPanel.add(buildJLabel("项目依赖模块", x1, y, width, height));
-        dbPanel.add(buildJLabel("项目当前版本", x2, y, width, height));
-        dbPanel.add(buildJLabel("依赖项目当前版本", x3, y, width, height));
+        dbPanel.add(buildJLabel("项目当前依赖版本", x2, y, width, height));
+        dbPanel.add(buildJLabel("maven仓库最新release版本", x3, y, width, height));
+        dbPanel.add(buildJLabel("替换为最新的relase版本", x4, y, width, height));
         y+=height;
         int index = 0;
         for (Map.Entry<String, String> entry : map.entrySet()) {
@@ -87,11 +89,20 @@ public class DependenciesDialogWrapper extends DialogWrapper {
             dbPanel.add(buildJLabel(key.replaceAll("[._-]version",""), x1, y, width, height));
             JTextField currVersion = buildJTextField(currValue, "currVersion"+index, 20, x2, y, width, height);
             JTextField latestVersion = buildJTextField(latestValue, "latestVersion+"+index, 20, x3, y, width, height);
-            y+=height;
 
             dbPanel.add(currVersion);
             dbPanel.add(latestVersion);
+            JCheckBox checkbox = buildJCheckbox(false, "replaceWithRelease" + index, x4, y, height);
+            checkbox.addActionListener((e)->{
+                if(checkbox.isSelected()) {
+                    currVersion.setText(latestValue);
+                } else {
+                    currVersion.setText(currValue);
+                }
+            });
+            dbPanel.add(checkbox);
             textFields.put(key, currVersion);
+            y+=height;
             index++;
         }
 
@@ -142,6 +153,14 @@ public class DependenciesDialogWrapper extends DialogWrapper {
         text.setName(name);
         text.setBounds(x, y, width, height);
         return text;
+    }
+
+    private JCheckBox buildJCheckbox(boolean defaultValue, String name, int x, int y, int height) {
+        JCheckBox checkBox = new JCheckBox();
+        checkBox.setSelected(defaultValue);
+        checkBox.setName(name);
+        checkBox.setBounds(x, y, 20, height);
+        return checkBox;
     }
 
 //    private JComboBox buildJComboBox(Object selectedItem, String name, String[] elements, int selectedIndex, int x, int y, int width, int height) {
