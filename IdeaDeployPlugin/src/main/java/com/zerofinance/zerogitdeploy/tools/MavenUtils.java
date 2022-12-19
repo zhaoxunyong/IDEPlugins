@@ -27,51 +27,41 @@ public final class MavenUtils {
 
     private MavenUtils(){}
 
-    public static String getLatestVersion(String pattern, File realPrjParentPath) throws IOException {
+    public static String getLatestVersion(File realPrjParentPath) throws IOException {
         String latestVersion = "";
-        String pomFile = realPrjParentPath+File.separator+"pom.xml";
-        if(new File(pomFile).exists()) {
-            System.out.println("pomFile--->"+pomFile);
-            List<String> mvnString = FileUtils.readLines(new File(pomFile), StandardCharsets.UTF_8);
-            for(String mvn: mvnString) {
-                if(mvn.indexOf("<version>") != -1) {
-                    latestVersion = mvn.replace("<version>","").replace("</version>", "");
+//        String pomFile = realPrjParentPath+File.separator+"pom.xml";
+//        if(new File(realPrjParentPath+File.separator+"pom.xml").exists()) {
+//            System.out.println("pomFile--->"+pomFile);
+//            List<String> mvnString = FileUtils.readLines(new File(pomFile), StandardCharsets.UTF_8);
+//            for(String mvn: mvnString) {
+//                if(mvn.indexOf("<version>") != -1) {
+//                    latestVersion = mvn.replace("<version>","").replace("</version>", "");
+//                    break;
+//                }
+//            }
+//        } else {
+            Collection<File> pomFiles = FileUtil.findFilesOrDirsByMask(Pattern.compile("pom.xml"), realPrjParentPath);//.listFiles(new File(realPrjParentPath), FileFilterUtils.falseFileFilter(), FileFilterUtils.nameFileFilter(realPrj));
+            for(File pomFile : pomFiles) {
+                if(pomFile.isFile()) {
+//                    String pomFile = folder+File.separator+"pom.xml";
+                    System.out.println("pomFile--->"+pomFile);
+                    List<String> mvnString = FileUtils.readLines(pomFile, StandardCharsets.UTF_8);
+                    for(String mvn: mvnString) {
+                        if(mvn.indexOf("<version>") != -1) {
+                            latestVersion = mvn.replace("<version>","").replace("</version>", "");
+                            break;
+                        }
+                    }
+                }
+                if(StringUtils.isNotBlank(latestVersion)) {
                     break;
                 }
             }
-        }
+//        }
         if(StringUtils.isNotBlank(latestVersion)) {
             latestVersion = latestVersion.trim();
         }
         return latestVersion;
-
-
-//        Collection<File> folders = FileUtil.findFilesOrDirsByMask(Pattern.compile(pattern), realPrjParentPath);//.listFiles(new File(realPrjParentPath), FileFilterUtils.falseFileFilter(), FileFilterUtils.nameFileFilter(realPrj));
-//        if(folders == null || folders.isEmpty()) {
-//            folders = new ArrayList<>();
-//            folders.add(realPrjParentPath);
-//        }
-//        String latestVersion = "";
-//        for(File folder : folders) {
-//            if(folder.isDirectory()) {
-//                String pomFile = folder+File.separator+"pom.xml";
-//                if(new File(pomFile).exists()) {
-//                    System.out.println("pomFile--->"+pomFile);
-//                    List<String> mvnString = FileUtils.readLines(new File(pomFile), StandardCharsets.UTF_8);
-//                    for(String mvn: mvnString) {
-//                        if(mvn.indexOf("<version>") != -1) {
-//                            latestVersion = mvn.replace("<version>","").replace("</version>", "");
-//                            break;
-//                        }
-//                    }
-//                }
-//            }
-//            if(StringUtils.isNotBlank(latestVersion)) {
-//                latestVersion = latestVersion.trim();
-//                break;
-//            }
-//        }
-//        return latestVersion;
     }
 
     public static MavenDependency getDependencies(String rootProjectPath) throws IOException {
@@ -97,7 +87,7 @@ public final class MavenUtils {
                             String version = org.apache.commons.lang3.StringUtils.substringBetween(prjAndVersion, ">", "</");
                             String realPrj = prj.replaceAll("[._-]version","");
                             String realPrjParentPath = new File(rootProjectPath).getParent()+File.separator+realPrj.replaceAll("[._-]api$", "");
-                            String latestVersion = MavenUtils.getLatestVersion(realPrj, new File(realPrjParentPath));
+                            String latestVersion = MavenUtils.getLatestVersion(new File(realPrjParentPath));
                             map.put(prj, version+"/"+latestVersion);
                             System.out.println("prjAndVersion--->"+prjAndVersion);
                             System.out.println("map--->"+map);
