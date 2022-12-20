@@ -515,7 +515,7 @@ public final class DeployPluginHandler {
 
 //            if (continute) {
             boolean modifyDepenOnVersions = false;
-            modifyDepenOnVersions = Messages.showYesNoDialog("Would you like replacing all of the versions which is depended on this project?",
+            modifyDepenOnVersions = Messages.showYesNoDialog("Would you like replacing all of the versions depended on this project?",
                     moduleName+": process confirm?",
                     Messages.getQuestionIcon()) == 0;
 
