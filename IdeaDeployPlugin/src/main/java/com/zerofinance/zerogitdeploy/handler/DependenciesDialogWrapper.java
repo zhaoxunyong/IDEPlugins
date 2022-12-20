@@ -12,6 +12,8 @@ import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -25,30 +27,24 @@ import java.util.Map;
  */
 public class DependenciesDialogWrapper extends DialogWrapper {
 
-    private final Map<String, String> map;
+    private final List<MavenDependency> mavenDependencies;
 
-    private Map<String, JTextField> textFields = new HashMap<>();
-
-    public DependenciesDialogWrapper(Map<String, String> map) {
+    public DependenciesDialogWrapper(List<MavenDependency> mavenDependencies) {
         super(true); // use current window as parent
         setTitle("请确认项目依赖版本");
-        this.map = map;
+        this.mavenDependencies = mavenDependencies;
         init();
-    }
-
-    public Map<String, JTextField> getTextFields() {
-        return textFields;
     }
 
     @Nullable
     @Override
     protected JComponent createCenterPanel() {
         JPanel component = buildJpanel();
-        component.setPreferredSize(new Dimension(850, 300));
+        component.setPreferredSize(new Dimension(850, 350));
         // 设置布局
         component.setLayout(new BorderLayout());
         // 设置窗口最小尺寸
-        component.setMinimumSize(new Dimension(850, 300));
+        component.setMinimumSize(new Dimension(850, 350));
         component.setVisible(true);
         // 设置窗口尺寸是否固定不变
         return component;
@@ -81,29 +77,31 @@ public class DependenciesDialogWrapper extends DialogWrapper {
         dbPanel.add(buildJLabel("替换为最新的relase版本", x4, y, width, height));
         y+=height;
         int index = 0;
-        for (Map.Entry<String, String> entry : map.entrySet()) {
-            String key = entry.getKey();
-            String value = entry.getValue();
-            String currValue = StringUtils.substringBefore(value, "/");
-            String latestValue = StringUtils.substringAfter(value, "/");
-            dbPanel.add(buildJLabel(key.replaceAll("[._-]version",""), x1, y, width, height));
-            JTextField currVersion = buildJTextField(currValue, "currVersion"+index, 20, x2, y, width, height);
-            JTextField latestVersion = buildJTextField(latestValue, "latestVersion+"+index, 20, x3, y, width, height);
+        if(mavenDependencies != null && !mavenDependencies.isEmpty()) {
+            for(MavenDependency mavenDependency : mavenDependencies) {
+                String moduleName = mavenDependency.getModuleName();
+                String currVersion = mavenDependency.getCurrVersion();
+                String latestVersion = mavenDependency.getLatestVersion();
+                dbPanel.add(buildJLabel(moduleName.replaceAll("[._-]version",""), x1, y, width, height));
+                JTextField currVersionTextField = buildJTextField(currVersion, "currVersion"+index, 20, x2, y, width, height);
+                JTextField latestVersionTextField = buildJTextField(latestVersion, "latestVersion+"+index, 20, x3, y, width, height);
 
-            dbPanel.add(currVersion);
-            dbPanel.add(latestVersion);
-            JCheckBox checkbox = buildJCheckbox(false, "replaceWithRelease" + index, x4, y, height);
-            checkbox.addActionListener((e)->{
-                if(checkbox.isSelected()) {
-                    currVersion.setText(latestValue);
-                } else {
-                    currVersion.setText(currValue);
-                }
-            });
-            dbPanel.add(checkbox);
-            textFields.put(key, currVersion);
-            y+=height;
-            index++;
+                dbPanel.add(currVersionTextField);
+                dbPanel.add(latestVersionTextField);
+                JCheckBox checkbox = buildJCheckbox(false, "replaceWithRelease" + index, x4, y, height);
+                checkbox.addActionListener((e)->{
+                    if(checkbox.isSelected()) {
+                        currVersionTextField.setText(latestVersion);
+                    } else {
+                        currVersionTextField.setText(currVersion);
+                    }
+                });
+                mavenDependency.setTextField(currVersionTextField);
+                dbPanel.add(checkbox);
+
+                y+=height;
+                index++;
+            }
         }
 
 //        // 密码
@@ -159,7 +157,7 @@ public class DependenciesDialogWrapper extends DialogWrapper {
         JCheckBox checkBox = new JCheckBox();
         checkBox.setSelected(defaultValue);
         checkBox.setName(name);
-        checkBox.setBounds(x, y, 20, height);
+        checkBox.setBounds(x, y, 30, height);
         return checkBox;
     }
 

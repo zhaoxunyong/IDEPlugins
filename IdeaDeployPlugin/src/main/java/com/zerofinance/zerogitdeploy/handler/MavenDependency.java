@@ -1,5 +1,6 @@
 package com.zerofinance.zerogitdeploy.handler;
 
+import javax.swing.*;
 import java.io.File;
 import java.util.Map;
 
@@ -14,7 +15,21 @@ public class MavenDependency {
 
     private File pomFile;
 
-    private Map<String, String> dependencies;
+    private String moduleName;
+
+    private String currVersion;
+
+    private String latestVersion;
+
+    private javax.swing.JTextField textField;
+
+    public String getModuleName() {
+        return moduleName;
+    }
+
+    public void setModuleName(String moduleName) {
+        this.moduleName = moduleName;
+    }
 
     public File getPomFile() {
         return pomFile;
@@ -24,11 +39,27 @@ public class MavenDependency {
         this.pomFile = pomFile;
     }
 
-    public Map<String, String> getDependencies() {
-        return dependencies;
+    public String getCurrVersion() {
+        return currVersion;
     }
 
-    public void setDependencies(Map<String, String> dependencies) {
-        this.dependencies = dependencies;
+    public void setCurrVersion(String currVersion) {
+        this.currVersion = currVersion;
+    }
+
+    public String getLatestVersion() {
+        return latestVersion;
+    }
+
+    public void setLatestVersion(String latestVersion) {
+        this.latestVersion = latestVersion;
+    }
+
+    public JTextField getTextField() {
+        return textField;
+    }
+
+    public void setTextField(JTextField textField) {
+        this.textField = textField;
     }
 }

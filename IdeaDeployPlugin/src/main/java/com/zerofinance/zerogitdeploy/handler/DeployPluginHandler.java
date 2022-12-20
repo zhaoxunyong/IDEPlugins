@@ -77,7 +77,7 @@ public final class DeployPluginHandler {
 
     private final static String CHANGEVERSION_BAT = "./changeVersion.sh";
 
-    private final static String RELEASE_BAT = "./release.sh";
+    private final static String RELEASE_BAT = "./release-new.sh";
 
     private final static String NEWBRANCH_BAT = "./newBranch.sh";
 
@@ -369,47 +369,57 @@ public final class DeployPluginHandler {
 
 
 
-    private String getPreparingVersionFile() throws Exception {
+    private String generatePreparingVersionFile() throws Exception {
         String preparingVersionFile = "";
         String rootProjectPath = CommandUtils.getRootProjectPath(modulePath);
-        MavenDependency mavenDependency = MavenUtils.getDependencies(rootProjectPath);
-        Map<String, String> dependencies = mavenDependency.getDependencies();
-        System.out.println("dependencies===>"+dependencies);
-        File pomFile = mavenDependency.getPomFile();
-        if(dependencies!=null &&!dependencies.isEmpty()) {
+        List<MavenDependency> mavenDependencies = MavenUtils.getDependencies(rootProjectPath);
+        if(mavenDependencies!=null &&!mavenDependencies.isEmpty()) {
             // Show dialog to change version
-            DependenciesDialogWrapper dialogWrapper = new DependenciesDialogWrapper(dependencies);//.showAndGet();
+            DependenciesDialogWrapper dialogWrapper = new DependenciesDialogWrapper(mavenDependencies);//.showAndGet();
             dialogWrapper.show();
             int exitCode = dialogWrapper.getExitCode();
             if(exitCode == DialogWrapper.OK_EXIT_CODE) {
                 // ok
                 preparingVersionFile = CommandUtils.getTempFolder()+File.separator+ UUID.randomUUID();
-                Map<String, JTextField> textFields = dialogWrapper.getTextFields();
+                if(new File(preparingVersionFile).exists()) {
+                    new File(preparingVersionFile).delete();
+                }
+//                for(MavenDependency mavenDependency : mvn) {
+//                Map<String, String> dependencies = mavenDependency.getDependencies();
+//                System.out.println("dependencies===>"+dependencies);
+//                File pomFile = mavenDependency.getPomFile();
+
+
                 // Checking text field
-                textFields.forEach((key, textField)->{
+                mavenDependencies.forEach((mavenDependency)->{
+                    JTextField textField = mavenDependency.getTextField();
                     String text = textField.getText();
-                    System.out.println("key===>"+key);
-                    System.out.println("textField===>"+text);
                     if(StringUtils.isBlank(text)) {
                         throw new DeployPluginException("Please give a available current dependency version.");
                     }
                 });
-                if(new File(preparingVersionFile).exists()) {
-                    new File(preparingVersionFile).delete();
-                }
-                FileUtils.write(new File(preparingVersionFile), pomFile+"\n", StandardCharsets.UTF_8, true);
-
-                for (Map.Entry<String, JTextField> entry : textFields.entrySet()) {
-                    String key = entry.getKey();
-                    JTextField textField = entry.getValue();
+//                FileUtils.write(new File(preparingVersionFile), pomFile+"=", StandardCharsets.UTF_8, true);
+                int index = 0;
+                for (MavenDependency mavenDependency : mavenDependencies) {
+                    String moduleName = mavenDependency.getModuleName();
+                    File pomFile = mavenDependency.getPomFile();
+                    JTextField textField = mavenDependency.getTextField();
                     String text = textField.getText();
-                    String value = key + ":" + text+"\n";
+//                    System.out.println("moduleName===>"+moduleName);
+//                    System.out.println("pomFile===>"+pomFile);
+//                    System.out.println("textField===>"+text);
+                    String value = pomFile + "->" + moduleName+":"+text;
+                    if(index < mavenDependencies.size()) {
+                        value += "\n";
+                    }
                     FileUtils.write(new File(preparingVersionFile), value, StandardCharsets.UTF_8, true);
+                    index ++;
                 }
-                preparingVersionFile = preparingVersionFile.replace("\\", "/");
-                System.out.println("preparingVersionFile===>"+preparingVersionFile);
+//                }
             }
         }
+        preparingVersionFile = preparingVersionFile.replace("\\", "/");
+        System.out.println("preparingVersionFile===>"+preparingVersionFile);
         return preparingVersionFile;
     }
 
@@ -487,7 +497,7 @@ public final class DeployPluginHandler {
 
     public void release() {
         try {
-            String preparingVersionFile = getPreparingVersionFile();
+            String preparingVersionFile = generatePreparingVersionFile();
             String rootProjectPath = CommandUtils.getRootProjectPath(modulePath);
 
             /*boolean continute = true;
