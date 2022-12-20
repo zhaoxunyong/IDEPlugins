@@ -78,48 +78,48 @@ public final class MavenUtils {
         return latestVersion;
     }
 
-//    public static MavenDependency getDependencies(String rootProjectPath) throws IOException {
-//        NameFileFilter nameFileFilter = new NameFileFilter("pom.xml");
-//        Collection<File> files = FileUtils.listFiles(new File(rootProjectPath), nameFileFilter, DirectoryFileFilter.DIRECTORY);
-//        Map<String, String> map = new LinkedHashMap<>();
-//        File pomFile = null;
-//        if(files != null) {
-//            for (File file : files) {
-//                pomFile = file;
-//                System.out.println("pomFile--->"+pomFile);
-//                String pomString = FileUtils.readFileToString(pomFile);
-//                String starTag = "Dependencies Properties Start";
-//                String endTag = "Dependencies Properties End";
-//                String dependencies = StringUtils.substringBetween(pomString, starTag, endTag);
-//                if(StringUtils.isNotBlank(dependencies)) {
-//                    String dependencieProperties = StringUtils.substringBetween(dependencies, "-->", "<!--").trim();
-//                    String[] properties = dependencieProperties.split("[\r\n]");
-//                    for(String property : properties) {
-//                        if(org.apache.commons.lang3.StringUtils.isNotBlank(property)) {
-//                            String prjAndVersion = property.trim();
-//                            String prj = org.apache.commons.lang3.StringUtils.substringBetween(prjAndVersion, "<", ">");//.replace("-version", "");
-//                            String version = org.apache.commons.lang3.StringUtils.substringBetween(prjAndVersion, ">", "</");
-//                            String realPrj = prj.replaceAll("[._-]version","");
-//                            String realPrjParentPath = new File(rootProjectPath).getParent()+File.separator+realPrj.replaceAll("[._-]api$", "");
-//                            String latestVersion = MavenUtils.getLatestVersion(realPrj);
-//                            map.put(prj, version+"/"+latestVersion);
-//                            System.out.println("prjAndVersion--->"+prjAndVersion);
-//                            System.out.println("map--->"+map);
-//                            System.out.println("prj--->"+prj);
-//                            System.out.println("realPrj--->"+realPrj);
-//                            System.out.println("version--->"+version);
-//                            System.out.println("realPrjParentPath--->"+realPrjParentPath);
-//                            System.out.println("latestVersion--->"+latestVersion);
-//                        }
-//                    }
-//                    // 只支持一个pom中的依赖替换逻辑
-//                    break;
-//                }
-//            }
-//        }
-//        MavenDependency mavenDependency = new MavenDependency();
-//        mavenDependency.setPomFile(pomFile);
-//        mavenDependency.setDependencies(map);
-//        return mavenDependency;
-//    }
+    public static MavenDependency getDependencies(String rootProjectPath) throws IOException {
+        NameFileFilter nameFileFilter = new NameFileFilter("pom.xml");
+        Collection<File> files = FileUtils.listFiles(new File(rootProjectPath), nameFileFilter, DirectoryFileFilter.DIRECTORY);
+        Map<String, String> map = new LinkedHashMap<>();
+        File pomFile = null;
+        if(files != null) {
+            for (File file : files) {
+                pomFile = file;
+                System.out.println("pomFile--->"+pomFile);
+                String pomString = FileUtils.readFileToString(pomFile);
+                String starTag = "Dependencies Properties Start";
+                String endTag = "Dependencies Properties End";
+                String dependencies = StringUtils.substringBetween(pomString, starTag, endTag);
+                if(StringUtils.isNotBlank(dependencies)) {
+                    String dependencieProperties = StringUtils.substringBetween(dependencies, "-->", "<!--").trim();
+                    String[] properties = dependencieProperties.split("[\r\n]");
+                    for(String property : properties) {
+                        if(org.apache.commons.lang3.StringUtils.isNotBlank(property)) {
+                            String prjAndVersion = property.trim();
+                            String prj = org.apache.commons.lang3.StringUtils.substringBetween(prjAndVersion, "<", ">");//.replace("-version", "");
+                            String version = org.apache.commons.lang3.StringUtils.substringBetween(prjAndVersion, ">", "</");
+                            String realPrj = prj.replaceAll("[._-]version","");
+                            String realPrjParentPath = new File(rootProjectPath).getParent()+File.separator+realPrj.replaceAll("[._-]api$", "");
+                            String latestVersion = MavenUtils.getLatestVersion(realPrj);
+                            map.put(prj, version+"/"+latestVersion);
+                            System.out.println("prjAndVersion--->"+prjAndVersion);
+                            System.out.println("map--->"+map);
+                            System.out.println("prj--->"+prj);
+                            System.out.println("realPrj--->"+realPrj);
+                            System.out.println("version--->"+version);
+                            System.out.println("realPrjParentPath--->"+realPrjParentPath);
+                            System.out.println("latestVersion--->"+latestVersion);
+                        }
+                    }
+                    // 只支持一个pom中的依赖替换逻辑
+                    break;
+                }
+            }
+        }
+        MavenDependency mavenDependency = new MavenDependency();
+        mavenDependency.setPomFile(pomFile);
+        mavenDependency.setDependencies(map);
+        return mavenDependency;
+    }
 }
