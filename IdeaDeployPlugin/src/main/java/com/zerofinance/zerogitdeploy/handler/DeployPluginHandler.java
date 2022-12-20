@@ -369,49 +369,49 @@ public final class DeployPluginHandler {
 
 
 
-    private String getPreparingVersionFile() throws Exception {
-        String preparingVersionFile = "";
-        String rootProjectPath = CommandUtils.getRootProjectPath(modulePath);
-        MavenDependency mavenDependency = MavenUtils.getDependencies(rootProjectPath);
-        Map<String, String> dependencies = mavenDependency.getDependencies();
-        System.out.println("dependencies===>"+dependencies);
-        File pomFile = mavenDependency.getPomFile();
-        if(dependencies!=null &&!dependencies.isEmpty()) {
-            // Show dialog to change version
-            DependenciesDialogWrapper dialogWrapper = new DependenciesDialogWrapper(dependencies);//.showAndGet();
-            dialogWrapper.show();
-            int exitCode = dialogWrapper.getExitCode();
-            if(exitCode == DialogWrapper.OK_EXIT_CODE) {
-                // ok
-                preparingVersionFile = CommandUtils.getTempFolder()+File.separator+ UUID.randomUUID();
-                Map<String, JTextField> textFields = dialogWrapper.getTextFields();
-                // Checking text field
-                textFields.forEach((key, textField)->{
-                    String text = textField.getText();
-                    System.out.println("key===>"+key);
-                    System.out.println("textField===>"+text);
-                    if(StringUtils.isBlank(text)) {
-                        throw new DeployPluginException("Please give a available current dependency version.");
-                    }
-                });
-                if(new File(preparingVersionFile).exists()) {
-                    new File(preparingVersionFile).delete();
-                }
-                FileUtils.write(new File(preparingVersionFile), pomFile+"\n", StandardCharsets.UTF_8, true);
-
-                for (Map.Entry<String, JTextField> entry : textFields.entrySet()) {
-                    String key = entry.getKey();
-                    JTextField textField = entry.getValue();
-                    String text = textField.getText();
-                    String value = key + ":" + text+"\n";
-                    FileUtils.write(new File(preparingVersionFile), value, StandardCharsets.UTF_8, true);
-                }
-                preparingVersionFile = preparingVersionFile.replace("\\", "/");
-                System.out.println("preparingVersionFile===>"+preparingVersionFile);
-            }
-        }
-        return preparingVersionFile;
-    }
+//    private String getPreparingVersionFile() throws Exception {
+//        String preparingVersionFile = "";
+//        String rootProjectPath = CommandUtils.getRootProjectPath(modulePath);
+//        MavenDependency mavenDependency = MavenUtils.getDependencies(rootProjectPath);
+//        Map<String, String> dependencies = mavenDependency.getDependencies();
+//        System.out.println("dependencies===>"+dependencies);
+//        File pomFile = mavenDependency.getPomFile();
+//        if(dependencies!=null &&!dependencies.isEmpty()) {
+//            // Show dialog to change version
+//            DependenciesDialogWrapper dialogWrapper = new DependenciesDialogWrapper(dependencies);//.showAndGet();
+//            dialogWrapper.show();
+//            int exitCode = dialogWrapper.getExitCode();
+//            if(exitCode == DialogWrapper.OK_EXIT_CODE) {
+//                // ok
+//                preparingVersionFile = CommandUtils.getTempFolder()+File.separator+ UUID.randomUUID();
+//                Map<String, JTextField> textFields = dialogWrapper.getTextFields();
+//                // Checking text field
+//                textFields.forEach((key, textField)->{
+//                    String text = textField.getText();
+//                    System.out.println("key===>"+key);
+//                    System.out.println("textField===>"+text);
+//                    if(StringUtils.isBlank(text)) {
+//                        throw new DeployPluginException("Please give a available current dependency version.");
+//                    }
+//                });
+//                if(new File(preparingVersionFile).exists()) {
+//                    new File(preparingVersionFile).delete();
+//                }
+//                FileUtils.write(new File(preparingVersionFile), pomFile+"\n", StandardCharsets.UTF_8, true);
+//
+//                for (Map.Entry<String, JTextField> entry : textFields.entrySet()) {
+//                    String key = entry.getKey();
+//                    JTextField textField = entry.getValue();
+//                    String text = textField.getText();
+//                    String value = key + ":" + text+"\n";
+//                    FileUtils.write(new File(preparingVersionFile), value, StandardCharsets.UTF_8, true);
+//                }
+//                preparingVersionFile = preparingVersionFile.replace("\\", "/");
+//                System.out.println("preparingVersionFile===>"+preparingVersionFile);
+//            }
+//        }
+//        return preparingVersionFile;
+//    }
 
     public void changeVersion() {
         try {
@@ -487,7 +487,7 @@ public final class DeployPluginHandler {
 
     public void release() {
         try {
-            String preparingVersionFile = getPreparingVersionFile();
+//            String preparingVersionFile = getPreparingVersionFile();
             String rootProjectPath = CommandUtils.getRootProjectPath(modulePath);
 
             /*boolean continute = true;
@@ -533,7 +533,7 @@ public final class DeployPluginHandler {
 //		                String rootProjectPath = getParentProject(projectPath, cmd);
 
                 String desc = desc();
-                List<String> parameters = Lists.newArrayList(inputtedVersion, dateString, "false", "\"" + desc + "\"", preparingVersionFile, ""+modifyDepenOnVersions);
+                List<String> parameters = Lists.newArrayList(inputtedVersion, dateString, "false", "\"" + desc + "\"", "notusedparameter", ""+modifyDepenOnVersions);
                 CmdBuilder cmdBuilder = new CmdBuilder(rootProjectPath, cmdFile, true, parameters);
                 runJob(cmdBuilder);
             }
