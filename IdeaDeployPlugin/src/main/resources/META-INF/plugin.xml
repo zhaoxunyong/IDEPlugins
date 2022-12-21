@@ -21,7 +21,7 @@
         <li>1. Release: Creating a new branch from local repository and push it to a remote git branch automatically.</li>
         <li>2. NewBranch: Creating a new branch from local repository automatically.</li>
         <li>3. ChangVersion: Changing a new maven version from local repository automatically.</li>
-        <li>4. AnyTool: Executing the plugin("mybatis-generator-maven-plugin") to generate mybatis sql files automatically.</li>
+        <li>4. AnyTool: Executing the plugin you can define by yourself.</li>
     </ul>
     ]]></description>
 
