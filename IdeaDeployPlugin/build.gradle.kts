@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "com.zerofinance"
-version = "1.0.7"
+version = "1.0.8"
 
 repositories {
     mavenCentral()
@@ -35,6 +35,7 @@ tasks {
     patchPluginXml {
         sinceBuild.set("212")
         untilBuild.set("222.*")
+        untilBuild.set("223.*")
     }
 
     signPlugin {
