@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "com.zerofinance"
-version = "1.0.8"
+version = "1.0.9"
 
 repositories {
     mavenCentral()
@@ -16,6 +16,8 @@ dependencies {
 
 // Configure Gradle IntelliJ Plugin - read more: https://github.com/JetBrains/gradle-intellij-plugin
 intellij {
+    // https://yoncise.com/logs/2022/08/03/88356600/
+    updateSinceUntilBuild.set(false)
     version.set("2022.1")
     type.set("IC") // Target IDE Platform
 
@@ -34,8 +36,7 @@ tasks {
 
     patchPluginXml {
         sinceBuild.set("212")
-        untilBuild.set("222.*")
-        untilBuild.set("223.*")
+        // untilBuild.set("231.*")
     }
 
     signPlugin {
