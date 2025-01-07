@@ -46,11 +46,13 @@ import org.jetbrains.plugins.terminal.TerminalToolWindowFactory;
 import org.jetbrains.plugins.terminal.TerminalView;
 
 import javax.swing.*;
+import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
@@ -141,7 +143,30 @@ public final class DeployPluginHandler {
             if (result != null && result.getCode() != 0) {
                 throw new DeployPluginException(result.getResult());
             } else {
-                isConfirm = Messages.showYesNoDialog("Making sure you don't forget merging some modified code.\n\n" + result.getResult(), moduleName+": Committed Log Confirm?", Messages.getQuestionIcon()) == 0;
+                // sConfirm = Messages.showYesNoDialog("Making sure you don't forget merging some modified code.\n\n" + result.getResult(), moduleName+": Committed Log Confirm?", Messages.getQuestionIcon()) == 0;
+
+                JPanel panel = new JPanel() {
+                    @Override
+                    public Dimension getPreferredSize() {
+                        return new Dimension(1500, 800);
+                    }
+                };
+                //We can use JTextArea or JLabel to display messages
+                JFrame jf=new JFrame();
+                //jf.setBounds(50, 50, 200, 200);
+                jf.setAlwaysOnTop(true);
+                JTextArea textArea = new JTextArea();
+                textArea.setEditable(false);
+                textArea.setText("Making sure you don't forget merging some modified code.\n\n" + result.getResult());
+                panel.setLayout(new BorderLayout());
+                panel.add(new JScrollPane(textArea));
+
+                int input = JOptionPane.showConfirmDialog(jf,
+                        panel, //Here goes content
+                        moduleName+": Committed Log Confirm?",
+                        JOptionPane.OK_CANCEL_OPTION, // Options for JOptionPane
+                        JOptionPane.ERROR_MESSAGE); // Message type
+                isConfirm = (input == 0);
             }
         } catch (Exception e) {
             // Skipping check when the committedLogs.sh isn't existing
