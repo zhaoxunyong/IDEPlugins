@@ -38,11 +38,13 @@ const newBranchFile = 'newBranch.sh'
 const newReleaseFile = 'release.sh'
 const newTagFile = 'tag.sh'
 const gitCheckFile = 'gitCheck.sh'
+const committedLogsFile = "committedLogs.sh";
 const tmpdir = tmp.tmpdir
 const newBranchPath = tmpdir + '/' + newBranchFile
 const newReleasePath = tmpdir + '/' + newReleaseFile
 const newTagPath = tmpdir + '/' + newTagFile
 const gitCheckPath = tmpdir + '/' + gitCheckFile
+const committedLogsPath = tmpdir + '/' + committedLogsFile
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
 
@@ -121,6 +123,72 @@ function activate (context) {
         console.log(`onDidCloseTerminal, name: ${terminal.name}`)
         mdTml = null
     })
+}
+
+async function committedLogWarn (rootPath) {
+    return new Promise(async (resolve, reject) => {
+        rootPath = rootPath.replace(/\\/gm, '/')
+        let projectScriptPath = rootPath + '/' + committedLogsFile
+        let scriptPath = committedLogsPath
+        scriptPath = scriptPath.replace(/\\/gm, '/')
+
+        if (fs.existsSync(projectScriptPath)) {
+            scriptPath = projectScriptPath
+        } else {
+            let committedLogsUrl = getRootUrl() + '/' + committedLogsFile
+            try {
+                await myPlugin.downloadScripts(committedLogsUrl, committedLogsPath)
+                // await myPlugin.downloadScripts(gitCheckUrl, gitCheckPath).catch(err => {
+                //     vscode.window.showErrorMessage(`Can't found ${gitCheckUrl}: ${err}`)
+                //     throw new Error(err)
+                // })
+            } catch (err) {
+                console.warn('gitCheck.sh not found in remote git!')
+            }
+        }
+
+        if (fs.existsSync(scriptPath)) {
+            try {
+                let cmd = `cd ${rootPath} && "${getBashPath()}" ${scriptPath}`
+                let isWin = process.platform === 'win32'
+                // "D:/Developer/Git/bin/bash.exe" -c "cd d:/Developer/workspace/blog && C:/Users/DAVE~1.ZHA/AppData/Local/Temp/gitCheck.sh"
+                if (isWin) {
+                    cmd = `"${getBashPath()}" -c "cd ${rootPath} && ${scriptPath}"`
+                }
+                if (myStatusBarItem == null) {
+                    myStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left)
+                }
+                // disposable = vscode.window.setStatusBarMessage('Checking git status, it may take a few seconds...')
+                myStatusBarItem.text = `Pre checking, it may take a few seconds...`
+                // myStatusBarItem.color = new vscode.ThemeColor('statusBar.background')
+                myStatusBarItem.color = 'red'
+                myStatusBarItem.show()
+                const { stdout, stderr } = await exec(cmd)
+                // if (stderr !== undefined && stderr !== '') {
+                //     throw new Error(stderr)
+                // }
+                let msg = stdout.toString()
+                vscode.window.showWarningMessage(msg, {
+                    modal: true,
+                    detail: '确认是否有需要合并的分支，如果有请先合并！'
+                }).then(() => {
+                    // console.log('You clicked the button!');
+                    resolve()
+                }).catch(err => {
+                    reject(err)
+                })
+            } catch (err) {
+                const { stdout } = err
+                let msg = stdout.toString()
+                vscode.window.showErrorMessage(msg)
+                throw new Error(msg)
+            } finally {
+                // disposable.dispose()
+                myStatusBarItem.hide()
+            }
+        }
+    })
+
 }
 
 async function gitCheck (rootPath) {
@@ -261,6 +329,7 @@ async function newRelease () {
     let selectedItem = await myPlugin.chooicingFolder()
     const rootPath = selectedItem.uri.fsPath
     await gitCheck(rootPath)
+    await committedLogWarn(rootPath)
     let git = simpleGit(rootPath)
 
     let releaseType = await myPlugin.chooicingRleaseType()
