@@ -2,9 +2,6 @@ package com.zerofinance.zerogitdeploy.tools;
 
 import java.util.List;
 
-import org.apache.commons.lang.builder.ReflectionToStringBuilder;
-import org.apache.commons.lang.builder.ToStringStyle;
-
 /**
  * CmdBuilder
  * 
@@ -62,6 +59,6 @@ public class CmdBuilder {
 	}
 
 	public String toString() {
-        return ReflectionToStringBuilder.toString(this, ToStringStyle.SHORT_PREFIX_STYLE);
+        return "workHome: "+workHome+", command: "+command+", command: "+command+", isBatchScript: "+isBatchScript;
     }
 }
