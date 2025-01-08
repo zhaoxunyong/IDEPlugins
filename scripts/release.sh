@@ -23,6 +23,8 @@ newDate=$2
 #Whether or not to tag this branch version: "false": don't tag "yes": tag
 needTag=$3
 desc=$4
+preparingVersionFile=$5
+modifyDepenOnVersions=$6
 
 if [[ "$desc" == "" ]]; then
   echo "Please add a message for git!"
@@ -66,7 +68,7 @@ fi
 #  exit -1
 #fi
 
-newTag=${branchVersion}-${newDate}
+newTag=temp-${branchVersion}-${newDate}
 
 function SwitchBranch() {
     branchVersions=$1
@@ -191,6 +193,28 @@ function updateVersionRecord() {
   echo "version=$version" > $verFile
 }
 
+function updateDependenciesVersion() {
+  echo "preparingVersionFile---$preparingVersionFile"
+  if [[ -f "$preparingVersionFile" ]]; then
+    pomFile=`cat $preparingVersionFile | sed -n '1p'`
+    
+    for version in `cat $preparingVersionFile | sed -n '2,$p'`
+    do  
+      #echo "$version in $pomFile..."
+      prj=`echo ${version} | awk -F ':' '{print $1}'`
+      ver=`echo ${version} | awk -F ':' '{print $2}'`
+      echo "$prj--->$ver"
+      sed -i "s;.*<$prj>.*;		<$prj>$ver</$prj>;g" $pomFile
+    done
+    #git add .
+    #git commit -m "Mod Modifying dependencies versions."
+  fi
+}
+
+# #替换版本
+updateDependenciesVersion
+
+
 currPath=`pwd`
 projectName=${currPath##*/}
 if [[ "${projectName}" == "alphatimes-commons" ]]; then
@@ -209,23 +233,25 @@ currentBranchVersion=`git branch|grep "*"|sed 's;^* ;;'`
 echo "branchVersion--------${branchVersion}"
 #echo "newTag--------${newTag}"
 echo "currentBranchVersion--------${currentBranchVersion}"
+
+echo "Starting switching branch..."
 SwitchBranch $branchVersion
 
 #Working for changing the versoin of the other dependencies project before Changing version.
 if [[ -f "deploy.sh" ]]; then
-  bash deploy.sh beforeChangeVersion $releaseVersion $branchVersion
+  bash deploy.sh beforeChangeReleaseVersion $releaseVersion $branchVersion $modifyDepenOnVersions
 fi
 changeReleaseVersion $releaseVersion
 updateVersionRecord $releaseVersion
 #Working for changing the versoin of the other dependencies project when Changing version is done.
 if [[ -f "deploy.sh" ]]; then
-  bash deploy.sh changeVersion $releaseVersion $branchVersion
+  bash deploy.sh afterChangeReleaseVersion $releaseVersion $branchVersion $modifyDepenOnVersions
 fi
 
 # deploy
 #Working for pushing jar to maven repostitories
 if [[ -f "deploy.sh" ]]; then
-  bash deploy.sh deploy $releaseVersion $branchVersion
+  bash deploy.sh deploy $releaseVersion $branchVersion $modifyDepenOnVersions
 #else
   #cat pom.xml 2>/dev/null | grep "<skip_maven_deploy>false</skip_maven_deploy>" &> /dev/null
   #if [[ $? == 0 ]]; then
@@ -240,12 +266,12 @@ git checkout $currentBranchVersion
 
 #Working for changing the versoin of the other dependencies project before Changing version.
 if [[ -f "deploy.sh" ]]; then
-  bash deploy.sh beforeChangeVersion $nextDevelopVersion $currentBranchVersion
+  bash deploy.sh beforeChangeNextVersion $nextDevelopVersion $currentBranchVersion $modifyDepenOnVersions
 fi
 changeNextVersion $nextDevelopVersion
 #Working for changing the versoin of the other dependencies project when Changing version is done.
 if [[ -f "deploy.sh" ]]; then
-  bash deploy.sh changeVersion $nextDevelopVersion $currentBranchVersion
+  bash deploy.sh afterChangeNextVersion $nextDevelopVersion $currentBranchVersion $modifyDepenOnVersions
 fi
 updateVersionRecord $nextDevelopVersion
 Push $currentBranchVersion

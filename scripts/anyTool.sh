@@ -20,7 +20,7 @@ echo "$project current version is $version"
 
 dependencyProjectVersion=${project}-api-version
 #echo $dependencyProjectVersion
-projects="xpay-gateway xpay-external-gateway account-server configuration-server merchant-server operation-server payment-server external-server xpay-commons zerofinance-commons"
+projects="xpay-gateway xpay-external-gateway xpay-merchantcenter-gateway xpay-openapi-gateway client-server transaction-server aggregation-query-server rule-engine-server account-server configuration-server merchant-server operation-server payment-server external-server xpay-commons zerofinance-commons"
 
 cd ..
 for project in $projects
