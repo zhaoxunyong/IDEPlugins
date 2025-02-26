@@ -9,7 +9,7 @@ const fs = require('fs')
  * @returns branch object
  * @Date: 2019-07-03 13:51:18
  */
-function getBranch(simpleGit) {
+function getBranch (simpleGit) {
     return new Promise((resolve, reject) => {
         simpleGit.branch((err, branch) => {
             if (err) {
@@ -21,7 +21,7 @@ function getBranch(simpleGit) {
     })
 }
 
-function getShowTagInDropDown() {
+function getShowTagInDropDown () {
     // If you wanna get realtime config, must use "vscode.workspace.getConfiguration()"
     return vscode.workspace.getConfiguration().get('zerofinanceGit.showTagInDropDownPreference')
 }
@@ -44,7 +44,7 @@ function getShowTagInDropDown() {
     })
 } */
 
-function getAllReleaseVersion(simpleGit) {
+function getAllReleaseVersion (simpleGit) {
     return new Promise((resolve, reject) => {
         simpleGit.branch((err, branch) => {
             if (err) {
@@ -61,7 +61,7 @@ function getAllReleaseVersion(simpleGit) {
  * @returns the project you picked
  * @Date: 2019-07-03 13:52:42
  */
-async function chooicingFolder() {
+async function chooicingFolder () {
     return await vscode.window.showWorkspaceFolderPick()
 }
 
@@ -71,7 +71,7 @@ async function chooicingFolder() {
  * @returns the branch you have beed inputted.
  * @Date: 2019-07-03 13:54:10
  */
-async function chooicingBranch(simpleGit) {
+async function chooicingBranch (simpleGit) {
     let branch = await getBranch(simpleGit)
     let currentBranch = getCurrentRemoteBranch(branch)
     // Get next branch
@@ -93,14 +93,14 @@ async function chooicingBranch(simpleGit) {
             placeHolder: 'Fill in new branch', // 在输入框内的提示信息
             prompt: 'The new branch has been filled in!', // 在输入框下方的提示信息
             value: nextBranch,
-            validateInput: function(text) {
+            validateInput: function (text) {
                 if (text == '' || !text.endsWith('.x')) {
                     return 'Please fill in a correct branch name: similar to 1.0.x and so on.'
                 }
                 return ''
             } // 对输入内容进行验证并返回
         })
-        .then(function(newBranch) {
+        .then(function (newBranch) {
             if (!newBranch) return
             // resolve(newBranch)
             return newBranch
@@ -113,7 +113,7 @@ async function chooicingBranch(simpleGit) {
  * @param {simple-git} simpleGit
  * @Date: 2019-07-03 13:55:57
  */
-async function chooicingRlease(releaseType, simpleGit) {
+async function chooicingRlease (releaseType, simpleGit) {
     const currentDate = dateUtils.formatTime('yyyyMMddhhmm', new Date())
     let branch = await getBranch(simpleGit)
     console.log('branch--->', branch)
@@ -180,14 +180,14 @@ async function chooicingRlease(releaseType, simpleGit) {
                 placeHolder: 'Fill in new ' + releaseType, // 在输入框内的提示信息
                 prompt: 'The new ' + releaseType + ' has been filled in!', // 在输入框下方的提示信息
                 value: nextRelase,
-                validateInput: function(text) {
+                validateInput: function (text) {
                     if (text == '' || text.indexOf('.' + releaseType) == -1) {
                         return 'Please fill in a correct relase name: it similar to be 1.0.0.' + releaseType + ' and so on.'
                     }
                     return ''
                 } // 对输入内容进行验证并返回
             })
-            .then(function(nextRelase) {
+            .then(function (nextRelase) {
                 if (!nextRelase) return
                 return {
                     nextRelase: nextRelase,
@@ -198,7 +198,7 @@ async function chooicingRlease(releaseType, simpleGit) {
     }
 }
 
-function chooicingTag(selectedRelease) {
+function chooicingTag (selectedRelease) {
     const currentDate = dateUtils.formatTime('yyyyMMddhhmm', new Date())
     return {
         nextRelase: selectedRelease,
@@ -216,7 +216,7 @@ function chooicingTag(selectedRelease) {
  * @returns release type
  * @Date: 2019-07-03 13:56:31
  */
-async function chooicingRleaseType() {
+async function chooicingRleaseType () {
     const items = [
         {
             label: 'release',
@@ -245,7 +245,7 @@ async function chooicingRleaseType() {
  * @param {json} versions
  * @Date: 2019-07-26 10:15:14
  */
-async function listAllRemoteReleaseVersions(simpleGit) {
+async function listAllRemoteReleaseVersions (simpleGit) {
     let branch = await getAllReleaseVersion(simpleGit)
     let releaseBranchs = getAllRemoteReleaseBranchs(branch)
     let items = releaseBranchs.map(ver => {
@@ -261,7 +261,7 @@ async function listAllRemoteReleaseVersions(simpleGit) {
 /**
  * 如果version1>version2返回1，如果version<version2返回-1，否则返回0
  */
-function compareVersion(version1, version2) {
+function compareVersion (version1, version2) {
     if (version1 == undefined || version2 == undefined) {
         return 0
     }
@@ -269,7 +269,7 @@ function compareVersion(version1, version2) {
     let str1 = version1.split('.')
     let str2 = version2.split('.')
 
-    for (let i = 0; i < str1.length || i < str2.length; ) {
+    for (let i = 0; i < str1.length || i < str2.length;) {
         let n1 = i < str1.length ? parseInt(str1[i]) : 0
         let n2 = i < str2.length ? parseInt(str2[i]) : 0
         if (n1 > n2) return 1
@@ -285,7 +285,7 @@ function compareVersion(version1, version2) {
  * @returns the maximum version
  * @Date: 2019-07-03 13:57:44
  */
-function getCurrentRemoteBranch(branch) {
+function getCurrentRemoteBranch (branch) {
     let currentBranch = ''
     let version2 = '0.0.0'
     for (let version in branch.branches) {
@@ -309,7 +309,7 @@ function getCurrentRemoteBranch(branch) {
  * @returns the maximum version
  * @Date: 2019-07-03 13:57:44
  */
-function getMaxRemoteReleaseBranch(branch) {
+function getMaxRemoteReleaseBranch (branch) {
     let currentBranch = ''
     let tempBranch = 0
     let version2 = '0.0.0'
@@ -339,7 +339,7 @@ function getMaxRemoteReleaseBranch(branch) {
  * @param {type}
  * @Date: 2019-07-09 09:27:57
  */
-function getAllRemoteReleaseBranchs(branch) {
+function getAllRemoteReleaseBranchs (branch) {
     let releaseBranchs = []
     for (let version in branch.branches) {
         if (version.startsWith('remotes/origin/') && (version.indexOf('.release') != -1 || version.indexOf('.hotfix') != -1)) {
@@ -351,12 +351,17 @@ function getAllRemoteReleaseBranchs(branch) {
     return releaseBranchs.reverse()
 }
 
-async function getDesc() {
+async function getDesc (branch) {
+    let initialValue = ''
+    if (branch != undefined && branch != '') {
+        initialValue = "Mod Change version to " + branch + "."
+    }
     return await vscode.window.showInputBox({
+        value: initialValue,
         ignoreFocusOut: true,
         placeHolder: 'Add a message for git description',
         prompt: 'Add a message for git description',
-        validateInput: function(text) {
+        validateInput: function (text) {
             if (text == '') {
                 return 'Please add a message for git description.'
             }
@@ -370,7 +375,7 @@ async function getDesc() {
  * @param {string} github url
  * @Date: 2019-07-03 14:06:21
  */
-function downloadScripts(url, file) {
+function downloadScripts (url, file) {
     return new Promise((resolve, reject) => {
         axios({
             url: url,
@@ -389,7 +394,7 @@ function downloadScripts(url, file) {
                     }
                 })
             })
-            .catch(function(error) {
+            .catch(function (error) {
                 // handle error
                 // console.log("error->", error);
                 reject(error)

@@ -304,7 +304,7 @@ async function newBranch () {
     }
     if (fs.existsSync(scriptPath)) {
         try {
-            let desc = await myPlugin.getDesc()
+            let desc = await myPlugin.getDesc(newBranch)
             if (desc === '' || desc === undefined) {
                 let err = 'The message for git description must not be empty!'
                 vscode.window.showErrorMessage(err)
@@ -355,7 +355,7 @@ async function newRelease () {
         }
         if (fs.existsSync(scriptPath)) {
             try {
-                let desc = await myPlugin.getDesc()
+                let desc = await myPlugin.getDesc(release.nextRelase)
                 if (desc === '' || desc === undefined) {
                     let err = 'The message for git description must not be empty!'
                     vscode.window.showErrorMessage(err)
@@ -401,7 +401,7 @@ async function newRelease () {
                         }
                     })
                 }
-                let desc = await myPlugin.getDesc()
+                let desc = await myPlugin.getDesc(release.nextRelase)
                 if (desc === '' || desc === undefined) {
                     let err = 'The message for git description must not be empty!'
                     vscode.window.showErrorMessage(err)

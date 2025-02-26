@@ -204,7 +204,7 @@ public final class DeployPluginHandler {
     }
 
     private String desc(String branch) throws Exception {
-        String initialValue = "Release version to "+branch+".";
+        String initialValue = "Mod Change version to "+branch+".";
         String input = Messages.showInputDialog("Adding a message for git description", moduleName + ": Description", Messages.getInformationIcon(), initialValue, new InputValidator() {
             @Override
             public boolean checkInput(@NlsSafe String s) {
