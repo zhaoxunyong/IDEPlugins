@@ -203,8 +203,22 @@ public final class DeployPluginHandler {
         return input;
     }
 
-    private String desc() throws Exception {
-        String input = Messages.showInputDialog("Adding a message for git description", moduleName+": Description", Messages.getInformationIcon());
+    private String desc(String branch) throws Exception {
+        String initialValue = "Release version to "+branch+".";
+        String input = Messages.showInputDialog("Adding a message for git description", moduleName + ": Description", Messages.getInformationIcon(), initialValue, new InputValidator() {
+            @Override
+            public boolean checkInput(@NlsSafe String s) {
+                if (StringUtils.isBlank(s)) {
+                    return false;
+                }
+                return true;
+            }
+
+            @Override
+            public boolean canClose(@NlsSafe String s) {
+                return true;
+            }
+        });
         if (StringUtils.isBlank(input)) {
             throw new DeployPluginException("Please input a available description.");
         }
@@ -491,7 +505,7 @@ public final class DeployPluginHandler {
             if (parameters != null && !parameters.isEmpty()) {
 //            String projectPath = project.getLocation().toFile().getPath();
 //            String rootProjectPath = getParentProject(projectPath, cmd);
-                String desc = desc();
+                String desc = desc(newBranch);
                 parameters.add("\"" + desc + "\"");
                 CmdBuilder cmdBuilder = new CmdBuilder(rootProjectPath, cmdFile, true, parameters);
                 runJob(cmdBuilder);
@@ -567,7 +581,7 @@ public final class DeployPluginHandler {
 //		                String projectPath = project.getLocation().toFile().getPath();
 //		                String rootProjectPath = getParentProject(projectPath, cmd);
 
-                String desc = desc();
+                String desc = desc(inputtedVersion);
                 List<String> parameters = Lists.newArrayList(inputtedVersion, dateString, "false", "\"" + desc + "\"", preparingVersionFile, ""+modifyDepenOnVersions);
                 CmdBuilder cmdBuilder = new CmdBuilder(rootProjectPath, cmdFile, true, parameters);
                 runJob(cmdBuilder);
