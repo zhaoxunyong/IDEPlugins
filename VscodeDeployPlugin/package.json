@@ -39,6 +39,21 @@
                     "type": "boolean",
                     "default": true,
                     "description": "Enable debug logs in extension host console"
+                },
+                "zerofinanceGit.groupName": {
+                    "type": "string",
+                    "default": "",
+                    "enum": [
+                        "",
+                        "a",
+                        "b"
+                    ],
+                    "enumDescriptions": [
+                        "Please select a group before running any task",
+                        "Group A",
+                        "Group B"
+                    ],
+                    "description": "Required group name for running tasks. Must be a or b."
                 }
             }
         },

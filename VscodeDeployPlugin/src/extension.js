@@ -9,6 +9,13 @@ const exec = util.promisify(require('child_process').exec)
 let mdTml = null
 let myStatusBarItem = null
 
+const CONFIG_ROOT = 'zerofinanceGit'
+const CONFIG_SCRIPT_URL = `${CONFIG_ROOT}.gitScriptsUrlPreference`
+const CONFIG_CHECK_GIT_VERSION = `${CONFIG_ROOT}.checkGitVersion`
+const CONFIG_DEBUG = `${CONFIG_ROOT}.debug`
+const CONFIG_GROUP_NAME = `${CONFIG_ROOT}.groupName`
+const DEFAULT_SCRIPT_ROOT_URL = 'https://gitlab.zerofinance.net/dave.zhao/deployPlugin/-/raw/git-flow'
+const COMMAND_PREFIX = 'extension.'
 const gitCheckFile = 'gitCheck.sh'
 const tmpdir = tmp.tmpdir
 const gitCheckPath = tmpdir + '/' + gitCheckFile
@@ -23,7 +30,7 @@ const gitFlowScriptByCommand = {
 }
 
 function debugLog (message, payload) {
-    const debugEnabled = vscode.workspace.getConfiguration().get('zerofinanceGit.debug')
+    const debugEnabled = vscode.workspace.getConfiguration().get(CONFIG_DEBUG)
     if (!debugEnabled) {
         return
     }
@@ -39,12 +46,64 @@ function normalizePath (path) {
 }
 
 function getRootUrl () {
-    let rootUrl = vscode.workspace.getConfiguration().get('zerofinanceGit.gitScriptsUrlPreference')
+    let rootUrl = vscode.workspace.getConfiguration().get(CONFIG_SCRIPT_URL)
     if (!rootUrl) {
-        // rootUrl = 'http://gitlab.zerofinance.net/dave.zhao/deployPlugin/raw/master'
-        rootUrl = 'https://gitlab.zerofinance.net/dave.zhao/deployPlugin/-/raw/git-flow/git-flow'
+        rootUrl = DEFAULT_SCRIPT_ROOT_URL
     }
-    return rootUrl
+    return rootUrl.replace(/\/+$/, '')
+}
+
+async function ensureGroupNameConfigured () {
+    const groupName = vscode.workspace.getConfiguration().get(CONFIG_GROUP_NAME)
+    const validGroups = ['a', 'b']
+    if (validGroups.includes(groupName)) {
+        return groupName
+    }
+
+    const openSettingsAction = 'Open Settings'
+    const message = 'Please configure "zerofinanceGit.groupName" to "a" or "b" before running tasks.'
+    const selectedAction = await vscode.window.showErrorMessage(message, openSettingsAction)
+    if (selectedAction === openSettingsAction) {
+        await vscode.commands.executeCommand('workbench.action.openSettings', CONFIG_GROUP_NAME)
+    }
+    return null
+}
+
+async function askStartFeatureName (groupName) {
+    const branchPrefix = `feature/${groupName}/`
+    const featureRule = /^\d+-\S.*$/
+    const fullFeatureName = await vscode.window.showInputBox({
+        ignoreFocusOut: true,
+        placeHolder: 'Please input feature name',
+        prompt: 'Please input feature name after prefix, and start with number- (e.g. 001-login).',
+        value: branchPrefix,
+        validateInput: function (text) {
+            const value = (text || '').trim()
+            if (!value.startsWith(branchPrefix)) {
+                return `Branch name must start with "${branchPrefix}".`
+            }
+            const featureName = value.slice(branchPrefix.length).trim()
+            if (!featureName) {
+                return 'Please input feature name after the prefix.'
+            }
+            if (!featureRule.test(featureName)) {
+                return 'Feature name must start with number- (e.g. 001-login).'
+            }
+            return ''
+        }
+    })
+
+    if (!fullFeatureName) {
+        vscode.window.showErrorMessage('Please input feature name, task aborted.')
+        return null
+    }
+    const normalizedFeatureName = fullFeatureName.trim()
+    const featureName = normalizedFeatureName.slice(branchPrefix.length).trim()
+    if (!normalizedFeatureName.startsWith(branchPrefix) || !featureName || !featureRule.test(featureName)) {
+        vscode.window.showErrorMessage('Please input feature name after the prefix, task aborted.')
+        return null
+    }
+    return `${branchPrefix}${featureName}`
 }
 
 function clearCacheFile () {
@@ -83,6 +142,37 @@ async function resolveScriptPath (rootPath, scriptName) {
     }
 }
 
+function getOrCreateStatusBarItem () {
+    if (myStatusBarItem == null) {
+        myStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left)
+    }
+    return myStatusBarItem
+}
+
+function buildBashCommand (rootPath, scriptPath) {
+    const normalizedRootPath = normalizePath(rootPath)
+    const normalizedScriptPath = normalizePath(scriptPath)
+    if (process.platform === 'win32') {
+        return `"${getBashPath()}" -c "cd ${normalizedRootPath} && ${normalizedScriptPath}"`
+    }
+    return `cd "${normalizedRootPath}" && "${getBashPath()}" "${normalizedScriptPath}"`
+}
+
+function parseGitVersion (stdout) {
+    // Examples:
+    // - git version 2.29.2
+    // - git version 2.29.2.windows.2
+    const match = stdout.match(/(\d+)\.(\d+)\.(\d+)/)
+    if (!match) {
+        return null
+    }
+    return {
+        major: parseInt(match[1], 10),
+        minor: parseInt(match[2], 10),
+        patch: parseInt(match[3], 10)
+    }
+}
+
 /**
  * @param {vscode.ExtensionContext} context
  */
@@ -94,9 +184,11 @@ function activate (context) {
                 clearCacheFile()
                 try {
                     debugLog('command triggered', commandId)
-                    await executeGitFlowCommand(commandId)
-                    const commandName = commandId.replace('extension.', '')
-                    vscode.window.showInformationMessage(`${commandName} executed done, please check the logs in terminal.`)
+                    const executed = await executeGitFlowCommand(commandId)
+                    if (executed) {
+                        const commandName = commandId.replace(COMMAND_PREFIX, '')
+                        vscode.window.showInformationMessage(`${commandName} executed done, please check the logs in terminal.`)
+                    }
                 } catch (err) {
                     const msg = err && err.message ? err.message : String(err)
                     debugLog('command failed', { commandId, msg })
@@ -106,10 +198,10 @@ function activate (context) {
         )
     })
 
-    vscode.window.onDidCloseTerminal(terminal => {
-        console.log(`onDidCloseTerminal, name: ${terminal.name}`)
+    context.subscriptions.push(vscode.window.onDidCloseTerminal(terminal => {
+        debugLog('terminal closed', terminal.name)
         mdTml = null
-    })
+    }))
 }
 
 async function gitCheck (rootPath) {
@@ -117,7 +209,7 @@ async function gitCheck (rootPath) {
     debugLog('gitCheck start', rootPath)
     const gitConfigPath = rootPath + '/.git'
     if (!fs.existsSync(gitConfigPath)) {
-        const errMsg = `${rootPath} is nott a git project, make sure you are opening the root folder of project!`
+        const errMsg = `${rootPath} is not a git project, make sure you are opening the project root folder.`
         vscode.window.showErrorMessage(errMsg)
         throw new Error(errMsg)
     }
@@ -142,62 +234,48 @@ async function gitCheck (rootPath) {
     }
 
     // git version check
-    const checkGitVersion = vscode.workspace.getConfiguration().get('zerofinanceGit.checkGitVersion')
+    const checkGitVersion = vscode.workspace.getConfiguration().get(CONFIG_CHECK_GIT_VERSION)
     debugLog('checkGitVersion enabled', checkGitVersion)
     if (checkGitVersion) {
         try {
             const { stdout } = await exec('git version')
-            console.log("1--->" + stdout)
-            // git version 2.29.2.windows.2
-            let versions = stdout.split(' ')
-            let [v1, v2, v3] = versions
-            let gitversion = v3.split('.')
-            // 2.29.2
-            let [g1, g2, g3] = gitversion
-            debugLog('detected git version', `${g1}.${g2}.${g3}`)
-            if (parseInt(g1) < 2 || (parseInt(g1) === 2 && parseInt(g2) < 29)) {
-                const msg = "Making sure git version >= 2.29.x. "
+            const parsedVersion = parseGitVersion(stdout)
+            if (!parsedVersion) {
+                throw new Error(`Unable to parse git version output: ${stdout}`)
+            }
+            const { major, minor, patch } = parsedVersion
+            debugLog('detected git version', `${major}.${minor}.${patch}`)
+            if (major < 2 || (major === 2 && minor < 29)) {
+                const msg = 'Make sure git version is >= 2.29.x. '
                 throw new Error(msg)
             }
         } catch (err) {
-            const { message } = err
-            let msg = message.toString() + "Please download from here: https://mirrors.huaweicloud.com/git-for-windows/v2.51.0.windows.2/Git-2.51.0.2-64-bit.exe"
+            const message = err && err.message ? err.message : String(err)
+            let msg = `${message} Please download from here: https://mirrors.huaweicloud.com/git-for-windows/v2.51.0.windows.2/Git-2.51.0.2-64-bit.exe`
             vscode.window.showErrorMessage(msg)
             throw new Error(msg)
-
         }
     }
 
     if (fs.existsSync(scriptPath)) {
         try {
-            let cmd = `cd "${rootPath}" && "${getBashPath()}" "${scriptPath}"`
-            let isWin = process.platform === 'win32'
-            // "D:/Developer/Git/bin/bash.exe" -c "cd d:/Developer/workspace/blog && C:/Users/DAVE~1.ZHA/AppData/Local/Temp/gitCheck.sh"
-            if (isWin) {
-                cmd = `"${getBashPath()}" -c "cd ${rootPath} && ${scriptPath}"`
-            }
-            if (myStatusBarItem == null) {
-                myStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left)
-            }
-            // disposable = vscode.window.setStatusBarMessage('Checking git status, it may take a few seconds...')
-            myStatusBarItem.text = `Checking git status, it may take a few seconds...`
-            // myStatusBarItem.color = new vscode.ThemeColor('statusBar.background')
-            myStatusBarItem.color = 'red'
-            myStatusBarItem.show()
+            const cmd = buildBashCommand(rootPath, scriptPath)
+            const statusBarItem = getOrCreateStatusBarItem()
+            statusBarItem.text = 'Checking git status, it may take a few seconds...'
+            statusBarItem.color = 'red'
+            statusBarItem.show()
             debugLog('execute gitCheck command', cmd)
             const { stderr } = await exec(cmd)
             if (stderr !== undefined && stderr !== '') {
                 throw new Error(stderr)
             }
             debugLog('gitCheck finished successfully')
-            // getTerminal().sendText(cmd)
         } catch (err) {
             let msg = err && err.stdout ? err.stdout.toString() : (err && err.message ? err.message : String(err))
             vscode.window.showErrorMessage(msg)
             throw new Error(msg)
         } finally {
-            // disposable.dispose()
-            myStatusBarItem.hide()
+            getOrCreateStatusBarItem().hide()
         }
     }
 }
@@ -208,11 +286,15 @@ async function executeGitFlowCommand (commandId) {
         throw new Error(`Unsupported command: ${commandId}`)
     }
     debugLog('resolve command script', { commandId, scriptName })
+    const groupName = await ensureGroupNameConfigured()
+    if (!groupName) {
+        return false
+    }
 
     let selectedItem = await myPlugin.chooicingFolder()
     if (!selectedItem) {
         debugLog('workspace pick cancelled')
-        return
+        return false
     }
     const rootPath = selectedItem.uri.fsPath
     debugLog('workspace selected', rootPath)
@@ -220,11 +302,33 @@ async function executeGitFlowCommand (commandId) {
     await gitCheck(rootPath)
     const scriptPath = await resolveScriptPath(rootPath, scriptName)
     debugLog('ready to run script', scriptPath)
-    runScriptInTerminal(rootPath, scriptPath)
+    const scriptArgs = [groupName]
+    if (commandId === 'extension.StartNewFeature') {
+        const featureName = await askStartFeatureName(groupName)
+        if (!featureName) {
+            return false
+        }
+        scriptArgs.push(featureName)
+    }
+    runScriptInTerminal(rootPath, scriptPath, scriptArgs)
+    return true
 }
 
-function runScriptInTerminal (rootPath, scriptPath) {
-    const cmdStr = `cd "${normalizePath(rootPath)}" && "${getBashPath()}" "${normalizePath(scriptPath)}"`
+function quoteBashArg (value) {
+    const str = String(value)
+    return `'${str.replace(/'/g, `'\\''`)}'`
+}
+
+function buildBashArgs (args) {
+    if (!Array.isArray(args) || args.length === 0) {
+        return ''
+    }
+    return args.map(arg => quoteBashArg(arg)).join(' ')
+}
+
+function runScriptInTerminal (rootPath, scriptPath, scriptArgs) {
+    const argsText = buildBashArgs(scriptArgs)
+    const cmdStr = argsText ? `${buildBashCommand(rootPath, scriptPath)} ${argsText}` : buildBashCommand(rootPath, scriptPath)
     // sendText defaults to addNewLine=true, so this command is executed immediately.
     debugLog('send command to terminal', cmdStr)
     getTerminal().sendText(cmdStr)
@@ -243,7 +347,7 @@ function getBashPath () {
     let gitBash = 'bash'
     if (process.platform === 'win32') {
         gitBash = vscode.workspace.getConfiguration().get('terminal.integrated.shell.windows')
-        if (gitBash === null || gitBash.indexOf('bash.exe') === -1) {
+        if (gitBash === null || !gitBash.includes('bash.exe')) {
             const errMsg = 'Please set "git bash" for the terminal at "settings.json": "terminal.integrated.shell.windows": "YourGitPath\\\\bin\\\\bash.exe"'
             vscode.window.showErrorMessage(errMsg)
             throw new Error(errMsg)
