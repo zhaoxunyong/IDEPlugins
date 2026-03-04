@@ -106,6 +106,59 @@ async function askStartFeatureName (groupName) {
     return `${branchPrefix}${featureName}`
 }
 
+async function askStartReleaseName (groupName) {
+    const branchPrefix = `release/${groupName}/`
+    const semverRule = /^\d+\.\d+\.\d+$/
+    const fullReleaseName = await vscode.window.showInputBox({
+        ignoreFocusOut: true,
+        placeHolder: 'Please input release name',
+        prompt: 'Please input release version after prefix (e.g. 1.0.0).',
+        value: branchPrefix,
+        validateInput: function (text) {
+            const value = (text || '').trim()
+            if (!value.startsWith(branchPrefix)) {
+                return `Branch name must start with "${branchPrefix}".`
+            }
+            const releaseVersion = value.slice(branchPrefix.length).trim()
+            if (!releaseVersion) {
+                return 'Please input release version after the prefix.'
+            }
+            if (!semverRule.test(releaseVersion)) {
+                return 'Release version must follow SemVer format (e.g. 1.0.0).'
+            }
+            return ''
+        }
+    })
+
+    if (!fullReleaseName) {
+        vscode.window.showErrorMessage('Please input release name, task aborted.')
+        return null
+    }
+    const normalizedReleaseName = fullReleaseName.trim()
+    const releaseVersion = normalizedReleaseName.slice(branchPrefix.length).trim()
+    if (!normalizedReleaseName.startsWith(branchPrefix) || !releaseVersion || !semverRule.test(releaseVersion)) {
+        vscode.window.showErrorMessage('Please input valid release name after the prefix, task aborted.')
+        return null
+    }
+    return `${branchPrefix}${releaseVersion}`
+}
+
+async function confirmFinishFeature (groupName) {
+    const yesAction = 'Yes'
+    const noAction = 'No'
+    const message = `是否已在gitlab中MR到develop-${groupName}，并完成了Merge操作？继续流程会删除本地的feature分支。`
+    const selectedAction = await vscode.window.showWarningMessage(message, { modal: true }, yesAction, noAction)
+    return selectedAction === yesAction
+}
+
+async function confirmFinishFeatureForRelease (groupName) {
+    const yesAction = 'Yes'
+    const noAction = 'No'
+    const message = `是否已执行Finish Feature操作？`
+    const selectedAction = await vscode.window.showWarningMessage(message, { modal: true }, yesAction, noAction)
+    return selectedAction === yesAction
+}
+
 function clearCacheFile () {
     const allCacheFiles = [gitCheckPath]
     for (let command in gitFlowScriptByCommand) {
@@ -184,10 +237,9 @@ function activate (context) {
                 clearCacheFile()
                 try {
                     debugLog('command triggered', commandId)
-                    const executed = await executeGitFlowCommand(commandId)
-                    if (executed) {
-                        const commandName = commandId.replace(COMMAND_PREFIX, '')
-                        vscode.window.showInformationMessage(`${commandName} executed done, please check the logs in terminal.`)
+                    const executionResult = await executeGitFlowCommand(commandId)
+                    if (executionResult.executed) {
+                        vscode.window.showInformationMessage(getCommandSuccessMessage(commandId, executionResult.groupName))
                     }
                 } catch (err) {
                     const msg = err && err.message ? err.message : String(err)
@@ -202,6 +254,11 @@ function activate (context) {
         debugLog('terminal closed', terminal.name)
         mdTml = null
     }))
+}
+
+function getCommandSuccessMessage (commandId, groupName) {
+    const commandName = commandId.replace(COMMAND_PREFIX, '')
+    return `${commandName} executed done, please check the logs in terminal.`
 }
 
 async function gitCheck (rootPath) {
@@ -288,13 +345,13 @@ async function executeGitFlowCommand (commandId) {
     debugLog('resolve command script', { commandId, scriptName })
     const groupName = await ensureGroupNameConfigured()
     if (!groupName) {
-        return false
+        return { executed: false, groupName: null }
     }
 
     let selectedItem = await myPlugin.chooicingFolder()
     if (!selectedItem) {
         debugLog('workspace pick cancelled')
-        return false
+        return { executed: false, groupName }
     }
     const rootPath = selectedItem.uri.fsPath
     debugLog('workspace selected', rootPath)
@@ -303,15 +360,34 @@ async function executeGitFlowCommand (commandId) {
     const scriptPath = await resolveScriptPath(rootPath, scriptName)
     debugLog('ready to run script', scriptPath)
     const scriptArgs = [groupName]
+    if (commandId === 'extension.FinishFeature') {
+        const confirmed = await confirmFinishFeature(groupName)
+        if (!confirmed) {
+            debugLog('finish feature aborted by user')
+            return { executed: false, groupName }
+        }
+    }
     if (commandId === 'extension.StartNewFeature') {
         const featureName = await askStartFeatureName(groupName)
         if (!featureName) {
-            return false
+            return { executed: false, groupName }
         }
         scriptArgs.push(featureName)
     }
+    if (commandId === 'extension.StartNewRelease') {
+        const confirmed = await confirmFinishFeatureForRelease(groupName)
+        if (!confirmed) {
+            debugLog('start release aborted by user')
+            return { executed: false, groupName }
+        }
+        const releaseName = await askStartReleaseName(groupName)
+        if (!releaseName) {
+            return { executed: false, groupName }
+        }
+        scriptArgs.push(releaseName)
+    }
     runScriptInTerminal(rootPath, scriptPath, scriptArgs)
-    return true
+    return { executed: true, groupName }
 }
 
 function quoteBashArg (value) {
