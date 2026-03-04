@@ -8,6 +8,7 @@ const exec = util.promisify(require('child_process').exec)
 
 let mdTml = null
 let myStatusBarItem = null
+let myOutputChannel = null
 
 const CONFIG_ROOT = 'zerofinanceGit'
 const CONFIG_SCRIPT_URL = `${CONFIG_ROOT}.gitScriptsUrlPreference`
@@ -366,6 +367,10 @@ async function runFinishReleaseScript (rootPath, scriptPath, scriptArgs) {
     const argsText = buildBashArgs(scriptArgs)
     const cmd = argsText ? `${buildBashCommand(rootPath, scriptPath)} ${argsText}` : buildBashCommand(rootPath, scriptPath)
     const statusBarItem = getOrCreateStatusBarItem()
+    const outputChannel = getOrCreateOutputChannel()
+    outputChannel.clear()
+    outputChannel.appendLine(`$ ${cmd}`)
+    outputChannel.show(true)
     statusBarItem.text = 'Finishing release, it may take a while...'
     statusBarItem.color = 'red'
     statusBarItem.show()
@@ -373,18 +378,28 @@ async function runFinishReleaseScript (rootPath, scriptPath, scriptArgs) {
     try {
         const { stdout, stderr } = await exec(cmd, { maxBuffer: 1024 * 1024 * 20 })
         debugLog('finish release stdout', stdout)
+        if (stdout) {
+            outputChannel.appendLine(stdout)
+        }
         if (stderr) {
             debugLog('finish release stderr', stderr)
+            outputChannel.appendLine(stderr)
         }
         const combinedOutput = `${String(stdout || '')}\n${String(stderr || '')}`
         const remainingVersions = parseRemainingReleaseVersions(combinedOutput)
         if (remainingVersions.length > 0) {
-            await showModalConfirmDialog(`目前有进行中的${remainingVersions.join('/')} release，请项目经理评估是否需要重新测试相关的功能点。`)
+            await showModalConfirmDialog(`目前有进行中的${remainingVersions.join('/')}这几个release分支，请项目经理评估是否需要重新测试相关的功能点？`)
         }
     } catch (err) {
         const stdout = err && err.stdout ? String(err.stdout) : ''
         const stderr = err && err.stderr ? String(err.stderr) : ''
         const fallback = err && err.message ? String(err.message) : String(err)
+        if (stdout) {
+            outputChannel.appendLine(stdout)
+        }
+        if (stderr) {
+            outputChannel.appendLine(stderr)
+        }
         const detail = [stdout.trim(), stderr.trim()].filter(Boolean).join('\n')
         const message = detail || fallback
         throw new Error(message)
@@ -434,6 +449,13 @@ function getOrCreateStatusBarItem () {
         myStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left)
     }
     return myStatusBarItem
+}
+
+function getOrCreateOutputChannel () {
+    if (myOutputChannel == null) {
+        myOutputChannel = vscode.window.createOutputChannel('zerofinance-git-flow')
+    }
+    return myOutputChannel
 }
 
 function buildBashCommand (rootPath, scriptPath) {
