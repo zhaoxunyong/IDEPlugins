@@ -2,7 +2,7 @@
     "name": "zerofinance-git",
     "displayName": "zerofinance-git",
     "description": "zerofinance-git",
-    "version": "1.1.22",
+    "version": "2.0.0",
     "publisher": "zerofinance",
     "repository": "https://github.com/zhaoxunyong/vs-code-git-plugin",
     "engines": {
@@ -12,9 +12,12 @@
         "Other"
     ],
     "activationEvents": [
-        "onCommand:extension.newBranch",
-        "onCommand:extension.newRelease",
-        "onCommand:extension.clearCache"
+        "onCommand:extension.StartNewFeature",
+        "onCommand:extension.FinishFeature",
+        "onCommand:extension.StartNewRelease",
+        "onCommand:extension.FinishRelease",
+        "onCommand:extension.StartNewHotfix",
+        "onCommand:extension.FinishHotfix"
     ],
     "main": "./src/extension.js",
     "contributes": {
@@ -24,52 +27,71 @@
             "properties": {
                 "zerofinanceGit.gitScriptsUrlPreference": {
                     "type": "string",
-                    "default": "http://gitlab.zerofinance.net/dave.zhao/deployPlugin/raw/master",
+                    "default": "https://gitlab.zerofinance.net/dave.zhao/deployPlugin/-/raw/git-flow/git-flow",
                     "description": "Gitlab url for download scripts"
-                },
-                "zerofinanceGit.tagWhileBranchPreference": {
-                    "type": "boolean",
-                    "default": false,
-                    "enum": [
-                        true,
-                        false
-                    ],
-                    "description": "Whether or not to tag the release version automatically",
-                    "enumDescriptions": [
-                        "Tag the release version automatically if true",
-                        "Don't tag the release version if false"
-                    ]
-                },
-                "zerofinanceGit.showTagInDropDownPreference": {
-                    "type": "boolean",
-                    "default": false,
-                    "description": "Show tag in dropdown"
                 },
                 "zerofinanceGit.checkGitVersion": {
                     "type": "boolean",
                     "default": true,
                     "description": "Whether or not check git version"
+                },
+                "zerofinanceGit.debug": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Enable debug logs in extension host console"
                 }
             }
         },
         "commands": [
             {
-                "command": "extension.newBranch",
-                "title": "Zerofinance Git: New Branch"
+                "command": "extension.StartNewFeature",
+                "title": "Zerofinance Git: Start New Feature"
             },
             {
-                "command": "extension.newRelease",
-                "title": "Zerofinance Git: New Release"
+                "command": "extension.FinishFeature",
+                "title": "Zerofinance Git: Finish Feature"
+            },
+            {
+                "command": "extension.StartNewRelease",
+                "title": "Zerofinance Git: Start New Release"
+            },
+            {
+                "command": "extension.FinishRelease",
+                "title": "Zerofinance Git: Finish Release"
+            },
+            {
+                "command": "extension.StartNewHotfix",
+                "title": "Zerofinance Git: Start New Hotfix"
+            },
+            {
+                "command": "extension.FinishHotfix",
+                "title": "Zerofinance Git: Finish Hotfix"
             }
         ],
         "menus": {
             "editor/context": [
                 {
-                    "command": "extension.newBranch",
+                    "command": "extension.StartNewFeature",
                     "group": "navigation"
                 },
                 {
-                    "command": "extension.newRelease",
+                    "command": "extension.FinishFeature",
+                    "group": "navigation"
+                },
+                {
+                    "command": "extension.StartNewRelease",
+                    "group": "navigation"
+                },
+                {
+                    "command": "extension.FinishRelease",
+                    "group": "navigation"
+                },
+                {
+                    "command": "extension.StartNewHotfix",
+                    "group": "navigation"
+                },
+                {
+                    "command": "extension.FinishHotfix",
                     "group": "navigation"
                 }
             ]
@@ -80,15 +102,14 @@
         "test": "node ./node_modules/vscode/bin/test"
     },
     "devDependencies": {
-        "typescript": "^3.3.1",
-        "vscode": "^1.1.37",
-        "eslint": "^5.13.0",
+        "@types/mocha": "^2.2.42",
         "@types/node": "^10.12.21",
-        "@types/mocha": "^2.2.42"
+        "eslint": "^5.13.0",
+        "typescript": "^3.3.1",
+        "vscode": "^1.1.37"
     },
     "dependencies": {
         "axios": "^0.18.0",
-        "simple-git": "^1.107.0",
         "tmp": "0.0.33"
     }
 }
