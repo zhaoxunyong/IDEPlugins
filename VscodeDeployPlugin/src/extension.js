@@ -106,14 +106,81 @@ async function askStartFeatureName (groupName) {
     return `${branchPrefix}${featureName}`
 }
 
-async function askStartReleaseName (groupName) {
+async function getSuggestedReleaseVersion (rootPath, groupName) {
+    const defaultVersion = '1.0.0'
+    try {
+        const latestReleaseVersion = await getLatestRemoteReleaseVersion(rootPath, groupName)
+        const latestTagVersion = await getLatestRemoteTagVersion(rootPath)
+        const candidates = [latestReleaseVersion, latestTagVersion].filter(Boolean)
+        if (candidates.length > 0) {
+            candidates.sort((left, right) => compareSemverVersionDesc(left, right))
+            const [major, minor, patch] = candidates[0].split('.').map(item => parseInt(item, 10))
+            return `${major}.${minor}.${patch + 1}`
+        }
+    } catch (err) {
+        debugLog('failed to resolve latest release version', err && err.message ? err.message : String(err))
+    }
+    return defaultVersion
+}
+
+async function getLatestRemoteReleaseVersion (rootPath, groupName) {
+    const releasePrefix = `release/${groupName}/`
+    const releaseBranches = await getReleaseBranches(rootPath, groupName, { includeLocal: false })
+    for (const branchName of releaseBranches) {
+        if (!branchName.startsWith(releasePrefix)) {
+            continue
+        }
+        const version = branchName.slice(releasePrefix.length)
+        if (parseSemverVersion(version)) {
+            return version
+        }
+    }
+    return null
+}
+
+async function getLatestRemoteTagVersion (rootPath) {
+    const semverTagRule = /^v?(\d+)\.(\d+)\.(\d+)$/
+    const cmd = `cd "${normalizePath(rootPath)}" && git ls-remote --tags --refs origin`
+    const { stdout } = await exec(cmd, { maxBuffer: 1024 * 1024 * 10 })
+    const versions = []
+    stdout.split(/\r?\n/).forEach(line => {
+        const raw = (line || '').trim()
+        if (!raw) {
+            return
+        }
+        const segments = raw.split(/\s+/)
+        const refName = segments.length > 1 ? segments[1] : ''
+        if (!refName.startsWith('refs/tags/')) {
+            return
+        }
+        const tagName = refName.slice('refs/tags/'.length).trim()
+        const matched = tagName.match(semverTagRule)
+        if (!matched) {
+            return
+        }
+        versions.push({
+            value: `${parseInt(matched[1], 10)}.${parseInt(matched[2], 10)}.${parseInt(matched[3], 10)}`,
+            parts: matched.slice(1).map(item => parseInt(item, 10))
+        })
+    })
+
+    if (versions.length === 0) {
+        return null
+    }
+
+    versions.sort((left, right) => compareSemverPartsDesc(left.parts, right.parts))
+    return versions[0].value
+}
+
+async function askStartReleaseName (rootPath, groupName) {
     const branchPrefix = `release/${groupName}/`
     const semverRule = /^\d+\.\d+\.\d+$/
+    const suggestedVersion = await getSuggestedReleaseVersion(rootPath, groupName)
     const fullReleaseName = await vscode.window.showInputBox({
         ignoreFocusOut: true,
         placeHolder: 'Please input release name',
         prompt: 'Please input release version after prefix (e.g. 1.0.0).',
-        value: branchPrefix,
+        value: `${branchPrefix}${suggestedVersion}`,
         validateInput: function (text) {
             const value = (text || '').trim()
             if (!value.startsWith(branchPrefix)) {
@@ -146,17 +213,199 @@ async function askStartReleaseName (groupName) {
 async function confirmFinishFeature (groupName) {
     const yesAction = 'Yes'
     const noAction = 'No'
-    const message = `是否已在gitlab中MR到develop-${groupName}，并完成了Merge操作？继续流程会删除本地的feature分支。`
-    const selectedAction = await vscode.window.showWarningMessage(message, { modal: true }, yesAction, noAction)
+    const selectedAction = await vscode.window.showQuickPick([yesAction, noAction], {
+        ignoreFocusOut: true,
+        canPickMany: false,
+        title: `是否已在gitlab中MR到develop-${groupName}，并完成了Merge操作？继续流程会删除本地的feature分支。`,
+        placeHolder: 'Please choose Yes or No'
+    })
+    if (!selectedAction) {
+        return false
+    }
     return selectedAction === yesAction
 }
 
 async function confirmFinishFeatureForRelease (groupName) {
+    return showModalConfirmDialog('是否已执行Finish Feature操作？')
+}
+
+async function confirmOpsReleaseDone () {
     const yesAction = 'Yes'
     const noAction = 'No'
-    const message = `是否已执行Finish Feature操作？`
-    const selectedAction = await vscode.window.showWarningMessage(message, { modal: true }, yesAction, noAction)
+    const selectedAction = await vscode.window.showQuickPick([yesAction, noAction], {
+        ignoreFocusOut: true,
+        canPickMany: false,
+        title: '运维是否已完成上线？',
+        placeHolder: 'Please choose Yes or No'
+    })
+    if (!selectedAction) {
+        return false
+    }
     return selectedAction === yesAction
+}
+
+async function showModalConfirmDialog (message) {
+    const confirmAction = 'OK'
+    const selectedAction = await vscode.window.showWarningMessage(message, { modal: true }, confirmAction)
+    return selectedAction === confirmAction
+}
+
+async function getReleaseBranches (rootPath, groupName, options = {}) {
+    const { includeLocal = true } = options
+    const releasePrefix = `release/${groupName}/`
+    const refs = includeLocal
+        ? `refs/heads/${releasePrefix}* refs/remotes/origin/${releasePrefix}*`
+        : `refs/remotes/origin/${releasePrefix}*`
+    const cmd = `cd "${normalizePath(rootPath)}" && git fetch origin --prune && git for-each-ref --sort=-committerdate --format="%(refname:short)" ${refs}`
+    const { stdout } = await exec(cmd, { maxBuffer: 1024 * 1024 * 10 })
+    const branchSet = new Set()
+    stdout.split(/\r?\n/).forEach(line => {
+        const raw = (line || '').trim()
+        if (!raw) {
+            return
+        }
+        const normalized = raw.startsWith('origin/') ? raw.slice('origin/'.length) : raw
+        if (normalized.startsWith(releasePrefix)) {
+            branchSet.add(normalized)
+        }
+    })
+    const branches = Array.from(branchSet)
+    branches.sort((left, right) => compareReleaseBranchVersionDesc(left, right, releasePrefix))
+    return branches
+}
+
+function compareReleaseBranchVersionDesc (leftBranch, rightBranch, releasePrefix) {
+    const leftVersion = leftBranch.startsWith(releasePrefix) ? leftBranch.slice(releasePrefix.length) : leftBranch
+    const rightVersion = rightBranch.startsWith(releasePrefix) ? rightBranch.slice(releasePrefix.length) : rightBranch
+    const semverRule = /^(\d+)\.(\d+)\.(\d+)$/
+    const leftMatch = leftVersion.match(semverRule)
+    const rightMatch = rightVersion.match(semverRule)
+
+    if (leftMatch && rightMatch) {
+        const leftParts = leftMatch.slice(1).map(item => parseInt(item, 10))
+        const rightParts = rightMatch.slice(1).map(item => parseInt(item, 10))
+        return compareSemverPartsDesc(leftParts, rightParts)
+    }
+
+    if (leftMatch && !rightMatch) {
+        return -1
+    }
+    if (!leftMatch && rightMatch) {
+        return 1
+    }
+    return rightVersion.localeCompare(leftVersion)
+}
+
+function compareSemverPartsDesc (leftParts, rightParts) {
+    for (let index = 0; index < 3; index += 1) {
+        if (leftParts[index] !== rightParts[index]) {
+            return rightParts[index] - leftParts[index]
+        }
+    }
+    return 0
+}
+
+function parseSemverVersion (versionText) {
+    const semverRule = /^(\d+)\.(\d+)\.(\d+)$/
+    const matched = String(versionText || '').match(semverRule)
+    if (!matched) {
+        return null
+    }
+    return matched.slice(1).map(item => parseInt(item, 10))
+}
+
+function compareSemverVersionDesc (leftVersion, rightVersion) {
+    const leftParts = parseSemverVersion(leftVersion)
+    const rightParts = parseSemverVersion(rightVersion)
+    if (!leftParts && !rightParts) {
+        return String(rightVersion || '').localeCompare(String(leftVersion || ''))
+    }
+    if (leftParts && !rightParts) {
+        return -1
+    }
+    if (!leftParts && rightParts) {
+        return 1
+    }
+    return compareSemverPartsDesc(leftParts, rightParts)
+}
+
+async function askFinishReleaseBranch (rootPath, groupName) {
+    const releaseBranches = await getReleaseBranches(rootPath, groupName)
+    if (releaseBranches.length === 0) {
+        vscode.window.showErrorMessage(`No release branch found for group "${groupName}".`)
+        return null
+    }
+    const selectedBranch = await vscode.window.showQuickPick(releaseBranches, {
+        ignoreFocusOut: true,
+        canPickMany: false,
+        title: 'Select release branch to finish',
+        placeHolder: 'Latest release branches are listed first'
+    })
+    if (!selectedBranch) {
+        vscode.window.showErrorMessage('Please select a release branch, task aborted.')
+        return null
+    }
+    return selectedBranch
+}
+
+function parseRemainingReleaseVersions (outputText) {
+    const output = String(outputText || '')
+    const markerMatches = [...output.matchAll(/REMAINING_RELEASES:\s*([^\r\n]*)/g)]
+    if (markerMatches.length > 0) {
+        const lastMatchedText = (markerMatches[markerMatches.length - 1][1] || '').trim()
+        if (!lastMatchedText) {
+            return []
+        }
+        return lastMatchedText.split('/').map(item => item.trim()).filter(Boolean)
+    }
+
+    const fallbackMatches = [...output.matchAll(/Remaining release branches:\s*([^\r\n]*)/g)]
+    if (fallbackMatches.length > 0) {
+        const lastBranchesText = (fallbackMatches[fallbackMatches.length - 1][1] || '').trim()
+        if (!lastBranchesText) {
+            return []
+        }
+        return lastBranchesText
+            .split(/\s+/)
+            .map(item => item.trim())
+            .filter(Boolean)
+            .map(item => item.replace(/^origin\//, ''))
+            .map(item => item.split('/').pop())
+            .filter(Boolean)
+    }
+
+    return []
+}
+
+async function runFinishReleaseScript (rootPath, scriptPath, scriptArgs) {
+    const argsText = buildBashArgs(scriptArgs)
+    const cmd = argsText ? `${buildBashCommand(rootPath, scriptPath)} ${argsText}` : buildBashCommand(rootPath, scriptPath)
+    const statusBarItem = getOrCreateStatusBarItem()
+    statusBarItem.text = 'Finishing release, it may take a while...'
+    statusBarItem.color = 'red'
+    statusBarItem.show()
+    debugLog('execute finish release command', cmd)
+    try {
+        const { stdout, stderr } = await exec(cmd, { maxBuffer: 1024 * 1024 * 20 })
+        debugLog('finish release stdout', stdout)
+        if (stderr) {
+            debugLog('finish release stderr', stderr)
+        }
+        const combinedOutput = `${String(stdout || '')}\n${String(stderr || '')}`
+        const remainingVersions = parseRemainingReleaseVersions(combinedOutput)
+        if (remainingVersions.length > 0) {
+            await showModalConfirmDialog(`目前有进行中的${remainingVersions.join('/')} release，请项目经理评估是否需要重新测试相关的功能点。`)
+        }
+    } catch (err) {
+        const stdout = err && err.stdout ? String(err.stdout) : ''
+        const stderr = err && err.stderr ? String(err.stderr) : ''
+        const fallback = err && err.message ? String(err.message) : String(err)
+        const detail = [stdout.trim(), stderr.trim()].filter(Boolean).join('\n')
+        const message = detail || fallback
+        throw new Error(message)
+    } finally {
+        statusBarItem.hide()
+    }
 }
 
 function clearCacheFile () {
@@ -380,11 +629,25 @@ async function executeGitFlowCommand (commandId) {
             debugLog('start release aborted by user')
             return { executed: false, groupName }
         }
-        const releaseName = await askStartReleaseName(groupName)
+        const releaseName = await askStartReleaseName(rootPath, groupName)
         if (!releaseName) {
             return { executed: false, groupName }
         }
         scriptArgs.push(releaseName)
+    }
+    if (commandId === 'extension.FinishRelease') {
+        const confirmed = await confirmOpsReleaseDone()
+        if (!confirmed) {
+            debugLog('finish release aborted by deployment confirmation')
+            return { executed: false, groupName }
+        }
+        const selectedReleaseBranch = await askFinishReleaseBranch(rootPath, groupName)
+        if (!selectedReleaseBranch) {
+            return { executed: false, groupName }
+        }
+        scriptArgs.push(selectedReleaseBranch)
+        await runFinishReleaseScript(rootPath, scriptPath, scriptArgs)
+        return { executed: true, groupName }
     }
     runScriptInTerminal(rootPath, scriptPath, scriptArgs)
     return { executed: true, groupName }

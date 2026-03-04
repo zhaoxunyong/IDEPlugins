@@ -60,27 +60,27 @@
         "commands": [
             {
                 "command": "extension.StartNewFeature",
-                "title": "Zerofinance Git: Start New Feature"
+                "title": "ZeroGit: Start New Feature"
             },
             {
                 "command": "extension.FinishFeature",
-                "title": "Zerofinance Git: Finish Feature"
+                "title": "ZeroGit: Finish Feature"
             },
             {
                 "command": "extension.StartNewRelease",
-                "title": "Zerofinance Git: Start New Release"
+                "title": "ZeroGit: Start New Release"
             },
             {
                 "command": "extension.FinishRelease",
-                "title": "Zerofinance Git: Finish Release"
+                "title": "ZeroGit: Finish Release"
             },
             {
                 "command": "extension.StartNewHotfix",
-                "title": "Zerofinance Git: Start New Hotfix"
+                "title": "ZeroGit: Start New Hotfix"
             },
             {
                 "command": "extension.FinishHotfix",
-                "title": "Zerofinance Git: Finish Hotfix"
+                "title": "ZeroGit: Finish Hotfix"
             }
         ],
         "menus": {

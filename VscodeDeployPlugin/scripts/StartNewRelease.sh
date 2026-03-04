@@ -31,5 +31,6 @@ echo "checkout branch: $developBranch"
 git checkout "$developBranch"
 git pull origin "$developBranch"
 git checkout -b "$releaseName"
+git push origin "$releaseName"
 
 echo "release branch created: $releaseName"
