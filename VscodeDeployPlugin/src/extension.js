@@ -211,18 +211,7 @@ async function askStartReleaseName (rootPath, groupName) {
 }
 
 async function confirmFinishFeature (groupName) {
-    const yesAction = 'Yes'
-    const noAction = 'No'
-    const selectedAction = await vscode.window.showQuickPick([yesAction, noAction], {
-        ignoreFocusOut: true,
-        canPickMany: false,
-        title: `是否已在gitlab中MR到develop-${groupName}，并完成了Merge操作？继续流程会删除本地的feature分支。`,
-        placeHolder: 'Please choose Yes or No'
-    })
-    if (!selectedAction) {
-        return false
-    }
-    return selectedAction === yesAction
+    return showModalYesNoDialog(`是否已在gitlab中MR到develop-${groupName}，并完成了Merge操作？继续流程会删除本地的feature分支。`)
 }
 
 async function confirmFinishFeatureForRelease (groupName) {
@@ -230,24 +219,20 @@ async function confirmFinishFeatureForRelease (groupName) {
 }
 
 async function confirmOpsReleaseDone () {
-    const yesAction = 'Yes'
-    const noAction = 'No'
-    const selectedAction = await vscode.window.showQuickPick([yesAction, noAction], {
-        ignoreFocusOut: true,
-        canPickMany: false,
-        title: '运维是否已完成上线？',
-        placeHolder: 'Please choose Yes or No'
-    })
-    if (!selectedAction) {
-        return false
-    }
-    return selectedAction === yesAction
+    return showModalYesNoDialog('运维是否已完成上线？')
 }
 
 async function showModalConfirmDialog (message) {
     const confirmAction = 'OK'
     const selectedAction = await vscode.window.showWarningMessage(message, { modal: true }, confirmAction)
     return selectedAction === confirmAction
+}
+
+async function showModalYesNoDialog (message) {
+    const yesAction = { title: 'Yes' }
+    const noAction = { title: 'No', isCloseAffordance: true }
+    const selectedAction = await vscode.window.showWarningMessage(message, { modal: true }, yesAction, noAction)
+    return !!selectedAction && selectedAction.title === yesAction.title
 }
 
 async function getReleaseBranches (rootPath, groupName, options = {}) {

@@ -393,13 +393,10 @@ async function newRelease () {
                 console.log('needTagWhileBranch------------', needTagWhileBranch)
                 if (needTagWhileBranch) {
                     let tooltips = `It will tag ${release.nextRelase}-${release.currentDate} for ${release.nextRelase} automatically. Are you sure to tag?`
-                    needTagWhileBranch = await vscode.window.showInformationMessage(tooltips, 'Yes', 'No').then(function (select) {
-                        if (select === 'No') {
-                            return false
-                        } else {
-                            return true
-                        }
-                    })
+                    const yesAction = { title: 'Yes' }
+                    const noAction = { title: 'No', isCloseAffordance: true }
+                    const selectedAction = await vscode.window.showWarningMessage(tooltips, { modal: true }, yesAction, noAction)
+                    needTagWhileBranch = !!selectedAction && selectedAction.title === yesAction.title
                 }
                 let desc = await myPlugin.getDesc(release.nextRelase)
                 if (desc === '' || desc === undefined) {
