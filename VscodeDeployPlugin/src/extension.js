@@ -59,7 +59,7 @@ function getRealStderr (stderr) {
 /** Build user-facing error message from exec() rejection or from our throw: support err.code, err.stderr, err.stdout, err.message. */
 function buildExecErrorMessage (err) {
     const exitCode = err && err.code
-    const stderrMsg = err && err.stderr ? err.stderr.toString().trim() : ''
+    const stderrMsg = err && err.stderr ? getRealStderr(err.stderr) : ''
     const stdoutMsg = err && err.stdout ? err.stdout.toString().trim() : ''
     const baseMsg = stderrMsg || stdoutMsg || (err && err.message ? err.message : String(err))
     return exitCode !== undefined ? `${baseMsg} (exit code: ${exitCode})` : baseMsg
@@ -368,7 +368,7 @@ function compareSemverVersionDesc (leftVersion, rightVersion) {
 async function askFinishReleaseBranch (rootPath, groupName) {
     const releaseBranches = await getReleaseBranches(rootPath, groupName)
     if (releaseBranches.length === 0) {
-        vscode.window.showErrorMessage(`No release branch found for group "${groupName}".`)
+        vscode.window.showErrorMessage(`No remote release branch found for group "${groupName}".`)
         return null
     }
     const selectedBranch = await vscode.window.showQuickPick(releaseBranches, {

@@ -96,11 +96,11 @@ run_git "Delete remote branch $releaseBranch" git push origin --delete "$release
 run_git "Refresh remote branches after release cleanup" git fetch origin --prune
 developBranches=()
 # 使用 || true 防止 read 在 set -e 下因返回值非零导致脚本退出（某些环境下 here-string/stdin 会导致 read 返回 1）
-GROUPS=()
+targetGroups=()
 if [ -n "$groupsList" ]; then
-  IFS=',' read -ra GROUPS <<< "$groupsList" || true
+  IFS=',' read -ra targetGroups <<< "$groupsList" || true
 fi
-for g in "${GROUPS[@]}"; do
+for g in "${targetGroups[@]}"; do
   g="${g// /}"
   [ -z "$g" ] && continue
   d="develop-$g"
