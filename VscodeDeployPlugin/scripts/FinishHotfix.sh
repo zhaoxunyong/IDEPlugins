@@ -11,6 +11,41 @@ fi
 
 set -e
 
+CURRENT_STEP=0
+declare -a STEP_DESC
+declare -a STEP_STATUS
+
+STEP_DESC[1]="准备阶段：拉取远程分支信息"
+STEP_DESC[2]="将目标 hotfix 分支合并到 master，并推送"
+STEP_DESC[3]="将最新 master 合并回所有 develop 分支"
+STEP_DESC[4]="将最新 master 合并回所有未完成的 release 分支"
+STEP_DESC[5]="将最新 master 合并回所有未完成的 hotfix 分支"
+STEP_DESC[6]="在 master 上打 tag 并推送"
+STEP_DESC[7]="切回当前组的 develop 分支，删除已完成的 hotfix 分支（本地和远程）"
+
+for i in 1 2 3 4 5 6 7; do
+  STEP_STATUS[$i]="NOT_RUN"
+done
+
+set_step() {
+  CURRENT_STEP=$1
+  STEP_STATUS[$1]="RUNNING"
+}
+
+print_summary() {
+  echo
+  echo "FinishHotfix 执行结果："
+  for i in 1 2 3 4 5 6 7; do
+    status="${STEP_STATUS[$i]}"
+    [ -z "$status" ] && status="NOT_RUN"
+    printf "%d. %-60s %s\n" "$i" "${STEP_DESC[$i]}" "$status"
+  done
+}
+
+# 任意命令出错时，把当前步骤从 RUNNING 标记为 FAILED，EXIT trap 负责统一打印。
+trap 'if [ "$CURRENT_STEP" -ne 0 ] && [ "${STEP_STATUS[$CURRENT_STEP]}" = "RUNNING" ]; then STEP_STATUS[$CURRENT_STEP]="FAILED"; fi' ERR
+trap print_summary EXIT
+
 developBranch="develop-$groupName"
 hotfixPrefix="hotfix/$groupName/"
 
@@ -37,6 +72,9 @@ run_git() {
       echo "$output"
     fi
     echo "Please resolve the conflict/problem and rerun Finish Hotfix."
+    if [ "$CURRENT_STEP" -ne 0 ]; then
+      STEP_STATUS[$CURRENT_STEP]="FAILED"
+    fi
     exit 1
   fi
   if [ -n "$output" ]; then
@@ -70,28 +108,29 @@ echo "group name is: $groupName"
 echo "hotfix branch is: $hotfixBranch"
 echo "groups list (develop targets): $groupsList"
 
-run_git "Fetch remote branches" git fetch origin --prune
+echo
+echo "即将执行 FinishHotfix 流程："
+for i in 1 2 3 4 5 6 7; do
+  printf "%d. %s\n" "$i" "${STEP_DESC[$i]}"
+done
+echo
 
-# 1) Merge selected hotfix to master, tag, push.
+set_step 1
+run_git "Fetch remote branches" git fetch origin --prune
+STEP_STATUS[1]="DONE"
+
+# 1) Merge selected hotfix to master, then push.
+set_step 2
 checkout_or_track_branch "$hotfixBranch"
 [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $hotfixBranch" git pull origin "$hotfixBranch"
 checkout_or_track_branch "master"
 [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest master" git pull origin master
 run_git "Merge $hotfixBranch into master" git merge --no-ff "$hotfixBranch"
-
-run_git "Sync tags from origin" git fetch origin --tags --prune-tags
-tagName="v$hotfixVersion"
-if git ls-remote --tags --refs --exit-code origin "refs/tags/$tagName" >/dev/null 2>&1; then
-  echo "Tag already exists on remote: $tagName"
-  exit 1
-fi
-if git show-ref --verify --quiet "refs/tags/$tagName"; then
-  run_git "Delete local stale tag $tagName" git tag -d "$tagName"
-fi
-run_git "Create hotfix tag $tagName" git tag -a "$tagName" -m "Hotfix $hotfixVersion"
-run_git "Push master and tags" git push origin master --tags
+run_git "Push master" git push origin master
+STEP_STATUS[2]="DONE"
 
 # 2) Merge master to all develop-{groupName} (from config groups, 列表从 remote 获取存在性).
+set_step 3
 run_git "Refresh remote branches after hotfix cleanup" git fetch origin --prune
 developBranches=()
 targetGroups=()
@@ -113,8 +152,14 @@ for branch in "${developBranches[@]}"; do
   run_git "Merge master into $branch" git merge --no-ff master
   run_git "Push $branch" git push origin "$branch"
 done
+if [ ${#developBranches[@]} -gt 0 ]; then
+  STEP_STATUS[3]="DONE"
+else
+  STEP_STATUS[3]="SKIPPED"
+fi
 
 # 4) Merge master to all ongoing release branches (列表从 remote 获取).
+set_step 4
 mapfile -t releaseBranches < <(git for-each-ref --sort=-committerdate --format='%(refname:short)' 'refs/remotes/origin/release/' | sed 's#^origin/##')
 remainingReleases=()
 for branch in "${releaseBranches[@]}"; do
@@ -129,8 +174,14 @@ done
 if [ ${#releaseBranches[@]} -gt 0 ]; then
   echo "Remaining release branches: ${releaseBranches[*]}"
 fi
+if [ ${#releaseBranches[@]} -gt 0 ]; then
+  STEP_STATUS[4]="DONE"
+else
+  STEP_STATUS[4]="SKIPPED"
+fi
 
 # 5) Merge master to all ongoing hotfix branches (excluding just-finished branch, 列表从 remote 获取).
+set_step 5
 mapfile -t hotfixBranches < <(git for-each-ref --sort=-committerdate --format='%(refname:short)' 'refs/remotes/origin/hotfix/' | sed 's#^origin/##')
 for branch in "${hotfixBranches[@]}"; do
   [ -z "$branch" ] && continue
@@ -141,18 +192,37 @@ for branch in "${hotfixBranches[@]}"; do
   run_git "Push $branch" git push origin "$branch"
   remainingReleases+=("$branch")
 done
+if [ ${#hotfixBranches[@]} -gt 1 ]; then
+  STEP_STATUS[5]="DONE"
+else
+  STEP_STATUS[5]="SKIPPED"
+fi
 
-# 6) Switch back to develop branch after finishing hotfix flow.
+# 6) Tag on master and push tags.
+set_step 6
+run_git "Sync tags from origin" git fetch origin --tags --prune-tags
+tagName="v$hotfixVersion"
+if git ls-remote --tags --refs --exit-code origin "refs/tags/$tagName" >/dev/null 2>&1; then
+  echo "Tag already exists on remote: $tagName"
+  exit 1
+fi
+if git show-ref --verify --quiet "refs/tags/$tagName"; then
+  run_git "Delete local stale tag $tagName" git tag -d "$tagName"
+fi
+run_git "Create hotfix tag $tagName" git tag -a "$tagName" -m "Hotfix $hotfixVersion"
+run_git "Push tags" git push origin --tags
+STEP_STATUS[6]="DONE"
+
+# 7) Switch back to develop branch and delete finished hotfix branch.
+set_step 7
 checkout_or_track_branch "$developBranch"
 
-# 7) Delete finished hotfix branch (only after all steps succeed; allow re-run if previous steps failed).
 if git show-ref --verify --quiet "refs/heads/$hotfixBranch"; then
   run_git "Delete local branch $hotfixBranch" git branch -d "$hotfixBranch"
 fi
 if git ls-remote --exit-code --heads origin "$hotfixBranch" >/dev/null 2>&1; then
   run_git "Delete remote branch $hotfixBranch" git push origin --delete "$hotfixBranch"
 fi
+STEP_STATUS[7]="DONE"
 
-# 8) Output all remaining release/hotfix branches at the very end.
-# 使用空格分隔完整的分支名，避免与分支名中的“/”冲突
 echo "REMAINING_RELEASES: ${remainingReleases[*]}"

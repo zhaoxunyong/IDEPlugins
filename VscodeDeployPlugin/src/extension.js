@@ -764,6 +764,9 @@ function activate (context) {
                     if (commandId === 'extension.FinishRelease') {
                         vscode.window.showErrorMessage('FinishRelease失败，请通过日志查看具体的失败原因。')
                     }
+                    if (commandId === 'extension.FinishHotfix') {
+                        vscode.window.showErrorMessage('FinishHotfix失败，请通过日志查看具体的失败原因。')
+                    }
                 }
             })
         )
