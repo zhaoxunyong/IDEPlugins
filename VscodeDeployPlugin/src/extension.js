@@ -350,6 +350,25 @@ async function showModalYesNoDialog (message) {
     return !!selectedAction && selectedAction.title === yesAction.title
 }
 
+async function confirmRunScript (commandId, rootPath, scriptPath, scriptArgs) {
+    const scriptName = path.basename(scriptPath)
+    const argsText = Array.isArray(scriptArgs) && scriptArgs.length > 0 ? scriptArgs.join(' ') : '(无)'
+    const messageLines = [
+        '即将在终端中执行以下脚本：',
+        '',
+        `命令：${commandId.replace(COMMAND_PREFIX, '')}`,
+        `工作目录：${normalizePath(rootPath)}`,
+        `脚本：${scriptName}`,
+        `参数：${argsText}`,
+        '',
+        '请确认已经理解脚本功能与影响，是否继续执行？'
+    ]
+    const yesAction = { title: 'Yes' }
+    const noAction = { title: 'No', isCloseAffordance: true }
+    const selectedAction = await vscode.window.showWarningMessage(messageLines.join('\n'), { modal: true }, yesAction, noAction)
+    return !!selectedAction && selectedAction.title === yesAction.title
+}
+
 async function getReleaseBranches (rootPath, groupName, options = {}) {
     const { includeLocal = true } = options
     const releasePrefix = `release/${groupName}/`
@@ -935,6 +954,11 @@ async function executeGitFlowCommand (commandId) {
         scriptArgs.push(selectedReleaseBranch)
         const groupsStr = getValidGroups().join(',')
         scriptArgs.push(groupsStr)
+        const confirmedToRun = await confirmRunScript(commandId, rootPath, scriptPath, scriptArgs)
+        if (!confirmedToRun) {
+            debugLog('script execution cancelled by user', { commandId, scriptPath, scriptArgs })
+            return { executed: false, groupName }
+        }
         await runFinishReleaseScript(rootPath, scriptPath, scriptArgs)
         return { executed: true, groupName }
     }
@@ -946,8 +970,18 @@ async function executeGitFlowCommand (commandId) {
         scriptArgs.push(selectedHotfixBranch)
         const groupsStr = getValidGroups().join(',')
         scriptArgs.push(groupsStr)
+        const confirmedToRun = await confirmRunScript(commandId, rootPath, scriptPath, scriptArgs)
+        if (!confirmedToRun) {
+            debugLog('script execution cancelled by user', { commandId, scriptPath, scriptArgs })
+            return { executed: false, groupName }
+        }
         await runFinishReleaseScript(rootPath, scriptPath, scriptArgs)
         return { executed: true, groupName }
+    }
+    const confirmedToRun = await confirmRunScript(commandId, rootPath, scriptPath, scriptArgs)
+    if (!confirmedToRun) {
+        debugLog('script execution cancelled by user', { commandId, scriptPath, scriptArgs })
+        return { executed: false, groupName }
     }
     runScriptInTerminal(rootPath, scriptPath, scriptArgs)
     return { executed: true, groupName }
