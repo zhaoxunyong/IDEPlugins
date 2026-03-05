@@ -79,10 +79,14 @@ checkout_or_track_branch "master"
 [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest master" git pull origin master
 run_git "Merge $hotfixBranch into master" git merge --no-ff "$hotfixBranch"
 
+run_git "Sync tags from origin" git fetch origin --tags --prune-tags
 tagName="v$hotfixVersion"
-if git rev-parse "$tagName" >/dev/null 2>&1; then
-  echo "Tag already exists: $tagName"
+if git ls-remote --tags --refs --exit-code origin "refs/tags/$tagName" >/dev/null 2>&1; then
+  echo "Tag already exists on remote: $tagName"
   exit 1
+fi
+if git show-ref --verify --quiet "refs/tags/$tagName"; then
+  run_git "Delete local stale tag $tagName" git tag -d "$tagName"
 fi
 run_git "Create hotfix tag $tagName" git tag -a "$tagName" -m "Hotfix $hotfixVersion"
 run_git "Push master and tags" git push origin master --tags
@@ -129,7 +133,6 @@ done
 if [ ${#releaseBranches[@]} -gt 0 ]; then
   echo "Remaining release branches: ${releaseBranches[*]}"
 fi
-echo "REMAINING_RELEASES:$(IFS=/; echo "${remainingReleases[*]}")"
 
 # 5) Merge master to all ongoing hotfix branches (excluding just-finished branch, 列表从 remote 获取).
 mapfile -t hotfixBranches < <(git for-each-ref --sort=-committerdate --format='%(refname:short)' 'refs/remotes/origin/hotfix/' | sed 's#^origin/##')
@@ -140,7 +143,11 @@ for branch in "${hotfixBranches[@]}"; do
   [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $branch" git pull origin "$branch"
   run_git "Merge master into $branch" git merge --no-ff master
   run_git "Push $branch" git push origin "$branch"
+  remainingReleases+=("$branch")
 done
 
 # 6) Switch back to develop branch after finishing hotfix flow.
 checkout_or_track_branch "$developBranch"
+
+# 7) Output all remaining release/hotfix branches at the very end.
+echo "REMAINING_RELEASES:$(IFS=/; echo "${remainingReleases[*]}")"
