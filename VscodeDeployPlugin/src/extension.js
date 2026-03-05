@@ -165,6 +165,38 @@ async function getLatestRemoteReleaseVersion (rootPath, groupName) {
     return null
 }
 
+async function getSuggestedHotfixVersion (rootPath, groupName) {
+    const defaultVersion = '1.0.0'
+    try {
+        const latestHotfixVersion = await getLatestRemoteHotfixVersion(rootPath, groupName)
+        const latestTagVersion = await getLatestRemoteTagVersion(rootPath)
+        const candidates = [latestHotfixVersion, latestTagVersion].filter(Boolean)
+        if (candidates.length > 0) {
+            candidates.sort((left, right) => compareSemverVersionDesc(left, right))
+            const [major, minor, patch] = candidates[0].split('.').map(item => parseInt(item, 10))
+            return `${major}.${minor}.${patch + 1}`
+        }
+    } catch (err) {
+        debugLog('failed to resolve latest hotfix version', err && err.message ? err.message : String(err))
+    }
+    return defaultVersion
+}
+
+async function getLatestRemoteHotfixVersion (rootPath, groupName) {
+    const hotfixPrefix = `hotfix/${groupName}/`
+    const hotfixBranches = await getHotfixBranches(rootPath, groupName, { includeLocal: false })
+    for (const branchName of hotfixBranches) {
+        if (!branchName.startsWith(hotfixPrefix)) {
+            continue
+        }
+        const version = branchName.slice(hotfixPrefix.length)
+        if (parseSemverVersion(version)) {
+            return version
+        }
+    }
+    return null
+}
+
 async function getLatestRemoteTagVersion (rootPath) {
     const semverTagRule = /^v?(\d+)\.(\d+)\.(\d+)$/
     const cmd = `cd "${normalizePath(rootPath)}" && git ls-remote --tags --refs origin`
@@ -237,6 +269,44 @@ async function askStartReleaseName (rootPath, groupName) {
     return `${branchPrefix}${releaseVersion}`
 }
 
+async function askStartHotfixName (rootPath, groupName) {
+    const branchPrefix = `hotfix/${groupName}/`
+    const semverRule = /^\d+\.\d+\.\d+$/
+    const suggestedVersion = await getSuggestedHotfixVersion(rootPath, groupName)
+    const fullHotfixName = await vscode.window.showInputBox({
+        ignoreFocusOut: true,
+        placeHolder: 'Please input hotfix name',
+        prompt: 'Please input hotfix version after prefix (e.g. 1.0.0).',
+        value: `${branchPrefix}${suggestedVersion}`,
+        validateInput: function (text) {
+            const value = (text || '').trim()
+            if (!value.startsWith(branchPrefix)) {
+                return `Branch name must start with "${branchPrefix}".`
+            }
+            const hotfixVersion = value.slice(branchPrefix.length).trim()
+            if (!hotfixVersion) {
+                return 'Please input hotfix version after the prefix.'
+            }
+            if (!semverRule.test(hotfixVersion)) {
+                return 'Hotfix version must follow SemVer format (e.g. 1.0.0).'
+            }
+            return ''
+        }
+    })
+
+    if (!fullHotfixName) {
+        vscode.window.showErrorMessage('Please input hotfix name, task aborted.')
+        return null
+    }
+    const normalizedHotfixName = fullHotfixName.trim()
+    const hotfixVersion = normalizedHotfixName.slice(branchPrefix.length).trim()
+    if (!normalizedHotfixName.startsWith(branchPrefix) || !hotfixVersion || !semverRule.test(hotfixVersion)) {
+        vscode.window.showErrorMessage('Please input valid hotfix name after the prefix, task aborted.')
+        return null
+    }
+    return `${branchPrefix}${hotfixVersion}`
+}
+
 async function confirmFinishFeature (groupName) {
     return showModalYesNoDialog(`是否已在gitlab中MR到develop-${groupName}，并完成了Merge操作？继续流程只会删除本地的feature分支。`)
 }
@@ -287,6 +357,30 @@ async function getReleaseBranches (rootPath, groupName, options = {}) {
     })
     const branches = Array.from(branchSet)
     branches.sort((left, right) => compareReleaseBranchVersionDesc(left, right, releasePrefix))
+    return branches
+}
+
+async function getHotfixBranches (rootPath, groupName, options = {}) {
+    const { includeLocal = true } = options
+    const hotfixPrefix = `hotfix/${groupName}/`
+    const refs = includeLocal
+        ? `refs/heads/${hotfixPrefix}* refs/remotes/origin/${hotfixPrefix}*`
+        : `refs/remotes/origin/${hotfixPrefix}*`
+    const cmd = `cd "${normalizePath(rootPath)}" && git fetch origin --prune && git for-each-ref --sort=-committerdate --format="%(refname:short)" ${refs}`
+    const { stdout } = await exec(cmd, { maxBuffer: 1024 * 1024 * 10 })
+    const branchSet = new Set()
+    stdout.split(/\r?\n/).forEach(line => {
+        const raw = (line || '').trim()
+        if (!raw) {
+            return
+        }
+        const normalized = raw.startsWith('origin/') ? raw.slice('origin/'.length) : raw
+        if (normalized.startsWith(hotfixPrefix)) {
+            branchSet.add(normalized)
+        }
+    })
+    const branches = Array.from(branchSet)
+    branches.sort((left, right) => compareReleaseBranchVersionDesc(left, right, hotfixPrefix))
     return branches
 }
 
@@ -771,6 +865,13 @@ async function executeGitFlowCommand (commandId) {
             return { executed: false, groupName }
         }
         scriptArgs.push(releaseName)
+    }
+    if (commandId === 'extension.StartNewHotfix') {
+        const hotfixName = await askStartHotfixName(rootPath, groupName)
+        if (!hotfixName) {
+            return { executed: false, groupName }
+        }
+        scriptArgs.push(hotfixName)
     }
     if (commandId === 'extension.FinishRelease') {
         const selectedReleaseBranch = await askFinishReleaseBranch(rootPath, groupName)
