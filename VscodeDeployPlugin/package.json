@@ -91,35 +91,60 @@
         "menus": {
             "editor/context": [
                 {
+                    "submenu": "zerogit.menu",
+                    "group": "zerogit"
+                }
+            ],
+            "terminal/context": [
+                {
+                    "submenu": "zerogit.menu",
+                    "group": "zerogit"
+                }
+            ],
+            "view/title": [
+                {
+                    "submenu": "zerogit.menu",
+                    "group": "zerogit",
+                    "when": "view == terminal"
+                }
+            ],
+            "zerogit.menu": [
+                {
                     "command": "extension.StartNewFeature",
-                    "group": "navigation"
+                    "group": "1_feature"
                 },
                 {
                     "command": "extension.FinishFeature",
-                    "group": "navigation"
+                    "group": "1_feature"
                 },
                 {
                     "command": "extension.RebaseFeature",
-                    "group": "navigation"
+                    "group": "1_feature"
                 },
                 {
                     "command": "extension.StartNewRelease",
-                    "group": "navigation"
+                    "group": "2_release"
                 },
                 {
                     "command": "extension.FinishRelease",
-                    "group": "navigation"
+                    "group": "2_release"
                 },
                 {
                     "command": "extension.StartNewHotfix",
-                    "group": "navigation"
+                    "group": "3_hotfix"
                 },
                 {
                     "command": "extension.FinishHotfix",
-                    "group": "navigation"
+                    "group": "3_hotfix"
                 }
             ]
-        }
+        },
+        "submenus": [
+            {
+                "id": "zerogit.menu",
+                "label": "ZeroGit"
+            }
+        ]
     },
     "scripts": {
         "postinstall": "node ./node_modules/vscode/bin/install",
