@@ -134,20 +134,7 @@ async function askStartFeatureName (groupName) {
 }
 
 async function getSuggestedReleaseVersion (rootPath, groupName) {
-    const defaultVersion = '1.0.0'
-    try {
-        const latestReleaseVersion = await getLatestRemoteReleaseVersion(rootPath, groupName)
-        const latestTagVersion = await getLatestRemoteTagVersion(rootPath)
-        const candidates = [latestReleaseVersion, latestTagVersion].filter(Boolean)
-        if (candidates.length > 0) {
-            candidates.sort((left, right) => compareSemverVersionDesc(left, right))
-            const [major, minor, patch] = candidates[0].split('.').map(item => parseInt(item, 10))
-            return `${major}.${minor}.${patch + 1}`
-        }
-    } catch (err) {
-        debugLog('failed to resolve latest release version', err && err.message ? err.message : String(err))
-    }
-    return defaultVersion
+    return getSuggestedReleaseOrHotfixVersion(rootPath, groupName, 'release')
 }
 
 async function getLatestRemoteReleaseVersion (rootPath, groupName) {
@@ -166,18 +153,23 @@ async function getLatestRemoteReleaseVersion (rootPath, groupName) {
 }
 
 async function getSuggestedHotfixVersion (rootPath, groupName) {
+    return getSuggestedReleaseOrHotfixVersion(rootPath, groupName, 'hotfix')
+}
+
+async function getSuggestedReleaseOrHotfixVersion (rootPath, groupName, branchType) {
     const defaultVersion = '1.0.0'
     try {
+        const latestReleaseVersion = await getLatestRemoteReleaseVersion(rootPath, groupName)
         const latestHotfixVersion = await getLatestRemoteHotfixVersion(rootPath, groupName)
         const latestTagVersion = await getLatestRemoteTagVersion(rootPath)
-        const candidates = [latestHotfixVersion, latestTagVersion].filter(Boolean)
+        const candidates = [latestReleaseVersion, latestHotfixVersion, latestTagVersion].filter(Boolean)
         if (candidates.length > 0) {
             candidates.sort((left, right) => compareSemverVersionDesc(left, right))
             const [major, minor, patch] = candidates[0].split('.').map(item => parseInt(item, 10))
             return `${major}.${minor}.${patch + 1}`
         }
     } catch (err) {
-        debugLog('failed to resolve latest hotfix version', err && err.message ? err.message : String(err))
+        debugLog(`failed to resolve latest ${branchType} version`, err && err.message ? err.message : String(err))
     }
     return defaultVersion
 }
@@ -233,8 +225,13 @@ async function getLatestRemoteTagVersion (rootPath) {
 
 async function askStartReleaseName (rootPath, groupName) {
     const branchPrefix = `release/${groupName}/`
+    const conflictPrefix = `hotfix/${groupName}/`
     const semverRule = /^\d+\.\d+\.\d+$/
     const suggestedVersion = await getSuggestedReleaseVersion(rootPath, groupName)
+    const releaseBranches = await getReleaseBranches(rootPath, groupName)
+    const hotfixBranches = await getHotfixBranches(rootPath, groupName)
+    const releaseVersions = new Set(extractBranchVersions(releaseBranches, branchPrefix))
+    const hotfixVersions = new Set(extractBranchVersions(hotfixBranches, conflictPrefix))
     const fullReleaseName = await vscode.window.showInputBox({
         ignoreFocusOut: true,
         placeHolder: 'Please input release name',
@@ -251,6 +248,12 @@ async function askStartReleaseName (rootPath, groupName) {
             }
             if (!semverRule.test(releaseVersion)) {
                 return 'Release version must follow SemVer format (e.g. 1.0.0).'
+            }
+            if (releaseVersions.has(releaseVersion)) {
+                return `Release version already exists: ${releaseVersion}`
+            }
+            if (hotfixVersions.has(releaseVersion)) {
+                return `Version conflict: hotfix/${groupName}/${releaseVersion} already exists`
             }
             return ''
         }
@@ -271,8 +274,13 @@ async function askStartReleaseName (rootPath, groupName) {
 
 async function askStartHotfixName (rootPath, groupName) {
     const branchPrefix = `hotfix/${groupName}/`
+    const conflictPrefix = `release/${groupName}/`
     const semverRule = /^\d+\.\d+\.\d+$/
     const suggestedVersion = await getSuggestedHotfixVersion(rootPath, groupName)
+    const hotfixBranches = await getHotfixBranches(rootPath, groupName)
+    const releaseBranches = await getReleaseBranches(rootPath, groupName)
+    const hotfixVersions = new Set(extractBranchVersions(hotfixBranches, branchPrefix))
+    const releaseVersions = new Set(extractBranchVersions(releaseBranches, conflictPrefix))
     const fullHotfixName = await vscode.window.showInputBox({
         ignoreFocusOut: true,
         placeHolder: 'Please input hotfix name',
@@ -289,6 +297,12 @@ async function askStartHotfixName (rootPath, groupName) {
             }
             if (!semverRule.test(hotfixVersion)) {
                 return 'Hotfix version must follow SemVer format (e.g. 1.0.0).'
+            }
+            if (hotfixVersions.has(hotfixVersion)) {
+                return `Hotfix version already exists: ${hotfixVersion}`
+            }
+            if (releaseVersions.has(hotfixVersion)) {
+                return `Version conflict: release/${groupName}/${hotfixVersion} already exists`
             }
             return ''
         }
@@ -424,6 +438,13 @@ function compareReleaseBranchVersionDesc (leftBranch, rightBranch, releasePrefix
         return 1
     }
     return rightVersion.localeCompare(leftVersion)
+}
+
+function extractBranchVersions (branches, branchPrefix) {
+    return branches
+        .filter(branchName => branchName.startsWith(branchPrefix))
+        .map(branchName => branchName.slice(branchPrefix.length).trim())
+        .filter(Boolean)
 }
 
 function compareSemverPartsDesc (leftParts, rightParts) {

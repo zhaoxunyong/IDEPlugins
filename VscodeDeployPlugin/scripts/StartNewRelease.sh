@@ -13,6 +13,13 @@ set -e
 developBranch="develop-$groupName"
 releasePrefix="release/$groupName/"
 releaseVersion="${releaseName#$releasePrefix}"
+conflictHotfixName="hotfix/$groupName/$releaseVersion"
+
+branch_exists() {
+  local branchName=$1
+  git show-ref --verify --quiet "refs/heads/$branchName" \
+    || git show-ref --verify --quiet "refs/remotes/origin/$branchName"
+}
 
 if [[ "$releaseName" != "$releasePrefix"* ]]; then
   echo "Release branch name must start with: $releasePrefix"
@@ -21,6 +28,18 @@ fi
 
 if ! [[ "$releaseVersion" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   echo "Release version must follow SemVer format, e.g. 1.0.0"
+  exit 1
+fi
+
+git fetch origin --prune >/dev/null 2>&1
+
+if branch_exists "$releaseName"; then
+  echo "Branch already exists (local or remote): $releaseName"
+  exit 1
+fi
+
+if branch_exists "$conflictHotfixName"; then
+  echo "Version conflict: $releaseVersion already exists as $conflictHotfixName"
   exit 1
 fi
 
