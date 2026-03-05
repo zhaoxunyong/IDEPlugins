@@ -98,6 +98,7 @@ remainingVersions=()
 for branch in "${releaseBranches[@]}"; do
   [ -z "$branch" ] && continue
   checkout_or_track_branch "$branch"
+  run_git "Pull latest $branch" git pull origin "$branch"
   run_git "Merge master into $branch" git merge --no-ff master
   run_git "Push $branch" git push origin "$branch"
   remainingVersions+=("${branch#$releasePrefix}")
