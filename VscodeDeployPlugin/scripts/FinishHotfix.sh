@@ -1,27 +1,27 @@
 #!/bin/bash
 
 groupName=$1
-releaseBranch=$2
+hotfixBranch=$2
 groupsList="${3:-$groupName}"
 
-if [ -z "$groupName" ] || [ -z "$releaseBranch" ]; then
-  echo "Usage: $0 <groupName> <releaseBranch> [groupsList]"
+if [ -z "$groupName" ] || [ -z "$hotfixBranch" ]; then
+  echo "Usage: $0 <groupName> <hotfixBranch> [groupsList]"
   exit 1
 fi
 
 set -e
 
 developBranch="develop-$groupName"
-releasePrefix="release/$groupName/"
+hotfixPrefix="hotfix/$groupName/"
 
-if [[ "$releaseBranch" != "$releasePrefix"* ]]; then
-  echo "Release branch name must start with: $releasePrefix"
+if [[ "$hotfixBranch" != "$hotfixPrefix"* ]]; then
+  echo "Hotfix branch name must start with: $hotfixPrefix"
   exit 1
 fi
 
-releaseVersion="${releaseBranch#$releasePrefix}"
-if ! [[ "$releaseVersion" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  echo "Release version must follow SemVer format, e.g. 1.0.0"
+hotfixVersion="${hotfixBranch#$hotfixPrefix}"
+if ! [[ "$hotfixVersion" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "Hotfix version must follow SemVer format, e.g. 1.0.0"
   exit 1
 fi
 
@@ -36,7 +36,7 @@ run_git() {
     if [ -n "$output" ]; then
       echo "$output"
     fi
-    echo "Please resolve the conflict/problem and rerun Finish Release."
+    echo "Please resolve the conflict/problem and rerun Finish Hotfix."
     exit 1
   fi
   if [ -n "$output" ]; then
@@ -67,35 +67,33 @@ checkout_or_track_branch() {
 }
 
 echo "group name is: $groupName"
-echo "release branch is: $releaseBranch"
+echo "hotfix branch is: $hotfixBranch"
 echo "groups list (develop targets): $groupsList"
 
 run_git "Fetch remote branches" git fetch origin --prune
 
-# 1) Merge selected release to master, tag, push.
-checkout_or_track_branch "$releaseBranch"
-[ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $releaseBranch" git pull origin "$releaseBranch"
+# 1) Merge selected hotfix to master, tag, push.
+checkout_or_track_branch "$hotfixBranch"
+[ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $hotfixBranch" git pull origin "$hotfixBranch"
 checkout_or_track_branch "master"
 [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest master" git pull origin master
-run_git "Merge $releaseBranch into master" git merge --no-ff "$releaseBranch"
+run_git "Merge $hotfixBranch into master" git merge --no-ff "$hotfixBranch"
 
-tagName="v$releaseVersion"
+tagName="v$hotfixVersion"
 if git rev-parse "$tagName" >/dev/null 2>&1; then
   echo "Tag already exists: $tagName"
   exit 1
 fi
-run_git "Create release tag $tagName" git tag -a "$tagName" -m "Release $releaseVersion"
+run_git "Create hotfix tag $tagName" git tag -a "$tagName" -m "Hotfix $hotfixVersion"
 run_git "Push master and tags" git push origin master --tags
 
-# 2) Delete finished release branch.
-run_git "Delete local branch $releaseBranch" git branch -d "$releaseBranch"
-run_git "Delete remote branch $releaseBranch" git push origin --delete "$releaseBranch"
+# 2) Delete finished hotfix branch.
+run_git "Delete local branch $hotfixBranch" git branch -d "$hotfixBranch"
+run_git "Delete remote branch $hotfixBranch" git push origin --delete "$hotfixBranch"
 
 # 3) Merge master to all develop-{groupName} (from config groups, 列表从 remote 获取存在性).
-#git fetch origin --prune:在从远程仓库获取更新的同时，清理掉本地那些在远程仓库中已经被删除的远程追踪分支引用
-run_git "Refresh remote branches after release cleanup" git fetch origin --prune
+run_git "Refresh remote branches after hotfix cleanup" git fetch origin --prune
 developBranches=()
-# 使用 || true 防止 read 在 set -e 下因返回值非零导致脚本退出（某些环境下 here-string/stdin 会导致 read 返回 1）
 targetGroups=()
 if [ -n "$groupsList" ]; then
   IFS=',' read -ra targetGroups <<< "$groupsList" || true
@@ -118,30 +116,31 @@ done
 
 # 4) Merge master to all ongoing release branches (列表从 remote 获取).
 mapfile -t releaseBranches < <(git for-each-ref --sort=-committerdate --format='%(refname:short)' 'refs/remotes/origin/release/' | sed 's#^origin/##')
-remainingVersions=()
+remainingReleases=()
 for branch in "${releaseBranches[@]}"; do
   [ -z "$branch" ] && continue
   checkout_or_track_branch "$branch"
   [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $branch" git pull origin "$branch"
   run_git "Merge master into $branch" git merge --no-ff master
   run_git "Push $branch" git push origin "$branch"
-  remainingVersions+=("$branch")
+  remainingReleases+=("$branch")
 done
 
 if [ ${#releaseBranches[@]} -gt 0 ]; then
   echo "Remaining release branches: ${releaseBranches[*]}"
 fi
-echo "REMAINING_RELEASES:$(IFS=/; echo "${remainingVersions[*]}")"
+echo "REMAINING_RELEASES:$(IFS=/; echo "${remainingReleases[*]}")"
 
-# 5) Merge master to all ongoing hotfix branches (列表从 remote 获取).
+# 5) Merge master to all ongoing hotfix branches (excluding just-finished branch, 列表从 remote 获取).
 mapfile -t hotfixBranches < <(git for-each-ref --sort=-committerdate --format='%(refname:short)' 'refs/remotes/origin/hotfix/' | sed 's#^origin/##')
 for branch in "${hotfixBranches[@]}"; do
   [ -z "$branch" ] && continue
+  [ "$branch" = "$hotfixBranch" ] && continue
   checkout_or_track_branch "$branch"
   [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $branch" git pull origin "$branch"
   run_git "Merge master into $branch" git merge --no-ff master
   run_git "Push $branch" git push origin "$branch"
 done
 
-# 6) Switch back to develop branch after finishing release flow.
+# 6) Switch back to develop branch after finishing hotfix flow.
 checkout_or_track_branch "$developBranch"

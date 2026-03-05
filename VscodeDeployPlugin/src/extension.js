@@ -478,6 +478,25 @@ async function askFinishReleaseBranch (rootPath, groupName) {
     return selectedBranch
 }
 
+async function askFinishHotfixBranch (rootPath, groupName) {
+    const hotfixBranches = await getHotfixBranches(rootPath, groupName)
+    if (hotfixBranches.length === 0) {
+        vscode.window.showErrorMessage(`No remote hotfix branch found for group "${groupName}".`)
+        return null
+    }
+    const selectedBranch = await vscode.window.showQuickPick(hotfixBranches, {
+        ignoreFocusOut: true,
+        canPickMany: false,
+        title: 'Select hotfix branch to finish',
+        placeHolder: 'Latest hotfix branches are listed first'
+    })
+    if (!selectedBranch) {
+        vscode.window.showErrorMessage('Please select a hotfix branch, task aborted.')
+        return null
+    }
+    return selectedBranch
+}
+
 function compareFeatureBranchByNumericPrefixDesc (leftBranch, rightBranch, featurePrefix) {
     const leftFeatureName = leftBranch.startsWith(featurePrefix) ? leftBranch.slice(featurePrefix.length) : leftBranch
     const rightFeatureName = rightBranch.startsWith(featurePrefix) ? rightBranch.slice(featurePrefix.length) : rightBranch
@@ -819,15 +838,15 @@ async function executeGitFlowCommand (commandId) {
             return { executed: false, groupName }
         }
     }
-    if (commandId === 'extension.FinishRelease') {
+    if (commandId === 'extension.FinishRelease' || commandId === 'extension.FinishHotfix') {
         const hasMaintainer = await confirmMaintainerPermission()
         if (!hasMaintainer) {
-            debugLog('finish release aborted: user has no Maintainer permission')
+            debugLog('finish release/hotfix aborted: user has no Maintainer permission')
             return { executed: false, groupName }
         }
         const confirmed = await confirmOpsReleaseDone()
         if (!confirmed) {
-            debugLog('finish release aborted by deployment confirmation')
+            debugLog('finish release/hotfix aborted by deployment confirmation')
             return { executed: false, groupName }
         }
     }
@@ -879,6 +898,17 @@ async function executeGitFlowCommand (commandId) {
             return { executed: false, groupName }
         }
         scriptArgs.push(selectedReleaseBranch)
+        const groupsStr = getValidGroups().join(',')
+        scriptArgs.push(groupsStr)
+        await runFinishReleaseScript(rootPath, scriptPath, scriptArgs)
+        return { executed: true, groupName }
+    }
+    if (commandId === 'extension.FinishHotfix') {
+        const selectedHotfixBranch = await askFinishHotfixBranch(rootPath, groupName)
+        if (!selectedHotfixBranch) {
+            return { executed: false, groupName }
+        }
+        scriptArgs.push(selectedHotfixBranch)
         const groupsStr = getValidGroups().join(',')
         scriptArgs.push(groupsStr)
         await runFinishReleaseScript(rootPath, scriptPath, scriptArgs)
