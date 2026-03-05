@@ -143,16 +143,16 @@ for branch in "${hotfixBranches[@]}"; do
   remainingVersions+=("$branch")
 done
 
-# 6) Delete finished release branch (only after all steps succeed; allow re-run if previous steps failed).
+# 6) Switch back to develop branch after finishing release flow.
+checkout_or_track_branch "$developBranch"
+
+# 7) Delete finished release branch (only after all steps succeed; allow re-run if previous steps failed).
 if git show-ref --verify --quiet "refs/heads/$releaseBranch"; then
   run_git "Delete local branch $releaseBranch" git branch -d "$releaseBranch"
 fi
 if git ls-remote --exit-code --heads origin "$releaseBranch" >/dev/null 2>&1; then
   run_git "Delete remote branch $releaseBranch" git push origin --delete "$releaseBranch"
 fi
-
-# 7) Switch back to develop branch after finishing release flow.
-checkout_or_track_branch "$developBranch"
 
 # 8) Output all remaining release/hotfix branches at the very end.
 # 使用空格分隔完整的分支名，避免与分支名中的“/”冲突
