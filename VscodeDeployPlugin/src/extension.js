@@ -1,3 +1,4 @@
+const path = require('path')
 const vscode = require('vscode')
 const myPlugin = require('./myPlugin')
 const tmp = require('tmp')
@@ -47,6 +48,23 @@ function normalizePath (path) {
     return path.replace(/\\/gm, '/')
 }
 
+/** When debug is on, bash -x writes trace lines (starting with "+ ") to stderr; strip those and return the rest. */
+function getRealStderr (stderr) {
+    const debug = vscode.workspace.getConfiguration().get(CONFIG_DEBUG)
+    const str = (stderr !== undefined && stderr !== '') ? String(stderr).trim() : ''
+    if (!debug) return str
+    return str.split('\n').filter(line => !/^\s*\+/.test(line)).join('\n').trim()
+}
+
+/** Build user-facing error message from exec() rejection or from our throw: support err.code, err.stderr, err.stdout, err.message. */
+function buildExecErrorMessage (err) {
+    const exitCode = err && err.code
+    const stderrMsg = err && err.stderr ? err.stderr.toString().trim() : ''
+    const stdoutMsg = err && err.stdout ? err.stdout.toString().trim() : ''
+    const baseMsg = stderrMsg || stdoutMsg || (err && err.message ? err.message : String(err))
+    return exitCode !== undefined ? `${baseMsg} (exit code: ${exitCode})` : baseMsg
+}
+
 function getRootUrl () {
     let rootUrl = vscode.workspace.getConfiguration().get(CONFIG_SCRIPT_URL)
     if (!rootUrl) {
@@ -55,15 +73,22 @@ function getRootUrl () {
     return rootUrl.replace(/\/+$/, '')
 }
 
+function getValidGroups () {
+    const pkg = require(path.join(__dirname, '..', 'package.json'))
+    const groupEnum = (pkg && pkg.contributes && pkg.contributes.configuration && pkg.contributes.configuration.properties && pkg.contributes.configuration.properties[CONFIG_GROUP_NAME] && pkg.contributes.configuration.properties[CONFIG_GROUP_NAME].enum) || []
+    return groupEnum.filter(g => g !== '')
+}
+
 async function ensureGroupNameConfigured () {
     const groupName = vscode.workspace.getConfiguration().get(CONFIG_GROUP_NAME)
-    const validGroups = ['a', 'b']
+    const validGroups = getValidGroups()
     if (validGroups.includes(groupName)) {
         return groupName
     }
 
     const openSettingsAction = 'Open Settings'
-    const message = 'Please configure "zerofinanceGit.groupName" to "a" or "b" before running tasks.'
+    const groupList = validGroups.join(' or ')
+    const message = `Please configure "zerofinanceGit.groupName" to ${groupList} before running tasks.`
     const selectedAction = await vscode.window.showErrorMessage(message, openSettingsAction)
     if (selectedAction === openSettingsAction) {
         await vscode.commands.executeCommand('workbench.action.openSettings', CONFIG_GROUP_NAME)
@@ -222,6 +247,10 @@ async function confirmFinishFeatureForRelease (groupName) {
 
 async function confirmOpsReleaseDone () {
     return showModalYesNoDialog('运维是否已完成上线？')
+}
+
+async function confirmMaintainerPermission () {
+    return showModalYesNoDialog('1. 正常情况此流程会在CI/CD中执行，你无需手动执行。只有紧急情况才考虑手动执行。\n2. 只有Maintainer角色才有权限操作，请确认你对该项目是否有Maintainer权限？')
 }
 
 async function showModalConfirmDialog (message) {
@@ -449,7 +478,9 @@ async function runFinishReleaseScript (rootPath, scriptPath, scriptArgs) {
             debugLog('finish release stderr', stderr)
             outputChannel.appendLine(stderr)
         }
-        const combinedOutput = `${String(stdout || '')}\n${String(stderr || '')}`
+        // Use real stderr (trace stripped when debug) for parsing so bash -x output is not included
+        const realStderr = getRealStderr(stderr)
+        const combinedOutput = `${String(stdout || '')}\n${String(realStderr || '')}`
         const remainingVersions = parseRemainingReleaseVersions(combinedOutput)
         if (remainingVersions.length > 0) {
             await showModalConfirmDialog(`目前有进行中的${remainingVersions.join('/')}这几个release分支，请项目经理评估是否需要重新测试相关的功能点？`)
@@ -457,15 +488,13 @@ async function runFinishReleaseScript (rootPath, scriptPath, scriptArgs) {
     } catch (err) {
         const stdout = err && err.stdout ? String(err.stdout) : ''
         const stderr = err && err.stderr ? String(err.stderr) : ''
-        const fallback = err && err.message ? String(err.message) : String(err)
         if (stdout) {
             outputChannel.appendLine(stdout)
         }
         if (stderr) {
             outputChannel.appendLine(stderr)
         }
-        const detail = [stdout.trim(), stderr.trim()].filter(Boolean).join('\n')
-        const message = detail || fallback
+        const message = buildExecErrorMessage(err)
         throw new Error(message)
     } finally {
         statusBarItem.hide()
@@ -525,10 +554,13 @@ function getOrCreateOutputChannel () {
 function buildBashCommand (rootPath, scriptPath) {
     const normalizedRootPath = normalizePath(rootPath)
     const normalizedScriptPath = normalizePath(scriptPath)
+    const debug = vscode.workspace.getConfiguration().get(CONFIG_DEBUG)
+    const bashPath = getBashPath()
+    const traceOpt = debug ? ' -x' : ''
     if (process.platform === 'win32') {
-        return `"${getBashPath()}" -c "cd ${normalizedRootPath} && ${normalizedScriptPath}"`
+        return `"${bashPath}"${traceOpt} -c "cd ${normalizedRootPath} && ${normalizedScriptPath}"`
     }
-    return `cd "${normalizedRootPath}" && "${getBashPath()}" "${normalizedScriptPath}"`
+    return `cd "${normalizedRootPath}" && "${bashPath}"${traceOpt} "${normalizedScriptPath}"`
 }
 
 function parseGitVersion (stdout) {
@@ -643,12 +675,15 @@ async function gitCheck (rootPath) {
             statusBarItem.show()
             debugLog('execute gitCheck command', cmd)
             const { stderr } = await exec(cmd)
-            if (stderr !== undefined && stderr !== '') {
-                throw new Error(stderr)
+            // Failure: (1) exec() rejects on non-zero exit; (2) stderr has real error content (trace stripped when debug).
+            const realStderr = getRealStderr(stderr)
+            if (realStderr !== '') {
+                throw new Error(realStderr)
             }
             debugLog('gitCheck finished successfully')
         } catch (err) {
-            let msg = err && err.stdout ? err.stdout.toString() : (err && err.message ? err.message : String(err))
+            // Two sources: (1) exec() rejected (non-zero exit); (2) we threw due to real stderr content.
+            const msg = buildExecErrorMessage(err)
             vscode.window.showErrorMessage(msg)
             throw new Error(msg)
         } finally {
@@ -721,6 +756,11 @@ async function executeGitFlowCommand (commandId) {
         scriptArgs.push(releaseName)
     }
     if (commandId === 'extension.FinishRelease') {
+        const hasMaintainer = await confirmMaintainerPermission()
+        if (!hasMaintainer) {
+            debugLog('finish release aborted: user has no Maintainer permission')
+            return { executed: false, groupName }
+        }
         const confirmed = await confirmOpsReleaseDone()
         if (!confirmed) {
             debugLog('finish release aborted by deployment confirmation')
@@ -731,6 +771,8 @@ async function executeGitFlowCommand (commandId) {
             return { executed: false, groupName }
         }
         scriptArgs.push(selectedReleaseBranch)
+        const groupsStr = getValidGroups().join(',')
+        scriptArgs.push(groupsStr)
         await runFinishReleaseScript(rootPath, scriptPath, scriptArgs)
         return { executed: true, groupName }
     }
