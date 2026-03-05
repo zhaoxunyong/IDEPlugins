@@ -30,6 +30,6 @@ echo "checkout branch: master"
 git checkout "master"
 git pull origin "master"
 git checkout -b "$hotfixName"
-git push origin "$hotfixName"
+git push --set-upstream origin "$hotfixName"
 
 echo "hotfix branch created: $hotfixName"

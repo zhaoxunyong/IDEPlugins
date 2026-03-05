@@ -58,7 +58,7 @@ checkout_or_track_branch() {
   fi
 
   if git show-ref --verify --quiet "refs/remotes/origin/$branchName"; then
-    run_git "Checkout branch $branchName from origin" git checkout -b "$branchName" "origin/$branchName"
+    run_git "Checkout branch $branchName from origin" git checkout --track -b "$branchName" "origin/$branchName"
     return
   fi
 

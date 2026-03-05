@@ -19,5 +19,6 @@ echo "checkout branch: $developBranch"
 git checkout "$developBranch"
 git pull origin "$developBranch"
 git checkout -b "$featureName"
+git push --set-upstream origin "$featureName"
 
 echo "feature branch created: $featureName"
