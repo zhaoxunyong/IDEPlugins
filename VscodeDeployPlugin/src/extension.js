@@ -703,6 +703,41 @@ async function executeGitFlowCommand (commandId) {
         return { executed: false, groupName: null }
     }
 
+    const scriptArgs = [groupName]
+    if (commandId === 'extension.FinishFeature') {
+        const confirmed = await confirmFinishFeature(groupName)
+        if (!confirmed) {
+            debugLog('finish feature aborted by user')
+            return { executed: false, groupName }
+        }
+    }
+    if (commandId === 'extension.StartNewFeature') {
+        const featureName = await askStartFeatureName(groupName)
+        if (!featureName) {
+            return { executed: false, groupName }
+        }
+        scriptArgs.push(featureName)
+    }
+    if (commandId === 'extension.StartNewRelease') {
+        const confirmed = await confirmFinishFeatureForRelease(groupName)
+        if (!confirmed) {
+            debugLog('start release aborted by user')
+            return { executed: false, groupName }
+        }
+    }
+    if (commandId === 'extension.FinishRelease') {
+        const hasMaintainer = await confirmMaintainerPermission()
+        if (!hasMaintainer) {
+            debugLog('finish release aborted: user has no Maintainer permission')
+            return { executed: false, groupName }
+        }
+        const confirmed = await confirmOpsReleaseDone()
+        if (!confirmed) {
+            debugLog('finish release aborted by deployment confirmation')
+            return { executed: false, groupName }
+        }
+    }
+
     let selectedItem = await myPlugin.chooicingFolder()
     if (!selectedItem) {
         debugLog('workspace pick cancelled')
@@ -714,13 +749,7 @@ async function executeGitFlowCommand (commandId) {
     await gitCheck(rootPath)
     const scriptPath = await resolveScriptPath(rootPath, scriptName)
     debugLog('ready to run script', scriptPath)
-    const scriptArgs = [groupName]
     if (commandId === 'extension.FinishFeature') {
-        const confirmed = await confirmFinishFeature(groupName)
-        if (!confirmed) {
-            debugLog('finish feature aborted by user')
-            return { executed: false, groupName }
-        }
         const selectedFeatureBranch = await askFinishFeatureBranch(rootPath, groupName)
         if (!selectedFeatureBranch) {
             return { executed: false, groupName }
@@ -736,19 +765,7 @@ async function executeGitFlowCommand (commandId) {
         }
         scriptArgs.push(currentBranch)
     }
-    if (commandId === 'extension.StartNewFeature') {
-        const featureName = await askStartFeatureName(groupName)
-        if (!featureName) {
-            return { executed: false, groupName }
-        }
-        scriptArgs.push(featureName)
-    }
     if (commandId === 'extension.StartNewRelease') {
-        const confirmed = await confirmFinishFeatureForRelease(groupName)
-        if (!confirmed) {
-            debugLog('start release aborted by user')
-            return { executed: false, groupName }
-        }
         const releaseName = await askStartReleaseName(rootPath, groupName)
         if (!releaseName) {
             return { executed: false, groupName }
@@ -756,16 +773,6 @@ async function executeGitFlowCommand (commandId) {
         scriptArgs.push(releaseName)
     }
     if (commandId === 'extension.FinishRelease') {
-        const hasMaintainer = await confirmMaintainerPermission()
-        if (!hasMaintainer) {
-            debugLog('finish release aborted: user has no Maintainer permission')
-            return { executed: false, groupName }
-        }
-        const confirmed = await confirmOpsReleaseDone()
-        if (!confirmed) {
-            debugLog('finish release aborted by deployment confirmation')
-            return { executed: false, groupName }
-        }
         const selectedReleaseBranch = await askFinishReleaseBranch(rootPath, groupName)
         if (!selectedReleaseBranch) {
             return { executed: false, groupName }
