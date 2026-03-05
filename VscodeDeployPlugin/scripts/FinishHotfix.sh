@@ -154,4 +154,5 @@ fi
 checkout_or_track_branch "$developBranch"
 
 # 8) Output all remaining release/hotfix branches at the very end.
-echo "REMAINING_RELEASES:$(IFS=/; echo "${remainingReleases[*]}")"
+# 使用空格分隔完整的分支名，避免与分支名中的“/”冲突
+echo "REMAINING_RELEASES: ${remainingReleases[*]}"

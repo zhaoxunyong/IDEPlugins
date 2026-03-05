@@ -569,7 +569,18 @@ function parseRemainingReleaseVersions (outputText) {
         if (!lastMatchedText) {
             return []
         }
-        return lastMatchedText.split('/').map(item => item.trim()).filter(Boolean)
+
+        // 1）优先用正则直接提取符合模式的分支名（兼容被错误用 `/` 串在一起的情况）
+        const branchMatches = [...lastMatchedText.matchAll(/\b(?:release|hotfix)\/[^\s/]+\/[^\s/]+/g)].map(m => m[0])
+        if (branchMatches.length > 0) {
+            return branchMatches
+        }
+
+        // 2）否则按空格分隔（正常情况）
+        return lastMatchedText
+            .split(/\s+/)
+            .map(item => item.trim())
+            .filter(Boolean)
     }
 
     const fallbackMatches = [...output.matchAll(/Remaining release branches:\s*([^\r\n]*)/g)]
@@ -617,7 +628,7 @@ async function runFinishReleaseScript (rootPath, scriptPath, scriptArgs) {
         const combinedOutput = `${String(stdout || '')}\n${String(realStderr || '')}`
         const remainingVersions = parseRemainingReleaseVersions(combinedOutput)
         if (remainingVersions.length > 0) {
-            await showModalConfirmDialog(`目前有进行中的${remainingVersions.join('/')}这几个release分支，请项目经理评估是否需要重新测试相关的功能点？`)
+            await showModalConfirmDialog(`目前有进行中的${remainingVersions.join('、')}分支，请项目经理评估是否需要重新测试相关的功能点？`)
         }
     } catch (err) {
         const stdout = err && err.stdout ? String(err.stdout) : ''
