@@ -91,11 +91,7 @@ fi
 run_git "Create release tag $tagName" git tag -a "$tagName" -m "Release $releaseVersion"
 run_git "Push master and tags" git push origin master --tags
 
-# 2) Delete finished release branch.
-run_git "Delete local branch $releaseBranch" git branch -d "$releaseBranch"
-run_git "Delete remote branch $releaseBranch" git push origin --delete "$releaseBranch"
-
-# 3) Merge master to all develop-{groupName} (from config groups, 列表从 remote 获取存在性).
+# 2) Merge master to all develop-{groupName} (from config groups, 列表从 remote 获取存在性).
 #git fetch origin --prune:在从远程仓库获取更新的同时，清理掉本地那些在远程仓库中已经被删除的远程追踪分支引用
 run_git "Refresh remote branches after release cleanup" git fetch origin --prune
 developBranches=()
@@ -147,8 +143,16 @@ for branch in "${hotfixBranches[@]}"; do
   remainingVersions+=("$branch")
 done
 
-# 6) Switch back to develop branch after finishing release flow.
+# 6) Delete finished release branch (only after all steps succeed; allow re-run if previous steps failed).
+if git show-ref --verify --quiet "refs/heads/$releaseBranch"; then
+  run_git "Delete local branch $releaseBranch" git branch -d "$releaseBranch"
+fi
+if git ls-remote --exit-code --heads origin "$releaseBranch" >/dev/null 2>&1; then
+  run_git "Delete remote branch $releaseBranch" git push origin --delete "$releaseBranch"
+fi
+
+# 7) Switch back to develop branch after finishing release flow.
 checkout_or_track_branch "$developBranch"
 
-# 7) Output all remaining release/hotfix branches at the very end.
+# 8) Output all remaining release/hotfix branches at the very end.
 echo "REMAINING_RELEASES:$(IFS=/; echo "${remainingVersions[*]}")"

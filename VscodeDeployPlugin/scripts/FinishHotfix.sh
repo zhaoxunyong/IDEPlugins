@@ -91,11 +91,7 @@ fi
 run_git "Create hotfix tag $tagName" git tag -a "$tagName" -m "Hotfix $hotfixVersion"
 run_git "Push master and tags" git push origin master --tags
 
-# 2) Delete finished hotfix branch.
-run_git "Delete local branch $hotfixBranch" git branch -d "$hotfixBranch"
-run_git "Delete remote branch $hotfixBranch" git push origin --delete "$hotfixBranch"
-
-# 3) Merge master to all develop-{groupName} (from config groups, 列表从 remote 获取存在性).
+# 2) Merge master to all develop-{groupName} (from config groups, 列表从 remote 获取存在性).
 run_git "Refresh remote branches after hotfix cleanup" git fetch origin --prune
 developBranches=()
 targetGroups=()
@@ -146,8 +142,16 @@ for branch in "${hotfixBranches[@]}"; do
   remainingReleases+=("$branch")
 done
 
-# 6) Switch back to develop branch after finishing hotfix flow.
+# 6) Delete finished hotfix branch (only after all steps succeed; allow re-run if previous steps failed).
+if git show-ref --verify --quiet "refs/heads/$hotfixBranch"; then
+  run_git "Delete local branch $hotfixBranch" git branch -d "$hotfixBranch"
+fi
+if git ls-remote --exit-code --heads origin "$hotfixBranch" >/dev/null 2>&1; then
+  run_git "Delete remote branch $hotfixBranch" git push origin --delete "$hotfixBranch"
+fi
+
+# 7) Switch back to develop branch after finishing hotfix flow.
 checkout_or_track_branch "$developBranch"
 
-# 7) Output all remaining release/hotfix branches at the very end.
+# 8) Output all remaining release/hotfix branches at the very end.
 echo "REMAINING_RELEASES:$(IFS=/; echo "${remainingReleases[*]}")"
