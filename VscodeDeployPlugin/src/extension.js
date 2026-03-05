@@ -212,7 +212,7 @@ async function askStartReleaseName (rootPath, groupName) {
 }
 
 async function confirmFinishFeature (groupName) {
-    return showModalYesNoDialog(`是否已在gitlab中MR到develop-${groupName}，并完成了Merge操作？继续流程会删除本地的feature分支。`)
+    return showModalYesNoDialog(`是否已在gitlab中MR到develop-${groupName}，并完成了Merge操作？继续流程只会删除本地的feature分支。`)
 }
 
 async function confirmFinishFeatureForRelease (groupName) {
@@ -329,6 +329,63 @@ async function askFinishReleaseBranch (rootPath, groupName) {
     })
     if (!selectedBranch) {
         vscode.window.showErrorMessage('Please select a release branch, task aborted.')
+        return null
+    }
+    return selectedBranch
+}
+
+async function getLocalFeatureBranches (rootPath, groupName) {
+    const featurePrefix = `feature/${groupName}/`
+    const refs = `refs/heads/${featurePrefix}*`
+    const cmd = `cd "${normalizePath(rootPath)}" && git for-each-ref --format="%(refname:short)" ${refs}`
+    const { stdout } = await exec(cmd, { maxBuffer: 1024 * 1024 * 10 })
+    const branches = stdout
+        .split(/\r?\n/)
+        .map(line => (line || '').trim())
+        .filter(Boolean)
+        .filter(branchName => branchName.startsWith(featurePrefix))
+    branches.sort((left, right) => compareFeatureBranchByNumericPrefixDesc(left, right, featurePrefix))
+    return branches
+}
+
+function compareFeatureBranchByNumericPrefixDesc (leftBranch, rightBranch, featurePrefix) {
+    const leftFeatureName = leftBranch.startsWith(featurePrefix) ? leftBranch.slice(featurePrefix.length) : leftBranch
+    const rightFeatureName = rightBranch.startsWith(featurePrefix) ? rightBranch.slice(featurePrefix.length) : rightBranch
+    const numberPrefixRule = /^(\d+)-/
+    const leftMatch = leftFeatureName.match(numberPrefixRule)
+    const rightMatch = rightFeatureName.match(numberPrefixRule)
+
+    if (leftMatch && rightMatch) {
+        const leftNumber = parseInt(leftMatch[1], 10)
+        const rightNumber = parseInt(rightMatch[1], 10)
+        if (leftNumber !== rightNumber) {
+            return rightNumber - leftNumber
+        }
+    }
+
+    if (leftMatch && !rightMatch) {
+        return -1
+    }
+    if (!leftMatch && rightMatch) {
+        return 1
+    }
+    return rightFeatureName.localeCompare(leftFeatureName)
+}
+
+async function askFinishFeatureBranch (rootPath, groupName) {
+    const localFeatureBranches = await getLocalFeatureBranches(rootPath, groupName)
+    if (localFeatureBranches.length === 0) {
+        vscode.window.showErrorMessage(`No local feature branch found for group "${groupName}".`)
+        return null
+    }
+    const selectedBranch = await vscode.window.showQuickPick(localFeatureBranches, {
+        ignoreFocusOut: true,
+        canPickMany: false,
+        title: 'Select local feature branch to finish',
+        placeHolder: 'Branches are sorted by leading number in descending order'
+    })
+    if (!selectedBranch) {
+        vscode.window.showErrorMessage('Please select a feature branch, task aborted.')
         return null
     }
     return selectedBranch
@@ -622,6 +679,11 @@ async function executeGitFlowCommand (commandId) {
             debugLog('finish feature aborted by user')
             return { executed: false, groupName }
         }
+        const selectedFeatureBranch = await askFinishFeatureBranch(rootPath, groupName)
+        if (!selectedFeatureBranch) {
+            return { executed: false, groupName }
+        }
+        scriptArgs.push(selectedFeatureBranch)
     }
     if (commandId === 'extension.StartNewFeature') {
         const featureName = await askStartFeatureName(groupName)
