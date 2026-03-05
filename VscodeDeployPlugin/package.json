@@ -14,6 +14,7 @@
     "activationEvents": [
         "onCommand:extension.StartNewFeature",
         "onCommand:extension.FinishFeature",
+        "onCommand:extension.RebaseFeature",
         "onCommand:extension.StartNewRelease",
         "onCommand:extension.FinishRelease",
         "onCommand:extension.StartNewHotfix",
@@ -67,6 +68,10 @@
                 "title": "ZeroGit: Finish Feature"
             },
             {
+                "command": "extension.RebaseFeature",
+                "title": "ZeroGit: Rebase Feature"
+            },
+            {
                 "command": "extension.StartNewRelease",
                 "title": "ZeroGit: Start New Release"
             },
@@ -91,6 +96,10 @@
                 },
                 {
                     "command": "extension.FinishFeature",
+                    "group": "navigation"
+                },
+                {
+                    "command": "extension.RebaseFeature",
                     "group": "navigation"
                 },
                 {

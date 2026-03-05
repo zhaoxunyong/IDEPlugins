@@ -24,6 +24,7 @@ const gitCheckPath = tmpdir + '/' + gitCheckFile
 const gitFlowScriptByCommand = {
     'extension.StartNewFeature': 'StartNewFeature.sh',
     'extension.FinishFeature': 'FinishFeature.sh',
+    'extension.RebaseFeature': 'RebaseFeature.sh',
     'extension.StartNewRelease': 'StartNewRelease.sh',
     'extension.FinishRelease': 'FinishRelease.sh',
     'extension.StartNewHotfix': 'StartNewHotfix.sh',
@@ -260,6 +261,26 @@ async function getReleaseBranches (rootPath, groupName, options = {}) {
     return branches
 }
 
+async function getCurrentBranch (rootPath) {
+    const cmd = `cd "${normalizePath(rootPath)}" && git rev-parse --abbrev-ref HEAD`
+    const { stdout } = await exec(cmd, { maxBuffer: 1024 * 1024 })
+    return (stdout || '').trim()
+}
+
+async function getLocalFeatureBranches (rootPath, groupName) {
+    const featurePrefix = `feature/${groupName}/`
+    const refs = `refs/heads/${featurePrefix}*`
+    const cmd = `cd "${normalizePath(rootPath)}" && git for-each-ref --format="%(refname:short)" ${refs}`
+    const { stdout } = await exec(cmd, { maxBuffer: 1024 * 1024 * 10 })
+    const branches = stdout
+        .split(/\r?\n/)
+        .map(line => (line || '').trim())
+        .filter(Boolean)
+        .filter(branchName => branchName.startsWith(featurePrefix))
+    branches.sort((left, right) => compareFeatureBranchByNumericPrefixDesc(left, right, featurePrefix))
+    return branches
+}
+
 function compareReleaseBranchVersionDesc (leftBranch, rightBranch, releasePrefix) {
     const leftVersion = leftBranch.startsWith(releasePrefix) ? leftBranch.slice(releasePrefix.length) : leftBranch
     const rightVersion = rightBranch.startsWith(releasePrefix) ? rightBranch.slice(releasePrefix.length) : rightBranch
@@ -332,20 +353,6 @@ async function askFinishReleaseBranch (rootPath, groupName) {
         return null
     }
     return selectedBranch
-}
-
-async function getLocalFeatureBranches (rootPath, groupName) {
-    const featurePrefix = `feature/${groupName}/`
-    const refs = `refs/heads/${featurePrefix}*`
-    const cmd = `cd "${normalizePath(rootPath)}" && git for-each-ref --format="%(refname:short)" ${refs}`
-    const { stdout } = await exec(cmd, { maxBuffer: 1024 * 1024 * 10 })
-    const branches = stdout
-        .split(/\r?\n/)
-        .map(line => (line || '').trim())
-        .filter(Boolean)
-        .filter(branchName => branchName.startsWith(featurePrefix))
-    branches.sort((left, right) => compareFeatureBranchByNumericPrefixDesc(left, right, featurePrefix))
-    return branches
 }
 
 function compareFeatureBranchByNumericPrefixDesc (leftBranch, rightBranch, featurePrefix) {
@@ -684,6 +691,15 @@ async function executeGitFlowCommand (commandId) {
             return { executed: false, groupName }
         }
         scriptArgs.push(selectedFeatureBranch)
+    }
+    if (commandId === 'extension.RebaseFeature') {
+        const currentBranch = await getCurrentBranch(rootPath)
+        const featurePrefix = `feature/${groupName}/`
+        if (!currentBranch || !currentBranch.startsWith(featurePrefix)) {
+            vscode.window.showErrorMessage(`当前分支 "${currentBranch || '(无)'}" 不是 feature 分支（应以 ${featurePrefix} 开头），操作已取消。`)
+            return { executed: false, groupName }
+        }
+        scriptArgs.push(currentBranch)
     }
     if (commandId === 'extension.StartNewFeature') {
         const featureName = await askStartFeatureName(groupName)
