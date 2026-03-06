@@ -91,7 +91,6 @@ public class DeployCmdExecuter {
     
     public static ExecuteResult exec(final ConsoleView console, String workHome, String command, List<String> parameters, boolean isBatchScript) throws IOException, InterruptedException {
         String debug = ZeroGitDeploySetting.isDebug() ? "-x" : "";
-        String moreDetails = ZeroGitDeploySetting.isMoreDetails() ? "-v" : "";
 
         CommandLine cmdLine = null;
         if(SystemUtils.IS_OS_WINDOWS) {
@@ -101,9 +100,6 @@ public class DeployCmdExecuter {
                 // Batch script
                 if(StringUtils.isNotBlank(debug)) {
                     cmdLine.addArgument(debug);
-                }
-                if(StringUtils.isNotBlank(moreDetails)) {
-                    cmdLine.addArgument(moreDetails);
                 }
                 cmdLine.addArgument(command);
                 if(parameters!=null && !parameters.isEmpty()) {
@@ -132,9 +128,6 @@ public class DeployCmdExecuter {
                 // Batch script
                 if(StringUtils.isNotBlank(debug)) {
                     cmdLine.addArgument(debug);
-                }
-                if(StringUtils.isNotBlank(moreDetails)) {
-                    cmdLine.addArgument(moreDetails);
                 }
                 cmdLine.addArgument(command);
                 if (parameters != null && !parameters.isEmpty()) {

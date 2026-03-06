@@ -140,10 +140,6 @@ public final class CommandUtils {
 //        return GitDeployPluginSetting.isDebug();
 //    }
 //
-//    public static boolean isMoreDetails() {
-//        return GitDeployPluginSetting.isMoreDetails();
-//    }
-
     private static String getCmdFile(String modulePath, String cmd) throws IOException {
         String allCmd = cmd.replace(".sh", "All.sh");
         String cmdFile = getParentCmdFile(modulePath, allCmd);
