@@ -33,12 +33,12 @@
                 },
                 "zerofinanceGit.checkGitVersion": {
                     "type": "boolean",
-                    "default": true,
+                    "default": false,
                     "description": "Whether or not check git version"
                 },
                 "zerofinanceGit.debug": {
                     "type": "boolean",
-                    "default": true,
+                    "default": false,
                     "description": "Enable debug logs in extension host console"
                 },
                 "zerofinanceGit.groupName": {
