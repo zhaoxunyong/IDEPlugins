@@ -22,6 +22,7 @@ public final class CommandUtils {
             "FinishFeature.sh",
             "RebaseFeature.sh",
             "MavenChange.sh",
+            "GenCommitMessage.sh",
             "StartNewRelease.sh",
             "FinishRelease.sh",
             "StartNewHotfix.sh",

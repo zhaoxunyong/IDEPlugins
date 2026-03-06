@@ -25,6 +25,7 @@ const tmpdir = tmp.tmpdir
 const gitCheckPath = tmpdir + '/' + gitCheckFile
 
 const gitFlowScriptByCommand = {
+    'extension.GenerateCommitMessage': 'GenCommitMessage.sh',
     'extension.StartNewFeature': 'StartNewFeature.sh',
     'extension.FinishFeature': 'FinishFeature.sh',
     'extension.RebaseFeature': 'RebaseFeature.sh',
@@ -32,8 +33,7 @@ const gitFlowScriptByCommand = {
     'extension.StartNewRelease': 'StartNewRelease.sh',
     'extension.FinishRelease': 'FinishRelease.sh',
     'extension.StartNewHotfix': 'StartNewHotfix.sh',
-    'extension.FinishHotfix': 'FinishHotfix.sh',
-    'extension.GenerateCommitMessage': 'GenCommitMessage.sh'
+    'extension.FinishHotfix': 'FinishHotfix.sh'
 }
 
 function debugLog (message, payload) {

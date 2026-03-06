@@ -184,6 +184,15 @@ public class ZeroGitFlowHandler {
         confirmAndRunInTerminal("Maven Change", rootPath, script, Lists.newArrayList(groupName, mavenVersion));
     }
 
+    public void generateCommitMessage() throws Exception {
+        debugLog("command triggered", "Generate Commit Message");
+        String rootPath = getRootPath();
+        CommandUtils.clearZeroGitScriptCache();
+        String script = CommandUtils.processZeroGitScript(rootPath, "GenCommitMessage.sh");
+        String model = ZeroGitDeploySetting.getCommitMessageModel();
+        confirmAndRunInTerminal("Generate Commit Message", rootPath, script, Lists.newArrayList(model));
+    }
+
     public void startNewRelease() throws Exception {
         debugLog("command triggered", "Start New Release");
         String groupName = requireGroupName();
