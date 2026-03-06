@@ -16,6 +16,7 @@ const CONFIG_ROOT = 'zerofinanceGit'
 const CONFIG_SCRIPT_URL = `${CONFIG_ROOT}.gitScriptsUrlPreference`
 const CONFIG_CHECK_GIT_VERSION = `${CONFIG_ROOT}.checkGitVersion`
 const CONFIG_DEBUG = `${CONFIG_ROOT}.debug`
+const CONFIG_AUTO_COMMIT = `${CONFIG_ROOT}.autoCommit`
 const CONFIG_GROUP_NAME = `${CONFIG_ROOT}.groupName`
 const DEFAULT_SCRIPT_ROOT_URL = 'https://gitlab.zerofinance.net/dave.zhao/deployPlugin/-/raw/git-flow'
 const COMMAND_PREFIX = 'extension.'
@@ -31,7 +32,8 @@ const gitFlowScriptByCommand = {
     'extension.StartNewRelease': 'StartNewRelease.sh',
     'extension.FinishRelease': 'FinishRelease.sh',
     'extension.StartNewHotfix': 'StartNewHotfix.sh',
-    'extension.FinishHotfix': 'FinishHotfix.sh'
+    'extension.FinishHotfix': 'FinishHotfix.sh',
+    'extension.GenerateCommitMessage': 'GenCommitMessage.sh'
 }
 
 function debugLog (message, payload) {
@@ -1106,12 +1108,13 @@ async function executeGitFlowCommand (commandId) {
         throw new Error(`Unsupported command: ${commandId}`)
     }
     debugLog('resolve command script', { commandId, scriptName })
-    const groupName = await ensureGroupNameConfigured()
-    if (!groupName) {
+    const commandRequiresGroup = commandId !== 'extension.GenerateCommitMessage'
+    const groupName = commandRequiresGroup ? await ensureGroupNameConfigured() : null
+    if (commandRequiresGroup && !groupName) {
         return { executed: false, groupName: null }
     }
 
-    const scriptArgs = [groupName]
+    const scriptArgs = commandRequiresGroup ? [groupName] : []
     if (commandId === 'extension.FinishFeature') {
         const confirmed = await confirmFinishFeature(groupName)
         if (!confirmed) {
@@ -1161,9 +1164,15 @@ async function executeGitFlowCommand (commandId) {
     }
     debugLog('workspace git root', rootPath)
 
-    await gitCheck(rootPath)
+    if (commandId !== 'extension.GenerateCommitMessage') {
+        await gitCheck(rootPath)
+    }
     const scriptPath = await resolveScriptPath(rootPath, scriptName)
     debugLog('ready to run script', scriptPath)
+    if (commandId === 'extension.GenerateCommitMessage') {
+        const autoCommit = vscode.workspace.getConfiguration().get(CONFIG_AUTO_COMMIT) ? 'true' : 'false'
+        scriptArgs.push(autoCommit)
+    }
     if (commandId === 'extension.FinishFeature') {
         const selectedFeatureBranch = await askFinishFeatureBranch(rootPath, groupName)
         if (!selectedFeatureBranch) {

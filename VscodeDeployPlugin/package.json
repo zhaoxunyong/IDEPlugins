@@ -19,7 +19,8 @@
         "onCommand:extension.StartNewRelease",
         "onCommand:extension.FinishRelease",
         "onCommand:extension.StartNewHotfix",
-        "onCommand:extension.FinishHotfix"
+        "onCommand:extension.FinishHotfix",
+        "onCommand:extension.GenerateCommitMessage"
     ],
     "main": "./src/extension.js",
     "contributes": {
@@ -41,6 +42,11 @@
                     "type": "boolean",
                     "default": false,
                     "description": "Enable debug logs in extension host console"
+                },
+                "zerofinanceGit.autoCommit": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Whether to auto-commit after generating commit message"
                 },
                 "zerofinanceGit.groupName": {
                     "type": "string",
@@ -91,6 +97,10 @@
             {
                 "command": "extension.FinishHotfix",
                 "title": "Finish Hotfix"
+            },
+            {
+                "command": "extension.GenerateCommitMessage",
+                "title": "Generate Commit Message"
             }
         ],
         "menus": {
@@ -114,6 +124,10 @@
                 }
             ],
             "zerogit.menu": [
+                {
+                    "command": "extension.GenerateCommitMessage",
+                    "group": "0_commit"
+                },
                 {
                     "command": "extension.MavenChange",
                     "group": "0_maven"
