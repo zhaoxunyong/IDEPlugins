@@ -20,6 +20,7 @@ const CONFIG_COMMIT_MESSAGE_MODEL = `${CONFIG_ROOT}.commitMessageModel`
 const CONFIG_GROUP_NAME = `${CONFIG_ROOT}.groupName`
 const DEFAULT_SCRIPT_ROOT_URL = 'https://gitlab.zerofinance.net/dave.zhao/deployPlugin/-/raw/git-flow'
 const COMMAND_PREFIX = 'extension.'
+const GITFLOW_GUIDELINE_URL = 'https://v04jaasnl45.feishu.cn/wiki/Vg5PwK2smiPxGLk7w4Gc7tZanjb'
 const gitCheckFile = 'gitCheck.sh'
 const tmpdir = tmp.tmpdir
 const gitCheckPath = tmpdir + '/' + gitCheckFile
@@ -957,6 +958,22 @@ function parseGitVersion (stdout) {
  */
 function activate (context) {
     debugLog('extension activated')
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('extension.GitFlowGuideline', async () => {
+            try {
+                debugLog('open GitFlow guideline', GITFLOW_GUIDELINE_URL)
+                const opened = await vscode.env.openExternal(vscode.Uri.parse(GITFLOW_GUIDELINE_URL))
+                if (!opened) {
+                    await showErrorWithCopy('无法打开 GitFlow Guideline 链接。', GITFLOW_GUIDELINE_URL)
+                }
+            } catch (err) {
+                const msg = err && err.message ? err.message : String(err)
+                await showErrorWithCopy(`打开链接失败：${msg}`, buildErrorDetails(err))
+            }
+        })
+    )
+
     Object.keys(gitFlowScriptByCommand).forEach(commandId => {
         context.subscriptions.push(
             vscode.commands.registerCommand(commandId, async () => {

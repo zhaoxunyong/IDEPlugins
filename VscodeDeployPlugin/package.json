@@ -20,7 +20,8 @@
         "onCommand:extension.FinishRelease",
         "onCommand:extension.StartNewHotfix",
         "onCommand:extension.FinishHotfix",
-        "onCommand:extension.GenerateCommitMessage"
+        "onCommand:extension.GenerateCommitMessage",
+        "onCommand:extension.GitFlowGuideline"
     ],
     "main": "./src/extension.js",
     "contributes": {
@@ -101,6 +102,10 @@
             {
                 "command": "extension.GenerateCommitMessage",
                 "title": "Generate Commit Message"
+            },
+            {
+                "command": "extension.GitFlowGuideline",
+                "title": "GitFlow Guideline"
             }
         ],
         "menus": {
@@ -143,6 +148,10 @@
                 {
                     "submenu": "zerogit.hotfix.menu",
                     "group": "4_hotfix"
+                },
+                {
+                    "command": "extension.GitFlowGuideline",
+                    "group": "9_guideline"
                 }
             ],
             "zerogit.maven.menu": [
