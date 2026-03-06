@@ -6,6 +6,7 @@ const fs = require('fs')
 
 const util = require('util')
 const exec = util.promisify(require('child_process').exec)
+const { spawn } = require('child_process')
 
 let mdTml = null
 let myStatusBarItem = null
@@ -668,14 +669,10 @@ async function runFinishReleaseScript (rootPath, scriptPath, scriptArgs) {
     statusBarItem.show()
     debugLog('execute finish release command', cmd)
     try {
-        const { stdout, stderr } = await exec(cmd, { maxBuffer: 1024 * 1024 * 20 })
+        const { stdout, stderr } = await runScriptBySpawn(rootPath, scriptPath, scriptArgs, outputChannel)
         debugLog('finish release stdout', stdout)
-        if (stdout) {
-            outputChannel.appendLine(stdout)
-        }
         if (stderr) {
             debugLog('finish release stderr', stderr)
-            outputChannel.appendLine(stderr)
         }
         // Use real stderr (trace stripped when debug) for parsing so bash -x output is not included
         const realStderr = getRealStderr(stderr)
@@ -698,6 +695,56 @@ async function runFinishReleaseScript (rootPath, scriptPath, scriptArgs) {
     } finally {
         statusBarItem.hide()
     }
+}
+
+function runScriptBySpawn (rootPath, scriptPath, scriptArgs, outputChannel) {
+    const normalizedRootPath = normalizePath(rootPath)
+    const normalizedScriptPath = normalizePath(scriptPath)
+    const bashPath = getBashPath()
+    const debug = vscode.workspace.getConfiguration().get(CONFIG_DEBUG)
+    const spawnArgs = []
+    if (debug) {
+        spawnArgs.push('-x')
+    }
+    spawnArgs.push(normalizedScriptPath, ...(Array.isArray(scriptArgs) ? scriptArgs : []))
+
+    return new Promise((resolve, reject) => {
+        const child = spawn(bashPath, spawnArgs, {
+            cwd: normalizedRootPath,
+            windowsHide: true
+        })
+
+        let stdout = ''
+        let stderr = ''
+
+        child.stdout.on('data', (chunk) => {
+            const text = chunk.toString()
+            stdout += text
+            outputChannel.append(text)
+        })
+
+        child.stderr.on('data', (chunk) => {
+            const text = chunk.toString()
+            stderr += text
+            outputChannel.append(text)
+        })
+
+        child.on('error', (err) => {
+            reject(err)
+        })
+
+        child.on('close', (code) => {
+            if (code === 0) {
+                resolve({ stdout, stderr, code })
+                return
+            }
+            const err = new Error(`Script exited with code ${code}`)
+            err.code = code
+            err.stdout = stdout
+            err.stderr = stderr
+            reject(err)
+        })
+    })
 }
 
 function clearCacheFile () {
