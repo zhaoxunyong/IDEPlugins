@@ -62,10 +62,8 @@ subject（必须）：
 2. 分析变更内容
 3. 判断最合适的 type 和 scope
 4. 生成符合规范的 commit message（用中文）
-
-始终用中文
-AutoCommit 配置值：$autoCommit
+5. 执行 git commit -m "commit message" 命令
 EOF
 )
 
-opencode run -m "zhipuai-coding-plan/glm-4.7" "$prompt"
+opencode run -m "new-api/GLM-5" "$prompt"
