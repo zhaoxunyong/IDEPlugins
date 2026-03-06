@@ -203,8 +203,7 @@ public class ZeroGitFlowHandler {
             return;
         }
         List<String> params = Lists.newArrayList(groupName, selected, String.join(",", GROUPS));
-        ExecuteResult result = confirmAndRunSync("Finish Release", rootPath, script, params);
-        parseRemainingAndNotify(result.getResult(), "release");
+        confirmAndRunSyncAsync("Finish Release", rootPath, script, params, "release");
     }
 
     public void startNewHotfix() throws Exception {
@@ -262,8 +261,7 @@ public class ZeroGitFlowHandler {
             return;
         }
         List<String> params = Lists.newArrayList(groupName, selected, String.join(",", GROUPS));
-        ExecuteResult result = confirmAndRunSync("Finish Hotfix", rootPath, script, params);
-        parseRemainingAndNotify(result.getResult(), "hotfix");
+        confirmAndRunSyncAsync("Finish Hotfix", rootPath, script, params, "hotfix");
     }
 
     private String requireGroupName() {
@@ -325,11 +323,11 @@ public class ZeroGitFlowHandler {
                 NotificationType.INFORMATION);
     }
 
-    private ExecuteResult confirmAndRunSync(String commandName, String rootPath, String script, List<String> params) throws Exception {
+    private void confirmAndRunSyncAsync(String commandName, String rootPath, String script, List<String> params, String branchType) {
         String message = buildConfirmMessage(commandName, rootPath, script, params);
         if (!yes(message, "ZeroGit Confirm")) {
             debugLog("script execution cancelled by user", commandName);
-            return new ExecuteResult(0, "");
+            return;
         }
         ToolWindow toolWindow = ToolWindowManager.getInstance(project).getToolWindow(DeployCmdExecuter.PLUGIN_ID);
         if (toolWindow == null) {
@@ -339,36 +337,54 @@ public class ZeroGitFlowHandler {
         toolWindow.show(null);
 
         ConsoleView console = getOrCreateConsole(toolWindow);
-        ExecuteResult[] holder = new ExecuteResult[1];
         Task.Backgroundable task = new Task.Backgroundable(project, "ZeroGit " + commandName + "...") {
+            private ExecuteResult result;
+            private Exception runError;
+
             @Override
             public void run(@NotNull ProgressIndicator indicator) {
                 try {
                     debugLog("execute sync command", commandName + " -> " + script + " " + String.join(" ", params));
-                    holder[0] = DeployCmdExecuter.exec(console, rootPath, script, params, true);
+                    result = DeployCmdExecuter.exec(console, rootPath, script, params, true);
                 } catch (Exception e) {
-                    throw new RuntimeException(e);
+                    runError = e;
                 }
+            }
+
+            @Override
+            public void onFinished() {
+                if (runError != null) {
+                    String details = MessagesUtils.buildDetailedErrorMessage(runError);
+                    MessagesUtils.showErrorWithDetails(project,
+                            commandName + " failed",
+                            commandName + " 执行异常，请点击“复制完整错误”获取详细信息。",
+                            details);
+                    return;
+                }
+                if (result == null) {
+                    MessagesUtils.showMessage(project,
+                            commandName + " 未返回执行结果，请检查日志。",
+                            moduleName + ": Error",
+                            NotificationType.ERROR);
+                    return;
+                }
+                if (result.getCode() != 0) {
+                    debugLog("sync command failed", result.getResult());
+                    String output = StringUtils.defaultString(result.getResult(), "(no output)");
+                    MessagesUtils.showErrorWithDetails(project,
+                            commandName + " failed",
+                            commandName + " 失败，exitCode=" + result.getCode(),
+                            output);
+                    return;
+                }
+                MessagesUtils.showMessage(project,
+                        commandName + " executed done, please check logs.",
+                        moduleName + ": Done",
+                        NotificationType.INFORMATION);
+                parseRemainingAndNotify(result.getResult(), branchType);
             }
         };
         ProgressManager.getInstance().run(task);
-        while (holder[0] == null) {
-            Thread.sleep(200L);
-        }
-        if (holder[0].getCode() != 0) {
-            debugLog("sync command failed", holder[0].getResult());
-            MessagesUtils.showMessage(project,
-                    commandName + " 失败，exitCode=" + holder[0].getCode() + "，详情：\n" + StringUtils.defaultString(holder[0].getResult(), "(no output)"),
-                    moduleName + ": Error",
-                    NotificationType.ERROR);
-            throw new DeployPluginException(commandName + " 失败，exitCode=" + holder[0].getCode() + "，详情：" +
-                    StringUtils.defaultString(holder[0].getResult(), "(no output)"));
-        }
-        MessagesUtils.showMessage(project,
-                commandName + " executed done, please check logs.",
-                moduleName + ": Done",
-                NotificationType.INFORMATION);
-        return holder[0];
     }
 
     private ConsoleView getOrCreateConsole(ToolWindow toolWindow) {
