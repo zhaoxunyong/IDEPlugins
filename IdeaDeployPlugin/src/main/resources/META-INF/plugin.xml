@@ -95,6 +95,7 @@
         <group id="ZeroPopupMenuAction" text="ZeroGit" popup="true" icon="AllIcons.Actions.Colors">
             <separator/>
             <add-to-group group-id="ProjectViewPopupMenu" anchor="after" relative-to-action="WeighingNewGroup" />
+            <add-to-group group-id="EditorPopupMenu" anchor="last" />
             <action id="GenerateCommitMessagePopupMenu" class="com.zerofinance.zerogitdeploy.action.GenerateCommitMessageAction" icon="AllIcons.Actions.EditSource" text="Generate Commit Message" description="ZeroGit Generate Commit Message" />
             <group id="ZeroPopupMavenSubMenu" text="Maven" popup="true" icon="/icons/mavenMenu.svg">
                 <action id="MavenChangePopupMenu" class="com.zerofinance.zerogitdeploy.action.MavenChangeAction" icon="AllIcons.Actions.EditSource" text="Maven Change" description="ZeroGit Maven Change" />
