@@ -6,11 +6,16 @@
   <component name="ChangeListManager">
     <list default="true" id="2dd5e85f-3834-40d4-acbf-af10224ec20d" name="Changes" comment="Mod: Fixed an incompatible issue.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/gradlew" beforeDir="false" afterPath="$PROJECT_DIR$/gradlew" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pluginBuild.sh" beforeDir="false" afterPath="$PROJECT_DIR$/pluginBuild.sh" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/handler/ZeroGitFlowHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/handler/ZeroGitFlowHandler.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/setting/ZeroGitDeploySetting.form" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/setting/ZeroGitDeploySetting.form" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/setting/ZeroGitDeploySetting.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/setting/ZeroGitDeploySetting.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/tools/CommandUtils.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/tools/CommandUtils.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/META-INF/plugin.xml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/META-INF/plugin.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../VscodeDeployPlugin/scripts/FinishFeature.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../VscodeDeployPlugin/scripts/FinishFeature.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../VscodeDeployPlugin/scripts/FinishRelease.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../VscodeDeployPlugin/scripts/FinishRelease.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../VscodeDeployPlugin/scripts/RebaseFeature.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../VscodeDeployPlugin/scripts/RebaseFeature.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../VscodeDeployPlugin/scripts/StartNewFeature.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../VscodeDeployPlugin/scripts/StartNewFeature.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../VscodeDeployPlugin/scripts/StartNewRelease.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../VscodeDeployPlugin/scripts/StartNewRelease.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../VscodeDeployPlugin/scripts/gitCheck.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../VscodeDeployPlugin/scripts/gitCheck.sh" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../VscodeDeployPlugin/src/extension.js" beforeDir="false" afterPath="$PROJECT_DIR$/../VscodeDeployPlugin/src/extension.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -138,7 +143,7 @@
     "Gradle.IdeaDeployPlugin [assemble].executor": "Debug",
     "Gradle.IdeaDeployPlugin [setupDependencies].executor": "Run",
     "Gradle.IdeaDeployPlugin::works:Developer:workspace:IDEPlugins:IdeaDeployPlugin [setupDependencies].executor": "Run",
-    "Gradle.Run Plugin.executor": "Debug",
+    "Gradle.Run Plugin.executor": "Run",
     "RunOnceActivity.OpenProjectViewOnStart": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "SHARE_PROJECT_CONFIGURATION_FILES": "true",
@@ -146,9 +151,9 @@
     "UI_DESIGNER_EDITOR_MODE.UIDesignerToolWindowManager.STATE": "right",
     "UI_DESIGNER_EDITOR_MODE.UIDesignerToolWindowManager.WIDTH": "710",
     "WebServerToolWindowFactoryState": "false",
-    "git-widget-placeholder": "feature/002-git-flow-plugin",
+    "git-widget-placeholder": "main",
     "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "/Developer/workspace/IDEPlugins/IdeaDeployPlugin",
+    "last_opened_file_path": "D:/Developer/workspace/gitlab-flow-demo",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
@@ -157,7 +162,7 @@
     "project.structure.last.edited": "SDKs",
     "project.structure.proportion": "0.15",
     "project.structure.side.proportion": "0.2",
-    "settings.editor.selected.configurable": "preferences.pluginManager",
+    "settings.editor.selected.configurable": "project.propCompiler",
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
@@ -201,8 +206,8 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-jdk-9f38398b9061-39b83d9b5494-intellij.indexing.shared.core-IU-241.18968.26" />
-        <option value="bundled-js-predefined-1d06a55b98c1-0b3e54e931b4-JavaScript-IU-241.18968.26" />
+        <option value="bundled-jdk-9823dce3aa75-b114ca120d71-intellij.indexing.shared.core-IU-242.21829.142" />
+        <option value="bundled-js-predefined-d6986cc7102b-7c0b70fcd90d-JavaScript-IU-242.21829.142" />
       </set>
     </attachedChunks>
   </component>
@@ -249,6 +254,8 @@
       <workItem from="1772765676973" duration="2191000" />
       <workItem from="1772767877543" duration="22000" />
       <workItem from="1772767906956" duration="11442000" />
+      <workItem from="1772802226650" duration="75000" />
+      <workItem from="1772802317680" duration="226000" />
     </task>
     <task id="LOCAL-00001" summary="Mod: Adjusting some tips.">
       <created>1656926991407</created>

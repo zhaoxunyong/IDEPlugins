@@ -53,6 +53,14 @@ function normalizePath (path) {
     return path.replace(/\\/gm, '/')
 }
 
+function buildCdCommand (targetPath) {
+    const normalizedPath = normalizePath(targetPath)
+    if (process.platform === 'win32') {
+        return `cd /d "${normalizedPath}"`
+    }
+    return `cd "${normalizedPath}"`
+}
+
 /** When debug is on, bash -x writes trace lines (starting with "+ ") to stderr; strip those and return the rest. */
 function getRealStderr (stderr) {
     const debug = vscode.workspace.getConfiguration().get(CONFIG_DEBUG)
@@ -231,7 +239,7 @@ async function getLatestRemoteHotfixVersion (rootPath, groupName) {
 
 async function getLatestRemoteTagVersion (rootPath) {
     const semverTagRule = /^v?(\d+)\.(\d+)\.(\d+)$/
-    const cmd = `cd "${normalizePath(rootPath)}" && git ls-remote --tags --refs origin`
+    const cmd = `${buildCdCommand(rootPath)} && git ls-remote --tags --refs origin`
     const { stdout } = await exec(cmd, { maxBuffer: 1024 * 1024 * 10 })
     const versions = []
     stdout.split(/\r?\n/).forEach(line => {
@@ -415,7 +423,7 @@ async function getReleaseBranches (rootPath, groupName, options = {}) {
     const refs = includeLocal
         ? `refs/heads/${releasePrefix}* refs/remotes/origin/${releasePrefix}*`
         : `refs/remotes/origin/${releasePrefix}*`
-    const cmd = `cd "${normalizePath(rootPath)}" && git fetch origin --prune && git for-each-ref --sort=-committerdate --format="%(refname:short)" ${refs}`
+    const cmd = `${buildCdCommand(rootPath)} && git fetch origin --prune && git for-each-ref --sort=-committerdate --format="%(refname:short)" ${refs}`
     const { stdout } = await exec(cmd, { maxBuffer: 1024 * 1024 * 10 })
     const branchSet = new Set()
     stdout.split(/\r?\n/).forEach(line => {
@@ -439,7 +447,7 @@ async function getHotfixBranches (rootPath, groupName, options = {}) {
     const refs = includeLocal
         ? `refs/heads/${hotfixPrefix}* refs/remotes/origin/${hotfixPrefix}*`
         : `refs/remotes/origin/${hotfixPrefix}*`
-    const cmd = `cd "${normalizePath(rootPath)}" && git fetch origin --prune && git for-each-ref --sort=-committerdate --format="%(refname:short)" ${refs}`
+    const cmd = `${buildCdCommand(rootPath)} && git fetch origin --prune && git for-each-ref --sort=-committerdate --format="%(refname:short)" ${refs}`
     const { stdout } = await exec(cmd, { maxBuffer: 1024 * 1024 * 10 })
     const branchSet = new Set()
     stdout.split(/\r?\n/).forEach(line => {
@@ -458,7 +466,7 @@ async function getHotfixBranches (rootPath, groupName, options = {}) {
 }
 
 async function getCurrentBranch (rootPath) {
-    const cmd = `cd "${normalizePath(rootPath)}" && git rev-parse --abbrev-ref HEAD`
+    const cmd = `${buildCdCommand(rootPath)} && git rev-parse --abbrev-ref HEAD`
     const { stdout } = await exec(cmd, { maxBuffer: 1024 * 1024 })
     return (stdout || '').trim()
 }
@@ -466,7 +474,7 @@ async function getCurrentBranch (rootPath) {
 async function getLocalFeatureBranches (rootPath, groupName) {
     const featurePrefix = `feature/${groupName}/`
     const refs = `refs/heads/${featurePrefix}*`
-    const cmd = `cd "${normalizePath(rootPath)}" && git for-each-ref --format="%(refname:short)" ${refs}`
+    const cmd = `${buildCdCommand(rootPath)} && git for-each-ref --format="%(refname:short)" ${refs}`
     const { stdout } = await exec(cmd, { maxBuffer: 1024 * 1024 * 10 })
     const branches = stdout
         .split(/\r?\n/)
@@ -785,8 +793,7 @@ function parseRemainingReleaseVersions (outputText) {
 }
 
 async function runFinishReleaseScript (rootPath, scriptPath, scriptArgs) {
-    const argsText = buildBashArgs(scriptArgs)
-    const cmd = argsText ? `${buildBashCommand(rootPath, scriptPath)} ${argsText}` : buildBashCommand(rootPath, scriptPath)
+    const cmd = buildBashCommand(rootPath, scriptPath, scriptArgs)
     const statusBarItem = getOrCreateStatusBarItem()
     const outputChannel = getOrCreateOutputChannel()
     outputChannel.clear()
@@ -926,16 +933,20 @@ function getOrCreateOutputChannel () {
     return myOutputChannel
 }
 
-function buildBashCommand (rootPath, scriptPath) {
+function buildBashCommand (rootPath, scriptPath, scriptArgs = []) {
     const normalizedRootPath = normalizePath(rootPath)
     const normalizedScriptPath = normalizePath(scriptPath)
+    const argsText = buildBashArgs(scriptArgs)
     const debug = vscode.workspace.getConfiguration().get(CONFIG_DEBUG)
     const bashPath = getBashPath()
     const traceOpt = debug ? ' -x' : ''
     if (process.platform === 'win32') {
-        return `"${bashPath}"${traceOpt} -c "cd ${normalizedRootPath} && ${normalizedScriptPath}"`
+        const scriptCommand = argsText ? `"${normalizedScriptPath}" ${argsText}` : `"${normalizedScriptPath}"`
+        return `"${bashPath}"${traceOpt} -c "cd ${quoteBashArg(normalizedRootPath)} && ${scriptCommand}"`
     }
-    return `cd "${normalizedRootPath}" && "${bashPath}"${traceOpt} "${normalizedScriptPath}"`
+    return argsText
+        ? `cd "${normalizedRootPath}" && "${bashPath}"${traceOpt} "${normalizedScriptPath}" ${argsText}`
+        : `cd "${normalizedRootPath}" && "${bashPath}"${traceOpt} "${normalizedScriptPath}"`
 }
 
 function parseGitVersion (stdout) {
@@ -1093,7 +1104,7 @@ async function gitCheck (rootPath) {
 
 async function resolveGitRootPath (candidatePath) {
     const normalizedPath = normalizePath(candidatePath)
-    const cmd = `cd "${normalizedPath}" && git rev-parse --show-toplevel`
+    const cmd = `${buildCdCommand(normalizedPath)} && git rev-parse --show-toplevel`
     try {
         const { stdout } = await exec(cmd, { maxBuffer: 1024 * 1024 })
         const topLevel = String(stdout || '').trim().split(/\r?\n/)[0]
@@ -1289,8 +1300,7 @@ function buildBashArgs (args) {
 }
 
 function runScriptInTerminal (rootPath, scriptPath, scriptArgs) {
-    const argsText = buildBashArgs(scriptArgs)
-    const cmdStr = argsText ? `${buildBashCommand(rootPath, scriptPath)} ${argsText}` : buildBashCommand(rootPath, scriptPath)
+    const cmdStr = buildBashCommand(rootPath, scriptPath, scriptArgs)
     // sendText defaults to addNewLine=true, so this command is executed immediately.
     debugLog('send command to terminal', cmdStr)
     getTerminal().sendText(cmdStr)
@@ -1308,13 +1318,14 @@ function getTerminal () {
 function getBashPath () {
     let gitBash = 'bash'
     if (process.platform === 'win32') {
-        gitBash = vscode.workspace.getConfiguration().get('terminal.integrated.shell.windows')
-        if (gitBash === null || !gitBash.includes('bash.exe')) {
-            const errMsg = 'Please set "git bash" for the terminal at "settings.json": "terminal.integrated.shell.windows": "YourGitPath\\\\bin\\\\bash.exe"'
-            vscode.window.showErrorMessage(errMsg)
-            throw new Error(errMsg)
-        }
-        gitBash = normalizePath(gitBash)
+        // gitBash = vscode.workspace.getConfiguration().get('terminal.integrated.shell.windows')
+        // if (gitBash === null || !gitBash.includes('bash.exe')) {
+        //     const errMsg = 'Please set "git bash" for the terminal at "settings.json": "terminal.integrated.shell.windows": "YourGitPath\\\\bin\\\\bash.exe"'
+        //     vscode.window.showErrorMessage(errMsg)
+        //     throw new Error(errMsg)
+        // }
+        // gitBash = normalizePath(gitBash)
+        gitBash = 'D:/Developer/Git/bin/bash.exe'
     }
     return gitBash
 }

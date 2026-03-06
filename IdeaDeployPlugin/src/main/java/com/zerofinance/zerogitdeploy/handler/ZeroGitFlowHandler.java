@@ -79,6 +79,7 @@ public class ZeroGitFlowHandler {
             throw new DeployPluginException("Cannot resolve current project path.");
         }
         this.moduleName = new File(modulePath).getName();
+        requireGitHomeOnWindows();
     }
 
     public void startNewFeature() throws Exception {
@@ -320,6 +321,18 @@ public class ZeroGitFlowHandler {
         Messages.showWarningDialog("请先配置 groupName 为 a 或 b。", "ZeroGit");
         ShowSettingsUtil.getInstance().showSettingsDialog(project, ZeroGitDeploySetting.class);
         throw new DeployPluginException("请先配置 groupName 为 a 或 b。");
+    }
+
+    private void requireGitHomeOnWindows() {
+        if (!SystemUtils.IS_OS_WINDOWS) {
+            return;
+        }
+        if (StringUtils.isNotBlank(ZeroGitDeploySetting.getGitHome())) {
+            return;
+        }
+        Messages.showWarningDialog("Windows 环境请先配置 Git Home。", "ZeroGit");
+        ShowSettingsUtil.getInstance().showSettingsDialog(project, ZeroGitDeploySetting.class);
+        throw new DeployPluginException("请先在 Git Deploy Settings 中配置 Git Home。");
     }
 
     private String getRootPath() {
@@ -598,19 +611,34 @@ public class ZeroGitFlowHandler {
     }
 
     private String toBashCommand(String rootPath, String script, List<String> parameters) {
-        StringBuilder sb = new StringBuilder("cd ").append(quote(rootPath)).append(" && ");
         if (SystemUtils.IS_OS_WINDOWS) {
+            String normalizedRootPath = rootPath.replace("\\", "/");
+            String normalizedScriptPath = script.replace("\\", "/");
             String bashExe = ZeroGitDeploySetting.getGitHome() + "\\bin\\bash.exe";
-            sb.append(quote(bashExe));
-        } else {
-            sb.append("bash");
+
+            StringBuilder scriptCmd = new StringBuilder()
+                    .append("\"").append(normalizedScriptPath.replace("\"", "\\\"")).append("\"");
+            for (String p : parameters) {
+                scriptCmd.append(" ").append(quote(p, false));
+            }
+
+            String bashActualCommand = "cd " + quote(normalizedRootPath, false) + " && " + scriptCmd;
+            StringBuilder sb = new StringBuilder()
+                    .append(quote(bashExe, true));
+            if (ZeroGitDeploySetting.isDebug()) {
+                sb.append(" -x");
+            }
+            sb.append(" -c ").append(quote(bashActualCommand, true));
+            return sb.toString();
         }
+
+        StringBuilder sb = new StringBuilder(buildCdCommand(rootPath)).append(" && ").append("bash");
         if (ZeroGitDeploySetting.isDebug()) {
             sb.append(" -x");
         }
-        sb.append(" ").append(quote(script));
+        sb.append(" ").append(quote(script, false));
         for (String p : parameters) {
-            sb.append(" ").append(quote(p));
+            sb.append(" ").append(quote(p, false));
         }
         return sb.toString();
     }
@@ -847,7 +875,17 @@ public class ZeroGitFlowHandler {
         return new Pair<>(content, shellTerminalWidget);
     }
 
-    private String quote(String text) {
+    private String buildCdCommand(String path) {
+        if (SystemUtils.IS_OS_WINDOWS) {
+            return "cd /d " + quote(path, true);
+        }
+        return "cd " + quote(path, false);
+    }
+
+    private String quote(String text, boolean windows) {
+        if (windows) {
+            return "\"" + text.replace("\"", "\\\"") + "\"";
+        }
         return "'" + text.replace("'", "'\\''") + "'";
     }
 
