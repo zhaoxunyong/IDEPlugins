@@ -16,7 +16,7 @@ const CONFIG_ROOT = 'zerofinanceGit'
 const CONFIG_SCRIPT_URL = `${CONFIG_ROOT}.gitScriptsUrlPreference`
 const CONFIG_CHECK_GIT_VERSION = `${CONFIG_ROOT}.checkGitVersion`
 const CONFIG_DEBUG = `${CONFIG_ROOT}.debug`
-const CONFIG_AUTO_COMMIT = `${CONFIG_ROOT}.autoCommit`
+const CONFIG_COMMIT_MESSAGE_MODEL = `${CONFIG_ROOT}.commitMessageModel`
 const CONFIG_GROUP_NAME = `${CONFIG_ROOT}.groupName`
 const DEFAULT_SCRIPT_ROOT_URL = 'https://gitlab.zerofinance.net/dave.zhao/deployPlugin/-/raw/git-flow'
 const COMMAND_PREFIX = 'extension.'
@@ -1170,8 +1170,8 @@ async function executeGitFlowCommand (commandId) {
     const scriptPath = await resolveScriptPath(rootPath, scriptName)
     debugLog('ready to run script', scriptPath)
     if (commandId === 'extension.GenerateCommitMessage') {
-        const autoCommit = vscode.workspace.getConfiguration().get(CONFIG_AUTO_COMMIT) ? 'true' : 'false'
-        scriptArgs.push(autoCommit)
+        const commitMessageModel = String(vscode.workspace.getConfiguration().get(CONFIG_COMMIT_MESSAGE_MODEL) || 'new-api/GLM-5').trim() || 'new-api/GLM-5'
+        scriptArgs.push(commitMessageModel)
     }
     if (commandId === 'extension.FinishFeature') {
         const selectedFeatureBranch = await askFinishFeatureBranch(rootPath, groupName)

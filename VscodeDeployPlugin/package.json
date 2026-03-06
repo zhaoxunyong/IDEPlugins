@@ -43,10 +43,10 @@
                     "default": false,
                     "description": "Enable debug logs in extension host console"
                 },
-                "zerofinanceGit.autoCommit": {
-                    "type": "boolean",
-                    "default": false,
-                    "description": "Whether to auto-commit after generating commit message"
+                "zerofinanceGit.commitMessageModel": {
+                    "type": "string",
+                    "default": "new-api/GLM-5",
+                    "description": "Model used by Generate Commit Message command"
                 },
                 "zerofinanceGit.groupName": {
                     "type": "string",

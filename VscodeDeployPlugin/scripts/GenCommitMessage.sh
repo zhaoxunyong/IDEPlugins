@@ -1,11 +1,6 @@
 #!/bin/bash
 
-autoCommit="${1:-false}"
-
-if [ "$autoCommit" != "true" ] && [ "$autoCommit" != "false" ]; then
-  echo "Usage: $0 <autoCommit:true|false>"
-  exit 1
-fi
+modelName="${1:-new-api/GLM-5}"
 
 if ! command -v opencode >/dev/null 2>&1; then
   echo "未检测到 opencode 命令，请先安装并确保在 PATH 中可用"
@@ -66,4 +61,4 @@ subject（必须）：
 EOF
 )
 
-opencode run -m "new-api/GLM-5" "$prompt"
+opencode run -m "$modelName" "$prompt"
