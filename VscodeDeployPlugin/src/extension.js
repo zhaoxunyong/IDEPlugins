@@ -65,6 +65,41 @@ function buildExecErrorMessage (err) {
     return exitCode !== undefined ? `${baseMsg} (exit code: ${exitCode})` : baseMsg
 }
 
+function buildErrorDetails (err) {
+    if (!err) {
+        return 'Unknown error'
+    }
+    const lines = []
+    const addLine = (label, value) => {
+        if (value !== undefined && value !== null && String(value).trim() !== '') {
+            lines.push(`${label}: ${String(value).trim()}`)
+        }
+    }
+    addLine('message', err.message || String(err))
+    addLine('exitCode', err.code)
+    addLine('stderr', err.stderr ? getRealStderr(err.stderr) : '')
+    addLine('stdout', err.stdout)
+    addLine('stack', err.stack)
+    let cause = err.cause
+    let depth = 1
+    while (cause && depth <= 5) {
+        const prefix = `cause${depth}`
+        addLine(`${prefix}.message`, cause.message || String(cause))
+        addLine(`${prefix}.stack`, cause.stack)
+        cause = cause.cause
+        depth += 1
+    }
+    return lines.join('\n')
+}
+
+async function showErrorWithCopy (summary, details) {
+    const copyAction = '复制完整错误'
+    const picked = await vscode.window.showErrorMessage(summary, copyAction)
+    if (picked === copyAction) {
+        await vscode.env.clipboard.writeText(details || summary)
+    }
+}
+
 function getRootUrl () {
     let rootUrl = vscode.workspace.getConfiguration().get(CONFIG_SCRIPT_URL)
     if (!rootUrl) {
@@ -696,7 +731,8 @@ async function resolveScriptPath (rootPath, scriptName) {
         debugLog('script downloaded to temp path', scriptPath)
         return scriptPath
     } catch (err) {
-        vscode.window.showErrorMessage(`Can't found ${scriptUrl}: ${err}`)
+        const msg = `Can't found ${scriptUrl}: ${err}`
+        await showErrorWithCopy(msg, buildErrorDetails(err))
         throw new Error(err && err.message ? err.message : String(err))
     }
 }
@@ -760,12 +796,12 @@ function activate (context) {
                 } catch (err) {
                     const msg = err && err.message ? err.message : String(err)
                     debugLog('command failed', { commandId, msg })
-                    vscode.window.showErrorMessage(msg)
+                    await showErrorWithCopy(msg, buildErrorDetails(err))
                     if (commandId === 'extension.FinishRelease') {
-                        vscode.window.showErrorMessage('FinishRelease失败，请通过日志查看具体的失败原因。')
+                        await showErrorWithCopy('FinishRelease失败，请通过日志查看具体的失败原因。', buildErrorDetails(err))
                     }
                     if (commandId === 'extension.FinishHotfix') {
-                        vscode.window.showErrorMessage('FinishHotfix失败，请通过日志查看具体的失败原因。')
+                        await showErrorWithCopy('FinishHotfix失败，请通过日志查看具体的失败原因。', buildErrorDetails(err))
                     }
                 }
             })
@@ -854,7 +890,7 @@ async function gitCheck (rootPath) {
         } catch (err) {
             // Two sources: (1) exec() rejected (non-zero exit); (2) we threw due to real stderr content.
             const msg = buildExecErrorMessage(err)
-            vscode.window.showErrorMessage(msg)
+            await showErrorWithCopy(msg, buildErrorDetails(err))
             throw new Error(msg)
         } finally {
             getOrCreateStatusBarItem().hide()
