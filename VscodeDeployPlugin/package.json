@@ -15,6 +15,7 @@
         "onCommand:extension.StartNewFeature",
         "onCommand:extension.FinishFeature",
         "onCommand:extension.RebaseFeature",
+        "onCommand:extension.MavenChange",
         "onCommand:extension.StartNewRelease",
         "onCommand:extension.FinishRelease",
         "onCommand:extension.StartNewHotfix",
@@ -60,32 +61,36 @@
         },
         "commands": [
             {
+                "command": "extension.MavenChange",
+                "title": "Maven Change"
+            },
+            {
                 "command": "extension.StartNewFeature",
-                "title": "ZeroGit: Start New Feature"
+                "title": "Start New Feature"
             },
             {
                 "command": "extension.FinishFeature",
-                "title": "ZeroGit: Finish Feature"
+                "title": "Finish Feature"
             },
             {
                 "command": "extension.RebaseFeature",
-                "title": "ZeroGit: Rebase Feature"
+                "title": "Rebase Feature"
             },
             {
                 "command": "extension.StartNewRelease",
-                "title": "ZeroGit: Start New Release"
+                "title": "Start New Release"
             },
             {
                 "command": "extension.FinishRelease",
-                "title": "ZeroGit: Finish Release"
+                "title": "Finish Release"
             },
             {
                 "command": "extension.StartNewHotfix",
-                "title": "ZeroGit: Start New Hotfix"
+                "title": "Start New Hotfix"
             },
             {
                 "command": "extension.FinishHotfix",
-                "title": "ZeroGit: Finish Hotfix"
+                "title": "Finish Hotfix"
             }
         ],
         "menus": {
@@ -109,6 +114,10 @@
                 }
             ],
             "zerogit.menu": [
+                {
+                    "command": "extension.MavenChange",
+                    "group": "1_feature"
+                },
                 {
                     "command": "extension.StartNewFeature",
                     "group": "1_feature"

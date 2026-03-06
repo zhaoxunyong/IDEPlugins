@@ -27,6 +27,7 @@ const gitFlowScriptByCommand = {
     'extension.StartNewFeature': 'StartNewFeature.sh',
     'extension.FinishFeature': 'FinishFeature.sh',
     'extension.RebaseFeature': 'RebaseFeature.sh',
+    'extension.MavenChange': 'MavenChange.sh',
     'extension.StartNewRelease': 'StartNewRelease.sh',
     'extension.FinishRelease': 'FinishRelease.sh',
     'extension.StartNewHotfix': 'StartNewHotfix.sh',
@@ -535,6 +536,130 @@ function compareSemverVersionDesc (leftVersion, rightVersion) {
     return compareSemverPartsDesc(leftParts, rightParts)
 }
 
+function isMavenProject (rootPath) {
+    const pomPath = path.join(rootPath, 'pom.xml')
+    if (!fs.existsSync(pomPath)) {
+        return false
+    }
+    try {
+        const pomContent = fs.readFileSync(pomPath, 'utf8')
+        return /<project[\s>]/.test(pomContent)
+    } catch (err) {
+        debugLog('read pom.xml failed', err && err.message ? err.message : String(err))
+        return false
+    }
+}
+
+function getMavenVersionFromPom (rootPath) {
+    const pomPath = path.join(rootPath, 'pom.xml')
+    if (!fs.existsSync(pomPath)) {
+        return null
+    }
+
+    try {
+        const pomContent = fs.readFileSync(pomPath, 'utf8')
+        const contentWithoutComments = pomContent.replace(/<!--[\s\S]*?-->/g, '')
+        const contentWithoutParent = contentWithoutComments.replace(/<parent>[\s\S]*?<\/parent>/g, '')
+        const matched = contentWithoutParent.match(/<version>\s*([^<\s]+)\s*<\/version>/)
+        return matched ? matched[1].trim() : null
+    } catch (err) {
+        debugLog('parse pom version failed', err && err.message ? err.message : String(err))
+        return null
+    }
+}
+
+function buildSuggestedMavenVersion (currentVersion, changeType) {
+    const baseVersion = String(currentVersion || '')
+        .trim()
+        .replace(/-SNAPSHOT$/i, '')
+
+    const semverParts = parseSemverVersion(baseVersion)
+    const nextVersion = semverParts
+        ? `${semverParts[0]}.${semverParts[1]}.${semverParts[2] + 1}`
+        : '1.0.1'
+
+    return changeType === 'snapshot' ? `${nextVersion}-SNAPSHOT` : nextVersion
+}
+
+function isValidMavenVersionText (versionText) {
+    const mavenVersionRule = /^\d+\.\d+\.\d+(?:-SNAPSHOT)?$/
+    return mavenVersionRule.test(String(versionText || '').trim())
+}
+
+async function askMavenChangeType () {
+    const options = [
+        {
+            label: 'release',
+            description: '默认选项',
+            value: 'release'
+        },
+        {
+            label: 'snapshot',
+            value: 'snapshot'
+        }
+    ]
+
+    const selected = await vscode.window.showQuickPick(options, {
+        ignoreFocusOut: true,
+        canPickMany: false,
+        title: 'Select Maven change type',
+        placeHolder: 'Choose snapshot or release'
+    })
+
+    if (!selected) {
+        vscode.window.showErrorMessage('Please select maven change type, task aborted.')
+        return null
+    }
+    return selected.value
+}
+
+async function askMavenChangeVersion (rootPath, changeType) {
+    const currentPomVersion = getMavenVersionFromPom(rootPath)
+    const suggestedVersion = buildSuggestedMavenVersion(currentPomVersion, changeType)
+    const inputVersion = await vscode.window.showInputBox({
+        ignoreFocusOut: true,
+        placeHolder: 'Please input maven version',
+        prompt: `Please input maven version (${changeType}).`,
+        value: suggestedVersion,
+        validateInput: function (text) {
+            const value = String(text || '').trim()
+            if (!value) {
+                return 'Please input maven version.'
+            }
+            if (!isValidMavenVersionText(value)) {
+                return 'Maven version must be x.y.z or x.y.z-SNAPSHOT, and x/y/z must be numbers.'
+            }
+            if (changeType === 'release' && /-SNAPSHOT$/i.test(value)) {
+                return 'Release version cannot end with -SNAPSHOT.'
+            }
+            if (changeType === 'snapshot' && !/-SNAPSHOT$/i.test(value)) {
+                return 'Snapshot version must end with -SNAPSHOT.'
+            }
+            return ''
+        }
+    })
+
+    if (!inputVersion) {
+        vscode.window.showErrorMessage('Please input maven version, task aborted.')
+        return null
+    }
+
+    const normalizedVersion = String(inputVersion).trim()
+    if (!isValidMavenVersionText(normalizedVersion)) {
+        vscode.window.showErrorMessage('Invalid maven version format, task aborted.')
+        return null
+    }
+    if (changeType === 'release' && /-SNAPSHOT$/i.test(normalizedVersion)) {
+        vscode.window.showErrorMessage('Release version cannot end with -SNAPSHOT, task aborted.')
+        return null
+    }
+    if (changeType === 'snapshot' && !/-SNAPSHOT$/i.test(normalizedVersion)) {
+        vscode.window.showErrorMessage('Snapshot version must end with -SNAPSHOT, task aborted.')
+        return null
+    }
+    return normalizedVersion
+}
+
 async function askFinishReleaseBranch (rootPath, groupName) {
     const releaseBranches = await getReleaseBranches(rootPath, groupName)
     if (releaseBranches.length === 0) {
@@ -1031,6 +1156,21 @@ async function executeGitFlowCommand (commandId) {
             return { executed: false, groupName }
         }
         scriptArgs.push(hotfixName)
+    }
+    if (commandId === 'extension.MavenChange') {
+        if (!isMavenProject(rootPath)) {
+            vscode.window.showErrorMessage(`${normalizePath(rootPath)} is not a maven project, task aborted.`)
+            return { executed: false, groupName }
+        }
+        const changeType = await askMavenChangeType()
+        if (!changeType) {
+            return { executed: false, groupName }
+        }
+        const mavenVersion = await askMavenChangeVersion(rootPath, changeType)
+        if (!mavenVersion) {
+            return { executed: false, groupName }
+        }
+        scriptArgs.push(mavenVersion)
     }
     if (commandId === 'extension.FinishRelease') {
         const selectedReleaseBranch = await askFinishReleaseBranch(rootPath, groupName)
