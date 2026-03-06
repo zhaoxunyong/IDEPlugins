@@ -4,14 +4,26 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="2dd5e85f-3834-40d4-acbf-af10224ec20d" name="Changes" comment="">
+    <list default="true" id="2dd5e85f-3834-40d4-acbf-af10224ec20d" name="Changes" comment="Mod: Fixed an incompatible issue.">
       <change beforePath="$PROJECT_DIR$/.idea/gradle.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/gradle.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.version" beforeDir="false" afterPath="$PROJECT_DIR$/.version" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/build.gradle.kts" beforeDir="false" afterPath="$PROJECT_DIR$/build.gradle.kts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gradlew" beforeDir="false" afterPath="$PROJECT_DIR$/gradlew" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pluginBuild.sh" beforeDir="false" afterPath="$PROJECT_DIR$/pluginBuild.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/handler/DeployPluginHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/handler/DeployPluginHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/action/AnyToolAction.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/action/ChangeVersionAction.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/action/NewBranchAction.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/action/ReleaseAction.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/handler/DependenciesDialogWrapper.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/handler/DeployPluginHandler.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/handler/MavenDependency.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/setting/ZeroGitDeploySetting.form" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/setting/ZeroGitDeploySetting.form" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/setting/ZeroGitDeploySetting.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/setting/ZeroGitDeploySetting.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/tools/CmdBuilder.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/tools/CommandUtils.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/tools/CommandUtils.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/tools/DeployCmdExecuter.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/tools/DeployCmdExecuter.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/tools/MavenUtils.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/tools/MessagesUtils.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/tools/MessagesUtils.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/tools/PomUtils.java" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/resources/META-INF/plugin.xml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/META-INF/plugin.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -55,6 +67,12 @@
                 <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
                 <item name="IdeaDeployPlugin" type="f1a62948:ProjectNode" />
                 <item name="Tasks" type="e4a08cd1:TasksNode" />
+              </path>
+              <path>
+                <item name="" type="6a2764b6:ExternalProjectsStructure$RootNode" />
+                <item name="IdeaDeployPlugin" type="f1a62948:ProjectNode" />
+                <item name="Tasks" type="e4a08cd1:TasksNode" />
+                <item name="build" type="c8890929:TasksNode$1" />
               </path>
             </expand>
             <select />
@@ -130,16 +148,17 @@
   </component>
   <component name="PropertiesComponent">{
   &quot;keyToString&quot;: {
+    &quot;Gradle.IdeaDeployPlugin [assemble].executor&quot;: &quot;Debug&quot;,
     &quot;Gradle.IdeaDeployPlugin [setupDependencies].executor&quot;: &quot;Run&quot;,
     &quot;Gradle.IdeaDeployPlugin::works:Developer:workspace:IDEPlugins:IdeaDeployPlugin [setupDependencies].executor&quot;: &quot;Run&quot;,
-    &quot;Gradle.Run Plugin.executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Run Plugin.executor&quot;: &quot;Debug&quot;,
     &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
     &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
     &quot;WebServerToolWindowFactoryState&quot;: &quot;false&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;feature/002-git-flow-plugin&quot;,
     &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/works/Developer/workspace/IDEPlugins/IdeaDeployPlugin/build/distributions/IdeaDeployPlugin-1.0.10.zip&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/Developer/workspace/IDEPlugins/IdeaDeployPlugin&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
     &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
@@ -160,7 +179,7 @@
       <recent name="/works/Developer/workspace/IDEPlugins/IdeaDeployPlugin/src/main/java/com/zerofinance/zerogitdeploy/handler" />
     </key>
   </component>
-  <component name="RunManager" selected="Gradle.IdeaDeployPlugin [assemble]">
+  <component name="RunManager" selected="Gradle.Run Plugin">
     <configuration name="IdeaDeployPlugin [assemble]" type="GradleRunConfiguration" factoryName="Gradle" temporary="true">
       <ExternalSystemSettings>
         <option name="executionName" />
@@ -237,6 +256,9 @@
       <workItem from="1684821780660" duration="1047000" />
       <workItem from="1684917882228" duration="2141000" />
       <workItem from="1736244976049" duration="21000" />
+      <workItem from="1772765676973" duration="2191000" />
+      <workItem from="1772767877543" duration="22000" />
+      <workItem from="1772767906956" duration="949000" />
     </task>
     <task id="LOCAL-00001" summary="Mod: Adjusting some tips.">
       <created>1656926991407</created>
@@ -391,6 +413,10 @@
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
+  <component name="UnknownFeatures">
+    <option featureType="dependencySupport" implementationName="java:com.jetbrains:ideaIC" />
+    <option featureType="dependencySupport" implementationName="executable:kubectl" />
+  </component>
   <component name="Vcs.Log.History.Properties">
     <option name="COLUMN_ID_ORDER">
       <list>
@@ -449,11 +475,6 @@
           <url>file://$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/tools/MavenUtils.java</url>
           <line>27</line>
           <option name="timeStamp" value="11" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/setting/ZeroGitDeploySetting.java</url>
-          <line>49</line>
-          <option name="timeStamp" value="17" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="java-line">
           <url>file://$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/handler/DeployPluginHandler.java</url>

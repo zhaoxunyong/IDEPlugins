@@ -31,6 +31,63 @@ public class DeployCmdExecuter {
     public static ExecuteResult exec(String workHome, String command, List<String> params, boolean isBatchScript) throws InterruptedException, IOException {
         return exec(null, workHome, command, params, isBatchScript);
     }
+
+    public static ExecuteResult execDirect(String workHome, String command, List<String> parameters) throws IOException, InterruptedException {
+        return execDirect(null, workHome, command, parameters);
+    }
+
+    public static ExecuteResult execDirect(final ConsoleView console, String workHome, String command, List<String> parameters) throws IOException, InterruptedException {
+        CommandLine cmdLine = new CommandLine(command);
+        if (parameters != null && !parameters.isEmpty()) {
+            for (String p : parameters) {
+                if (StringUtils.isNotBlank(p)) {
+                    cmdLine.addArgument(p);
+                }
+            }
+        }
+        Executor executor = new DefaultExecutor();
+        executor.setWorkingDirectory(new File(workHome));
+        int[] codes = new int[256];
+        for (int i = 0; i < 256; i++) {
+            codes[i] = i;
+        }
+        executor.setExitValues(codes);
+
+        if (console != null) {
+            StringBuilder msgs = new StringBuilder();
+            executor.setStreamHandler(new PumpStreamHandler(new LogOutputStream() {
+                @Override
+                protected void processLine(String line, int level) {
+                    msgs.append(line).append("\n");
+                    console.print(line + "\n", ConsoleViewContentType.NORMAL_OUTPUT);
+                }
+            }, new LogOutputStream() {
+                @Override
+                protected void processLine(String line, int level) {
+                    msgs.append(line).append("\n");
+                    console.print(line + "\n", ConsoleViewContentType.NORMAL_OUTPUT);
+                }
+            }));
+            try {
+                int code = executor.execute(cmdLine);
+                return new ExecuteResult(code, msgs.toString());
+            } catch (ExecuteException e) {
+                return new ExecuteResult(-1, e.getMessage());
+            }
+        }
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        ByteArrayOutputStream errorStream = new ByteArrayOutputStream();
+        PumpStreamHandler streamHandler = new PumpStreamHandler(outputStream, errorStream);
+        executor.setStreamHandler(streamHandler);
+        try {
+            int code = executor.execute(cmdLine);
+            String msg = mergeStdoutAndStderr(outputStream.toString("utf-8"), errorStream.toString("utf-8"));
+            return new ExecuteResult(code, msg);
+        } catch (ExecuteException e) {
+            return new ExecuteResult(-1, e.getMessage());
+        }
+    }
     
     public static ExecuteResult exec(final ConsoleView console, String workHome, String command, List<String> parameters, boolean isBatchScript) throws IOException, InterruptedException {
         String debug = ZeroGitDeploySetting.isDebug() ? "-x" : "";
@@ -125,7 +182,10 @@ public class DeployCmdExecuter {
 
                 @Override
                 protected void processLine(String line, int level) {
-//                    msgs.append(line+"\n");
+                    String normalized = normalizeStderrLine(line);
+                    if (StringUtils.isNotBlank(normalized)) {
+                        msgs.append(normalized).append("\n");
+                    }
                     console.print(line+"\n", ConsoleViewContentType.NORMAL_OUTPUT);
                 }
             }));
@@ -148,15 +208,50 @@ public class DeployCmdExecuter {
             executor.setStreamHandler(streamHandler);
             try {
             	int code = executor.execute(cmdLine);
-//                String msg = code == 0 ? outputStream.toString("utf-8") : errorStream.toString("utf-8");
-//                executeResult = new ExecuteResult(code, msg);
-                // errorStream never occurred
-                executeResult = new ExecuteResult(code, outputStream.toString("utf-8"));
+                String msg = mergeStdoutAndStderr(outputStream.toString("utf-8"), errorStream.toString("utf-8"));
+                executeResult = new ExecuteResult(code, msg);
             }catch(ExecuteException e) {
                 e.printStackTrace();
                 executeResult = new ExecuteResult(-1, e.getMessage());
             }
         }
         return executeResult;
+    }
+
+    private static String mergeStdoutAndStderr(String stdout, String stderr) {
+        String normalizedErr = filterDebugTrace(stderr);
+        if (StringUtils.isBlank(stdout)) {
+            return StringUtils.defaultString(normalizedErr);
+        }
+        if (StringUtils.isBlank(normalizedErr)) {
+            return stdout;
+        }
+        return stdout + "\n" + normalizedErr;
+    }
+
+    private static String normalizeStderrLine(String line) {
+        if (line == null) {
+            return "";
+        }
+        if (ZeroGitDeploySetting.isDebug() && line.trim().startsWith("+")) {
+            return "";
+        }
+        return line;
+    }
+
+    private static String filterDebugTrace(String stderr) {
+        if (StringUtils.isBlank(stderr)) {
+            return stderr;
+        }
+        if (!ZeroGitDeploySetting.isDebug()) {
+            return stderr;
+        }
+        StringBuilder sb = new StringBuilder();
+        for (String line : stderr.split("\\R")) {
+            if (!line.trim().startsWith("+")) {
+                sb.append(line).append("\n");
+            }
+        }
+        return sb.toString().trim();
     }
 }

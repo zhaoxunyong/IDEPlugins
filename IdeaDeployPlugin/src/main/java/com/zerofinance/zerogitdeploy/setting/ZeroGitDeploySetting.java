@@ -29,9 +29,8 @@ public class ZeroGitDeploySetting implements Configurable {
     private JCheckBox moreDetailsCheckBox;
     private JTextField scriptURLField;
     private JCheckBox runningInTerminalCheckBox;
-
-    private JCheckBox skipRepoChangeConfirmCheckBox;
-    private JTextField mavenRepoUrlField;
+    private JComboBox<String> groupNameComboBox;
+    private JCheckBox checkGitVersionCheckBox;
 
     private static final String GIT_HOME_KEY = "gitDeployPluginGitHomeKey";
 
@@ -40,19 +39,17 @@ public class ZeroGitDeploySetting implements Configurable {
     private static final String MORE_DETAILS_KEY = "gitDeployPluginMoreDetailsKey";
 
     private static final String RUNNING_IN_TERMINAL_KEY = "gitDeployPluginRunningInTerminalKey";
-
-    private static final String SKIP_REPO_CHANGE_CONFIRM_KEY = "skipRepoChangeConfirmKey";
-
-    private static final String MAVEN_REPO_URL_KEY = "mavenRepoUrlFieldKey";
+    private static final String GROUP_NAME_KEY = "gitDeployPluginGroupNameKey";
+    private static final String CHECK_GIT_VERSION_KEY = "gitDeployPluginCheckGitVersionKey";
 
     public ZeroGitDeploySetting() {
         textField.setText(getGitHome());
         scriptURLField.setText(getScriptURL());
-        mavenRepoUrlField.setText(getMavenRepoUrl());
         needDebugCheckBox.setSelected(isDebug());
         moreDetailsCheckBox.setSelected(isMoreDetails());
         runningInTerminalCheckBox.setSelected(isRunnInTerminal());
-        skipRepoChangeConfirmCheckBox.setSelected(isSkipRepoChangeConfirmKey());
+        groupNameComboBox.setSelectedItem(getGroupName());
+        checkGitVersionCheckBox.setSelected(isCheckGitVersion());
         button1.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -95,22 +92,22 @@ public class ZeroGitDeploySetting implements Configurable {
     public boolean isModified() {
         return !StringUtils.equals(textField.getText(),PropertiesComponent.getInstance().getValue(GIT_HOME_KEY))
                 || !StringUtils.equals(String.valueOf(scriptURLField.getText()),PropertiesComponent.getInstance().getValue(SCRIPT_URL_KEY))
-                || !StringUtils.equals(String.valueOf(mavenRepoUrlField.getText()),PropertiesComponent.getInstance().getValue(MAVEN_REPO_URL_KEY))
                 || !StringUtils.equals(String.valueOf(needDebugCheckBox.isSelected()),PropertiesComponent.getInstance().getValue(DEBUG_KEY))
                 || !StringUtils.equals(String.valueOf(moreDetailsCheckBox.isSelected()),PropertiesComponent.getInstance().getValue(MORE_DETAILS_KEY))
                 || !StringUtils.equals(String.valueOf(runningInTerminalCheckBox.isSelected()),PropertiesComponent.getInstance().getValue(RUNNING_IN_TERMINAL_KEY))
-                || !StringUtils.equals(String.valueOf(skipRepoChangeConfirmCheckBox.isSelected()),PropertiesComponent.getInstance().getValue(SKIP_REPO_CHANGE_CONFIRM_KEY));
+                || !StringUtils.equals(String.valueOf(groupNameComboBox.getSelectedItem()), PropertiesComponent.getInstance().getValue(GROUP_NAME_KEY))
+                || !StringUtils.equals(String.valueOf(checkGitVersionCheckBox.isSelected()), PropertiesComponent.getInstance().getValue(CHECK_GIT_VERSION_KEY));
     }
 
     @Override
     public void apply() throws ConfigurationException {
         PropertiesComponent.getInstance().setValue(GIT_HOME_KEY, textField.getText());
         PropertiesComponent.getInstance().setValue(SCRIPT_URL_KEY, scriptURLField.getText());
-        PropertiesComponent.getInstance().setValue(MAVEN_REPO_URL_KEY, mavenRepoUrlField.getText());
         PropertiesComponent.getInstance().setValue(DEBUG_KEY, String.valueOf(needDebugCheckBox.isSelected()));
         PropertiesComponent.getInstance().setValue(MORE_DETAILS_KEY, String.valueOf(moreDetailsCheckBox.isSelected()));
         PropertiesComponent.getInstance().setValue(RUNNING_IN_TERMINAL_KEY, String.valueOf(runningInTerminalCheckBox.isSelected()));
-        PropertiesComponent.getInstance().setValue(SKIP_REPO_CHANGE_CONFIRM_KEY, String.valueOf(skipRepoChangeConfirmCheckBox.isSelected()));
+        PropertiesComponent.getInstance().setValue(GROUP_NAME_KEY, String.valueOf(groupNameComboBox.getSelectedItem()));
+        PropertiesComponent.getInstance().setValue(CHECK_GIT_VERSION_KEY, String.valueOf(checkGitVersionCheckBox.isSelected()));
     }
 
     public static String getGitHome() {
@@ -120,17 +117,9 @@ public class ZeroGitDeploySetting implements Configurable {
     public static String getScriptURL() {
         String scriptUrl = PropertiesComponent.getInstance().getValue(SCRIPT_URL_KEY);
         if(StringUtils.isBlank(scriptUrl)) {
-            return "http://gitlab.zerofinance.net/dave.zhao/deployPlugin/raw/master";
+            return "https://gitlab.zerofinance.net/dave.zhao/deployPlugin/-/raw/git-flow/git-flow";
         }
         return scriptUrl;
-    }
-
-    public static String getMavenRepoUrl() {
-        String mavenRepoUrl = PropertiesComponent.getInstance().getValue(MAVEN_REPO_URL_KEY);
-        if(StringUtils.isBlank(mavenRepoUrl)) {
-            return "http://nexus.zerofinance.net";
-        }
-        return mavenRepoUrl;
     }
 
     public static boolean isDebug() {
@@ -154,10 +143,21 @@ public class ZeroGitDeploySetting implements Configurable {
         return Boolean.valueOf(PropertiesComponent.getInstance().getValue(RUNNING_IN_TERMINAL_KEY));
     }
 
-    public static boolean isSkipRepoChangeConfirmKey() {
-        if(StringUtils.isBlank(PropertiesComponent.getInstance().getValue(SKIP_REPO_CHANGE_CONFIRM_KEY))) {
+    public static String getGroupName() {
+        String groupName = PropertiesComponent.getInstance().getValue(GROUP_NAME_KEY);
+        if (StringUtils.isBlank(groupName)) {
+            return "";
+        }
+        if (!"a".equals(groupName) && !"b".equals(groupName)) {
+            return "";
+        }
+        return groupName;
+    }
+
+    public static boolean isCheckGitVersion() {
+        if (StringUtils.isBlank(PropertiesComponent.getInstance().getValue(CHECK_GIT_VERSION_KEY))) {
             return false;
         }
-        return Boolean.valueOf(PropertiesComponent.getInstance().getValue(SKIP_REPO_CHANGE_CONFIRM_KEY));
+        return Boolean.parseBoolean(PropertiesComponent.getInstance().getValue(CHECK_GIT_VERSION_KEY));
     }
 }

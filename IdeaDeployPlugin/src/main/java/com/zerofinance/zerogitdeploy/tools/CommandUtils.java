@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.util.Arrays;
+import java.util.List;
 
 import com.zerofinance.zerogitdeploy.exception.DeployPluginException;
 import com.zerofinance.zerogitdeploy.setting.ZeroGitDeploySetting;
@@ -13,6 +15,17 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.SystemUtils;
 
 public final class CommandUtils {
+
+    private static final List<String> ZERO_GIT_SCRIPTS = Arrays.asList(
+            "gitCheck.sh",
+            "StartNewFeature.sh",
+            "FinishFeature.sh",
+            "RebaseFeature.sh",
+            "StartNewRelease.sh",
+            "FinishRelease.sh",
+            "StartNewHotfix.sh",
+            "FinishHotfix.sh"
+    );
     
 	private CommandUtils() {}
     
@@ -64,6 +77,34 @@ public final class CommandUtils {
         }
         return file.getPath();
     }
+
+    public static String processZeroGitScript(String modulePath, String scriptFileName) throws Exception {
+        String localScript = getRootProjectPath(modulePath) + File.separator + scriptFileName;
+        if (new File(localScript).exists()) {
+            return normalizePath(localScript);
+        }
+
+        String tempFolder = getTempFolder();
+        File tempScript = new File(tempFolder + File.separator + scriptFileName);
+        URL uri = new URL(getRootUrl() + "/" + scriptFileName);
+        InputStream input = uri.openStream();
+        try {
+            FileUtils.copyInputStreamToFile(input, tempScript);
+        } finally {
+            IOUtils.closeQuietly(input);
+        }
+        return normalizePath(tempScript.getPath());
+    }
+
+    public static void clearZeroGitScriptCache() {
+        String tempFolder = getTempFolder();
+        for (String scriptName : ZERO_GIT_SCRIPTS) {
+            File tempScript = new File(tempFolder + File.separator + scriptName);
+            if (tempScript.exists()) {
+                FileUtils.deleteQuietly(tempScript);
+            }
+        }
+    }
     
     private static String getRootUrl() {
         return ZeroGitDeploySetting.getScriptURL();
@@ -110,6 +151,13 @@ public final class CommandUtils {
             return cmdFile;
         }
         return getParentCmdFile(modulePath, cmd);
+    }
+
+    private static String normalizePath(String path) {
+        if (SystemUtils.IS_OS_WINDOWS) {
+            return path.replace("\\", "/");
+        }
+        return path;
     }
 
 }

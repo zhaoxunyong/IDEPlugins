@@ -15,18 +15,22 @@
          Guidelines: https://plugins.jetbrains.com/docs/marketplace/plugin-overview-page.html#plugin-description -->
     <description><![CDATA[
     A Zero Git Deploy Toolkit for Intellij IDEA, which can help us deploy git project more convenient. <br />
-    Before we released git branch manually, but made some mistakes often, so we developed this toolkit to help our developer release git branch automatically. <br /><br />
+    ZeroGit Flow commands are executed by shared scripts to keep IDEA/VS Code workflows consistent. <br /><br />
     <b>features:</b>
     <ul>
-        <li>1. Release: Creating a new branch from local repository and push it to a remote git branch automatically.</li>
-        <li>2. NewBranch: Creating a new branch from local repository automatically.</li>
-        <li>3. ChangVersion: Changing a new maven version from local repository automatically.</li>
-        <li>4. AnyTool: Executing the plugin you can define by yourself.</li>
+        <li>1. Start New Feature</li>
+        <li>2. Finish Feature</li>
+        <li>3. Rebase Feature</li>
+        <li>4. Start New Release</li>
+        <li>5. Finish Release</li>
+        <li>6. Start New Hotfix</li>
+        <li>7. Finish Hotfix</li>
     </ul>
     ]]></description>
 
     <change-notes><![CDATA[
     <ul>
+        <li>2.0.0 : Refactored to ZeroGit-only flow with 7 commands and removed legacy release/newBranch/changeVersion/anyTool actions. </li>
         <li>1.0.11 : Fixed some issues. </li>
         <li>1.0.10 : Fixed some issues. </li>
         <li>1.0.9 : Fixed some issues. </li>
@@ -65,14 +69,16 @@
         <!-- main menu -->
         <group id="ZeroMainAction" text="Zero" description="A git deploy plugin tool">
             <add-to-group group-id="MainMenu"  anchor="after" relative-to-action="ToolsMenu" />
-            <!-- icon can see: https://intellij-icons.jetbrains.design/ -->
-            <action id="ReleaseMainMenu" class="com.zerofinance.zerogitdeploy.action.ReleaseAction" icon="AllIcons.Actions.Lightning" text="Release" description="Git Release" />
-            <separator/>
-            <action id="NewBranchMainMenu" class="com.zerofinance.zerogitdeploy.action.NewBranchAction" icon="AllIcons.Debugger.NextStatement" text="NewBranch" description="New Branch" />
-            <separator/>
-            <action id="ChangeVersionMainMenu" class="com.zerofinance.zerogitdeploy.action.ChangeVersionAction" icon="AllIcons.Actions.InlayRenameInCommentsActive" text="ChangeVersion" description="Change Version" />
-            <separator/>
-            <action id="AnyToolMainMenu" class="com.zerofinance.zerogitdeploy.action.AnyToolAction" icon="AllIcons.Actions.InlayRenameInNoCodeFilesActive" text="AnyTool" description="Mybatis Gen" />
+            <separator text="ZeroGit Feature"/>
+            <action id="StartNewFeatureMainMenu" class="com.zerofinance.zerogitdeploy.action.StartNewFeatureAction" icon="AllIcons.Vcs.Branch" text="Start New Feature" description="ZeroGit Start New Feature" />
+            <action id="FinishFeatureMainMenu" class="com.zerofinance.zerogitdeploy.action.FinishFeatureAction" icon="AllIcons.Vcs.Branch" text="Finish Feature" description="ZeroGit Finish Feature" />
+            <action id="RebaseFeatureMainMenu" class="com.zerofinance.zerogitdeploy.action.RebaseFeatureAction" icon="AllIcons.Actions.MoveTo2" text="Rebase Feature" description="ZeroGit Rebase Feature" />
+            <separator text="ZeroGit Release"/>
+            <action id="StartNewReleaseMainMenu" class="com.zerofinance.zerogitdeploy.action.StartNewReleaseAction" icon="AllIcons.Actions.Execute" text="Start New Release" description="ZeroGit Start New Release" />
+            <action id="FinishReleaseMainMenu" class="com.zerofinance.zerogitdeploy.action.FinishReleaseAction" icon="AllIcons.Actions.Commit" text="Finish Release" description="ZeroGit Finish Release" />
+            <separator text="ZeroGit Hotfix"/>
+            <action id="StartNewHotfixMainMenu" class="com.zerofinance.zerogitdeploy.action.StartNewHotfixAction" icon="AllIcons.Actions.Execute" text="Start New Hotfix" description="ZeroGit Start New Hotfix" />
+            <action id="FinishHotfixMainMenu" class="com.zerofinance.zerogitdeploy.action.FinishHotfixAction" icon="AllIcons.Actions.Commit" text="Finish Hotfix" description="ZeroGit Finish Hotfix" />
         </group>
 
         <!-- popup menu -->
@@ -80,14 +86,16 @@
         <group id="ZeroPopupMenuAction" text="Zero" popup="true" icon="AllIcons.Actions.Colors">
             <separator/>
             <add-to-group group-id="ProjectViewPopupMenu" anchor="after" relative-to-action="WeighingNewGroup" />
-            <!-- icon can see: https://intellij-icons.jetbrains.design/ -->
-            <action id="ReleasePopupMenu" class="com.zerofinance.zerogitdeploy.action.ReleaseAction" icon="AllIcons.Actions.Lightning" text="Release" description="Git Release" />
-            <separator/>
-            <action id="NewBranchPopupMenu" class="com.zerofinance.zerogitdeploy.action.NewBranchAction" icon="AllIcons.Debugger.NextStatement" text="NewBranch" description="New Branch" />
-            <separator/>
-            <action id="ChangeVersionPopupMenu" class="com.zerofinance.zerogitdeploy.action.ChangeVersionAction" icon="AllIcons.Actions.InlayRenameInCommentsActive" text="ChangeVersion" description="Change Version" />
-            <separator/>
-            <action id="AnyToolPopupMenu" class="com.zerofinance.zerogitdeploy.action.AnyToolAction" icon="AllIcons.Actions.InlayRenameInNoCodeFilesActive" text="AnyTool" description="Mybatis Gen" />
+            <separator text="ZeroGit Feature"/>
+            <action id="StartNewFeaturePopupMenu" class="com.zerofinance.zerogitdeploy.action.StartNewFeatureAction" icon="AllIcons.Vcs.Branch" text="Start New Feature" description="ZeroGit Start New Feature" />
+            <action id="FinishFeaturePopupMenu" class="com.zerofinance.zerogitdeploy.action.FinishFeatureAction" icon="AllIcons.Vcs.Branch" text="Finish Feature" description="ZeroGit Finish Feature" />
+            <action id="RebaseFeaturePopupMenu" class="com.zerofinance.zerogitdeploy.action.RebaseFeatureAction" icon="AllIcons.Actions.MoveTo2" text="Rebase Feature" description="ZeroGit Rebase Feature" />
+            <separator text="ZeroGit Release"/>
+            <action id="StartNewReleasePopupMenu" class="com.zerofinance.zerogitdeploy.action.StartNewReleaseAction" icon="AllIcons.Actions.Execute" text="Start New Release" description="ZeroGit Start New Release" />
+            <action id="FinishReleasePopupMenu" class="com.zerofinance.zerogitdeploy.action.FinishReleaseAction" icon="AllIcons.Actions.Commit" text="Finish Release" description="ZeroGit Finish Release" />
+            <separator text="ZeroGit Hotfix"/>
+            <action id="StartNewHotfixPopupMenu" class="com.zerofinance.zerogitdeploy.action.StartNewHotfixAction" icon="AllIcons.Actions.Execute" text="Start New Hotfix" description="ZeroGit Start New Hotfix" />
+            <action id="FinishHotfixPopupMenu" class="com.zerofinance.zerogitdeploy.action.FinishHotfixAction" icon="AllIcons.Actions.Commit" text="Finish Hotfix" description="ZeroGit Finish Hotfix" />
         </group>
 
         <!-- toolbar -->
@@ -95,10 +103,13 @@
             <add-to-group group-id="ToolbarRunGroup" anchor="first" />
             <!-- icon can see: https://intellij-icons.jetbrains.design/ -->
             <action class="com.zerofinance.zerogitdeploy.action.ZeroToolbarLabelAction" id="ZeroToolbarLabelAction" />
-            <action id="ReleaseToolbar" class="com.zerofinance.zerogitdeploy.action.ReleaseAction" icon="AllIcons.Actions.Lightning" text="Release" description="Git Release" />
-            <action id="NewBranchToolbar" class="com.zerofinance.zerogitdeploy.action.NewBranchAction" icon="AllIcons.Debugger.NextStatement" text="NewBranch" description="New Branch" />
-            <action id="ChangeVersionToolbar" class="com.zerofinance.zerogitdeploy.action.ChangeVersionAction" icon="AllIcons.Actions.InlayRenameInCommentsActive" text="ChangeVersion" description="Change Version" />
-            <action id="AnyToolToolbar" class="com.zerofinance.zerogitdeploy.action.AnyToolAction" icon="AllIcons.Actions.InlayRenameInNoCodeFilesActive" text="AnyTool" description="Mybatis Gen" />
+            <action id="StartNewFeatureToolbar" class="com.zerofinance.zerogitdeploy.action.StartNewFeatureAction" icon="AllIcons.Vcs.Branch" text="Start New Feature" description="ZeroGit Start New Feature" />
+            <action id="FinishFeatureToolbar" class="com.zerofinance.zerogitdeploy.action.FinishFeatureAction" icon="AllIcons.Vcs.Branch" text="Finish Feature" description="ZeroGit Finish Feature" />
+            <action id="RebaseFeatureToolbar" class="com.zerofinance.zerogitdeploy.action.RebaseFeatureAction" icon="AllIcons.Actions.MoveTo2" text="Rebase Feature" description="ZeroGit Rebase Feature" />
+            <action id="StartNewReleaseToolbar" class="com.zerofinance.zerogitdeploy.action.StartNewReleaseAction" icon="AllIcons.Actions.Execute" text="Start New Release" description="ZeroGit Start New Release" />
+            <action id="FinishReleaseToolbar" class="com.zerofinance.zerogitdeploy.action.FinishReleaseAction" icon="AllIcons.Actions.Commit" text="Finish Release" description="ZeroGit Finish Release" />
+            <action id="StartNewHotfixToolbar" class="com.zerofinance.zerogitdeploy.action.StartNewHotfixAction" icon="AllIcons.Actions.Execute" text="Start New Hotfix" description="ZeroGit Start New Hotfix" />
+            <action id="FinishHotfixToolbar" class="com.zerofinance.zerogitdeploy.action.FinishHotfixAction" icon="AllIcons.Actions.Commit" text="Finish Hotfix" description="ZeroGit Finish Hotfix" />
             <separator/>
         </group>
     </actions>
