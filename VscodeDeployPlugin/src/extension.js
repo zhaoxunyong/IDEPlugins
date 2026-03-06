@@ -994,12 +994,14 @@ function getCommandSuccessMessage (commandId, groupName) {
 async function gitCheck (rootPath) {
     rootPath = normalizePath(rootPath)
     debugLog('gitCheck start', rootPath)
-    const gitConfigPath = rootPath + '/.git'
-    if (!fs.existsSync(gitConfigPath)) {
-        const errMsg = `${rootPath} is not a git project, make sure you are opening the project root folder.`
+    const gitRootPath = await resolveGitRootPath(rootPath)
+    if (!gitRootPath) {
+        const errMsg = `${rootPath} is not inside a git repository.`
         vscode.window.showErrorMessage(errMsg)
         throw new Error(errMsg)
     }
+    rootPath = normalizePath(gitRootPath)
+    debugLog('git root resolved', rootPath)
     let projectScriptPath = rootPath + '/' + gitCheckFile
     let scriptPath = normalizePath(gitCheckPath)
 
@@ -1070,6 +1072,22 @@ async function gitCheck (rootPath) {
     }
 }
 
+async function resolveGitRootPath (candidatePath) {
+    const normalizedPath = normalizePath(candidatePath)
+    const cmd = `cd "${normalizedPath}" && git rev-parse --show-toplevel`
+    try {
+        const { stdout } = await exec(cmd, { maxBuffer: 1024 * 1024 })
+        const topLevel = String(stdout || '').trim().split(/\r?\n/)[0]
+        if (!topLevel) {
+            return null
+        }
+        return normalizePath(topLevel.trim())
+    } catch (err) {
+        debugLog('resolve git root failed', err && err.message ? err.message : String(err))
+        return null
+    }
+}
+
 async function executeGitFlowCommand (commandId) {
     const scriptName = gitFlowScriptByCommand[commandId]
     if (!scriptName) {
@@ -1121,8 +1139,15 @@ async function executeGitFlowCommand (commandId) {
         debugLog('workspace pick cancelled')
         return { executed: false, groupName }
     }
-    const rootPath = selectedItem.uri.fsPath
-    debugLog('workspace selected', rootPath)
+    const selectedPath = selectedItem.uri.fsPath
+    debugLog('workspace selected', selectedPath)
+    const rootPath = await resolveGitRootPath(selectedPath)
+    if (!rootPath) {
+        const errMsg = `${normalizePath(selectedPath)} is not inside a git repository.`
+        await showErrorWithCopy(errMsg, errMsg)
+        return { executed: false, groupName }
+    }
+    debugLog('workspace git root', rootPath)
 
     await gitCheck(rootPath)
     const scriptPath = await resolveScriptPath(rootPath, scriptName)

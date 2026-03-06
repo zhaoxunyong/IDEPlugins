@@ -32,15 +32,16 @@ public final class CommandUtils {
     
 	public static String getRootProjectPath(String projectPath) {
         try {
-//        String projectPath = project.getLocation().toFile().getPath();
-            if (!new File(projectPath + File.separator + ".git").exists()) {
-                String parent = new File(projectPath).getParent();
-                return getRootProjectPath(parent);
+            String resolvedByGit = resolveGitTopLevel(projectPath);
+            if (resolvedByGit != null) {
+                return normalizePath(resolvedByGit);
             }
-            if(SystemUtils.IS_OS_WINDOWS) {
-                projectPath = projectPath.replace("\\", "/");
+            // fallback: legacy marker walk-up for environments where git command is unavailable
+            String resolvedByMarker = resolveByDotGitMarker(projectPath);
+            if (resolvedByMarker != null) {
+                return normalizePath(resolvedByMarker);
             }
-            return projectPath;
+            throw new DeployPluginException("Making sure this is a git project!");
         } catch (Exception e) {
             throw new DeployPluginException("Making sure this is a git project!", e);
         }
@@ -155,6 +156,60 @@ public final class CommandUtils {
             return path.replace("\\", "/");
         }
         return path;
+    }
+
+    private static String resolveGitTopLevel(String path) {
+        File workingDir = toDirectory(path);
+        if (workingDir == null || !workingDir.exists()) {
+            return null;
+        }
+        try {
+            ExecuteResult result = DeployCmdExecuter.execDirect(
+                    workingDir.getPath(),
+                    "git",
+                    Arrays.asList("rev-parse", "--show-toplevel")
+            );
+            if (result.getCode() != 0) {
+                return null;
+            }
+            String output = result.getResult();
+            if (output == null) {
+                return null;
+            }
+            String topLevel = output.trim();
+            if (topLevel.isEmpty()) {
+                return null;
+            }
+            return topLevel.split("\\R")[0].trim();
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private static String resolveByDotGitMarker(String path) {
+        File current = toDirectory(path);
+        while (current != null) {
+            File marker = new File(current, ".git");
+            if (marker.exists()) {
+                return current.getPath();
+            }
+            current = current.getParentFile();
+        }
+        return null;
+    }
+
+    private static File toDirectory(String path) {
+        if (path == null || path.trim().isEmpty()) {
+            return null;
+        }
+        File file = new File(path);
+        if (!file.exists()) {
+            return null;
+        }
+        if (file.isDirectory()) {
+            return file;
+        }
+        return file.getParentFile();
     }
 
 }
