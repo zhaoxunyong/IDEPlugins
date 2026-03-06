@@ -12,10 +12,10 @@
         "Other"
     ],
     "activationEvents": [
+        "onCommand:extension.MavenChange",
         "onCommand:extension.StartNewFeature",
         "onCommand:extension.FinishFeature",
         "onCommand:extension.RebaseFeature",
-        "onCommand:extension.MavenChange",
         "onCommand:extension.StartNewRelease",
         "onCommand:extension.FinishRelease",
         "onCommand:extension.StartNewHotfix",
@@ -116,7 +116,7 @@
             "zerogit.menu": [
                 {
                     "command": "extension.MavenChange",
-                    "group": "1_feature"
+                    "group": "0_maven"
                 },
                 {
                     "command": "extension.StartNewFeature",

@@ -68,37 +68,47 @@
 
     <actions>
         <!-- main menu -->
-        <group id="ZeroMainAction" text="Zero" description="A git deploy plugin tool">
+        <group id="ZeroMainAction" text="ZeroGit" description="A git deploy plugin tool">
             <add-to-group group-id="MainMenu"  anchor="after" relative-to-action="ToolsMenu" />
-            <separator text="ZeroGit Feature"/>
-            <action id="MavenChangeMainMenu" class="com.zerofinance.zerogitdeploy.action.MavenChangeAction" icon="AllIcons.Actions.EditSource" text="Maven Change" description="ZeroGit Maven Change" />
-            <action id="StartNewFeatureMainMenu" class="com.zerofinance.zerogitdeploy.action.StartNewFeatureAction" icon="AllIcons.Vcs.Branch" text="Start New Feature" description="ZeroGit Start New Feature" />
-            <action id="FinishFeatureMainMenu" class="com.zerofinance.zerogitdeploy.action.FinishFeatureAction" icon="AllIcons.Vcs.Branch" text="Finish Feature" description="ZeroGit Finish Feature" />
-            <action id="RebaseFeatureMainMenu" class="com.zerofinance.zerogitdeploy.action.RebaseFeatureAction" icon="AllIcons.Actions.MoveTo2" text="Rebase Feature" description="ZeroGit Rebase Feature" />
-            <separator text="ZeroGit Release"/>
-            <action id="StartNewReleaseMainMenu" class="com.zerofinance.zerogitdeploy.action.StartNewReleaseAction" icon="AllIcons.Actions.Execute" text="Start New Release" description="ZeroGit Start New Release" />
-            <action id="FinishReleaseMainMenu" class="com.zerofinance.zerogitdeploy.action.FinishReleaseAction" icon="AllIcons.Actions.Commit" text="Finish Release" description="ZeroGit Finish Release" />
-            <separator text="ZeroGit Hotfix"/>
-            <action id="StartNewHotfixMainMenu" class="com.zerofinance.zerogitdeploy.action.StartNewHotfixAction" icon="AllIcons.Actions.Execute" text="Start New Hotfix" description="ZeroGit Start New Hotfix" />
-            <action id="FinishHotfixMainMenu" class="com.zerofinance.zerogitdeploy.action.FinishHotfixAction" icon="AllIcons.Actions.Commit" text="Finish Hotfix" description="ZeroGit Finish Hotfix" />
+            <group id="ZeroMainMavenSubMenu" text="Maven" popup="true" icon="/icons/mavenMenu.svg">
+                <action id="MavenChangeMainMenu" class="com.zerofinance.zerogitdeploy.action.MavenChangeAction" icon="AllIcons.Actions.EditSource" text="Maven Change" description="ZeroGit Maven Change" />
+            </group>
+            <group id="ZeroMainFeatureSubMenu" text="Feature" popup="true" icon="/icons/featureMenu.svg">
+                <action id="StartNewFeatureMainMenu" class="com.zerofinance.zerogitdeploy.action.StartNewFeatureAction" icon="AllIcons.Vcs.Branch" text="Start New Feature" description="ZeroGit Start New Feature" />
+                <action id="FinishFeatureMainMenu" class="com.zerofinance.zerogitdeploy.action.FinishFeatureAction" icon="AllIcons.Vcs.Branch" text="Finish Feature" description="ZeroGit Finish Feature" />
+                <action id="RebaseFeatureMainMenu" class="com.zerofinance.zerogitdeploy.action.RebaseFeatureAction" icon="AllIcons.Actions.MoveTo2" text="Rebase Feature" description="ZeroGit Rebase Feature" />
+            </group>
+            <group id="ZeroMainReleaseSubMenu" text="Release" popup="true" icon="/icons/releaseMenu.svg">
+                <action id="StartNewReleaseMainMenu" class="com.zerofinance.zerogitdeploy.action.StartNewReleaseAction" icon="AllIcons.Actions.Execute" text="Start New Release" description="ZeroGit Start New Release" />
+                <action id="FinishReleaseMainMenu" class="com.zerofinance.zerogitdeploy.action.FinishReleaseAction" icon="AllIcons.Actions.Commit" text="Finish Release" description="ZeroGit Finish Release" />
+            </group>
+            <group id="ZeroMainHotfixSubMenu" text="Hotfix" popup="true" icon="/icons/hotfixMenu.svg">
+                <action id="StartNewHotfixMainMenu" class="com.zerofinance.zerogitdeploy.action.StartNewHotfixAction" icon="AllIcons.Actions.Execute" text="Start New Hotfix" description="ZeroGit Start New Hotfix" />
+                <action id="FinishHotfixMainMenu" class="com.zerofinance.zerogitdeploy.action.FinishHotfixAction" icon="AllIcons.Actions.Commit" text="Finish Hotfix" description="ZeroGit Finish Hotfix" />
+            </group>
         </group>
 
         <!-- popup menu -->
         <!-- https://xujin.org/guides/idea-01/ -->
-        <group id="ZeroPopupMenuAction" text="Zero" popup="true" icon="AllIcons.Actions.Colors">
+        <group id="ZeroPopupMenuAction" text="ZeroGit" popup="true" icon="AllIcons.Actions.Colors">
             <separator/>
             <add-to-group group-id="ProjectViewPopupMenu" anchor="after" relative-to-action="WeighingNewGroup" />
-            <separator text="ZeroGit Feature"/>
-            <action id="MavenChangePopupMenu" class="com.zerofinance.zerogitdeploy.action.MavenChangeAction" icon="AllIcons.Actions.EditSource" text="Maven Change" description="ZeroGit Maven Change" />
-            <action id="StartNewFeaturePopupMenu" class="com.zerofinance.zerogitdeploy.action.StartNewFeatureAction" icon="AllIcons.Vcs.Branch" text="Start New Feature" description="ZeroGit Start New Feature" />
-            <action id="FinishFeaturePopupMenu" class="com.zerofinance.zerogitdeploy.action.FinishFeatureAction" icon="AllIcons.Vcs.Branch" text="Finish Feature" description="ZeroGit Finish Feature" />
-            <action id="RebaseFeaturePopupMenu" class="com.zerofinance.zerogitdeploy.action.RebaseFeatureAction" icon="AllIcons.Actions.MoveTo2" text="Rebase Feature" description="ZeroGit Rebase Feature" />
-            <separator text="ZeroGit Release"/>
-            <action id="StartNewReleasePopupMenu" class="com.zerofinance.zerogitdeploy.action.StartNewReleaseAction" icon="AllIcons.Actions.Execute" text="Start New Release" description="ZeroGit Start New Release" />
-            <action id="FinishReleasePopupMenu" class="com.zerofinance.zerogitdeploy.action.FinishReleaseAction" icon="AllIcons.Actions.Commit" text="Finish Release" description="ZeroGit Finish Release" />
-            <separator text="ZeroGit Hotfix"/>
-            <action id="StartNewHotfixPopupMenu" class="com.zerofinance.zerogitdeploy.action.StartNewHotfixAction" icon="AllIcons.Actions.Execute" text="Start New Hotfix" description="ZeroGit Start New Hotfix" />
-            <action id="FinishHotfixPopupMenu" class="com.zerofinance.zerogitdeploy.action.FinishHotfixAction" icon="AllIcons.Actions.Commit" text="Finish Hotfix" description="ZeroGit Finish Hotfix" />
+            <group id="ZeroPopupMavenSubMenu" text="Maven" popup="true" icon="/icons/mavenMenu.svg">
+                <action id="MavenChangePopupMenu" class="com.zerofinance.zerogitdeploy.action.MavenChangeAction" icon="AllIcons.Actions.EditSource" text="Maven Change" description="ZeroGit Maven Change" />
+            </group>
+            <group id="ZeroPopupFeatureSubMenu" text="Feature" popup="true" icon="/icons/featureMenu.svg">
+                <action id="StartNewFeaturePopupMenu" class="com.zerofinance.zerogitdeploy.action.StartNewFeatureAction" icon="AllIcons.Vcs.Branch" text="Start New Feature" description="ZeroGit Start New Feature" />
+                <action id="FinishFeaturePopupMenu" class="com.zerofinance.zerogitdeploy.action.FinishFeatureAction" icon="AllIcons.Vcs.Branch" text="Finish Feature" description="ZeroGit Finish Feature" />
+                <action id="RebaseFeaturePopupMenu" class="com.zerofinance.zerogitdeploy.action.RebaseFeatureAction" icon="AllIcons.Actions.MoveTo2" text="Rebase Feature" description="ZeroGit Rebase Feature" />
+            </group>
+            <group id="ZeroPopupReleaseSubMenu" text="Release" popup="true" icon="/icons/releaseMenu.svg">
+                <action id="StartNewReleasePopupMenu" class="com.zerofinance.zerogitdeploy.action.StartNewReleaseAction" icon="AllIcons.Actions.Execute" text="Start New Release" description="ZeroGit Start New Release" />
+                <action id="FinishReleasePopupMenu" class="com.zerofinance.zerogitdeploy.action.FinishReleaseAction" icon="AllIcons.Actions.Commit" text="Finish Release" description="ZeroGit Finish Release" />
+            </group>
+            <group id="ZeroPopupHotfixSubMenu" text="Hotfix" popup="true" icon="/icons/hotfixMenu.svg">
+                <action id="StartNewHotfixPopupMenu" class="com.zerofinance.zerogitdeploy.action.StartNewHotfixAction" icon="AllIcons.Actions.Execute" text="Start New Hotfix" description="ZeroGit Start New Hotfix" />
+                <action id="FinishHotfixPopupMenu" class="com.zerofinance.zerogitdeploy.action.FinishHotfixAction" icon="AllIcons.Actions.Commit" text="Finish Hotfix" description="ZeroGit Finish Hotfix" />
+            </group>
         </group>
 
         <!-- toolbar -->
