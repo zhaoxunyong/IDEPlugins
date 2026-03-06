@@ -31,7 +31,7 @@
             "properties": {
                 "zerofinanceGit.gitScriptsUrlPreference": {
                     "type": "string",
-                    "default": "https://gitlab.zerofinance.net/dave.zhao/deployPlugin/-/raw/git-flow/git-flow",
+                    "default": "https://gitlab.zerofinance.net/dave.zhao/deployPlugin/-/raw/master/git-flow",
                     "description": "Gitlab url for download scripts"
                 },
                 "zerofinanceGit.checkGitVersion": {

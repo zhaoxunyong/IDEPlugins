@@ -104,7 +104,7 @@ public class ZeroGitDeploySetting implements Configurable {
     public static String getScriptURL() {
         String scriptUrl = PropertiesComponent.getInstance().getValue(SCRIPT_URL_KEY);
         if(StringUtils.isBlank(scriptUrl)) {
-            return "https://gitlab.zerofinance.net/dave.zhao/deployPlugin/-/raw/git-flow/git-flow";
+            return "https://gitlab.zerofinance.net/dave.zhao/deployPlugin/-/raw/master/git-flow";
         }
         return scriptUrl;
     }
