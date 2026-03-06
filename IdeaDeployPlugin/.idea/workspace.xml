@@ -5,26 +5,13 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="2dd5e85f-3834-40d4-acbf-af10224ec20d" name="Changes" comment="Mod: Fixed an incompatible issue.">
-      <change beforePath="$PROJECT_DIR$/.idea/gradle.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/gradle.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.version" beforeDir="false" afterPath="$PROJECT_DIR$/.version" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/build.gradle.kts" beforeDir="false" afterPath="$PROJECT_DIR$/build.gradle.kts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/action/AnyToolAction.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/action/ChangeVersionAction.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/action/NewBranchAction.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/action/ReleaseAction.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/handler/DependenciesDialogWrapper.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/handler/DeployPluginHandler.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/handler/MavenDependency.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/handler/ZeroGitFlowHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/handler/ZeroGitFlowHandler.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/setting/ZeroGitDeploySetting.form" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/setting/ZeroGitDeploySetting.form" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/setting/ZeroGitDeploySetting.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/setting/ZeroGitDeploySetting.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/tools/CmdBuilder.java" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/tools/CommandUtils.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/tools/CommandUtils.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/tools/DeployCmdExecuter.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/tools/DeployCmdExecuter.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/tools/MavenUtils.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/tools/MessagesUtils.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/tools/MessagesUtils.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/tools/PomUtils.java" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/resources/META-INF/plugin.xml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/META-INF/plugin.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../VscodeDeployPlugin/src/extension.js" beforeDir="false" afterPath="$PROJECT_DIR$/../VscodeDeployPlugin/src/extension.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -146,31 +133,34 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Gradle.IdeaDeployPlugin [assemble].executor&quot;: &quot;Debug&quot;,
-    &quot;Gradle.IdeaDeployPlugin [setupDependencies].executor&quot;: &quot;Run&quot;,
-    &quot;Gradle.IdeaDeployPlugin::works:Developer:workspace:IDEPlugins:IdeaDeployPlugin [setupDependencies].executor&quot;: &quot;Run&quot;,
-    &quot;Gradle.Run Plugin.executor&quot;: &quot;Debug&quot;,
-    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
-    &quot;WebServerToolWindowFactoryState&quot;: &quot;false&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;feature/002-git-flow-plugin&quot;,
-    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/Developer/workspace/IDEPlugins/IdeaDeployPlugin&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;project.structure.last.edited&quot;: &quot;SDKs&quot;,
-    &quot;project.structure.proportion&quot;: &quot;0.15&quot;,
-    &quot;project.structure.side.proportion&quot;: &quot;0.2&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Gradle.IdeaDeployPlugin [assemble].executor": "Debug",
+    "Gradle.IdeaDeployPlugin [setupDependencies].executor": "Run",
+    "Gradle.IdeaDeployPlugin::works:Developer:workspace:IDEPlugins:IdeaDeployPlugin [setupDependencies].executor": "Run",
+    "Gradle.Run Plugin.executor": "Debug",
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "UI_DESIGNER_EDITOR_MODE.PaletteManager.STATE": "left",
+    "UI_DESIGNER_EDITOR_MODE.UIDesignerToolWindowManager.STATE": "right",
+    "UI_DESIGNER_EDITOR_MODE.UIDesignerToolWindowManager.WIDTH": "710",
+    "WebServerToolWindowFactoryState": "false",
+    "git-widget-placeholder": "feature/002-git-flow-plugin",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "/Developer/workspace/IDEPlugins/IdeaDeployPlugin",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "project.structure.last.edited": "SDKs",
+    "project.structure.proportion": "0.15",
+    "project.structure.side.proportion": "0.2",
+    "settings.editor.selected.configurable": "preferences.pluginManager",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="RebelAgentSelection">
     <selection>jr</selection>
   </component>
@@ -258,7 +248,7 @@
       <workItem from="1736244976049" duration="21000" />
       <workItem from="1772765676973" duration="2191000" />
       <workItem from="1772767877543" duration="22000" />
-      <workItem from="1772767906956" duration="949000" />
+      <workItem from="1772767906956" duration="11442000" />
     </task>
     <task id="LOCAL-00001" summary="Mod: Adjusting some tips.">
       <created>1656926991407</created>

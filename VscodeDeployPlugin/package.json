@@ -129,36 +129,60 @@
                     "group": "0_commit"
                 },
                 {
-                    "command": "extension.MavenChange",
-                    "group": "0_maven"
+                    "submenu": "zerogit.maven.menu",
+                    "group": "1_maven"
                 },
                 {
+                    "submenu": "zerogit.feature.menu",
+                    "group": "2_feature"
+                },
+                {
+                    "submenu": "zerogit.release.menu",
+                    "group": "3_release"
+                },
+                {
+                    "submenu": "zerogit.hotfix.menu",
+                    "group": "4_hotfix"
+                }
+            ],
+            "zerogit.maven.menu": [
+                {
+                    "command": "extension.MavenChange",
+                    "group": "0_maven"
+                }
+            ],
+            "zerogit.feature.menu": [
+                {
                     "command": "extension.StartNewFeature",
-                    "group": "1_feature"
+                    "group": "0_start"
                 },
                 {
                     "command": "extension.FinishFeature",
-                    "group": "1_feature"
+                    "group": "1_finish"
                 },
                 {
                     "command": "extension.RebaseFeature",
-                    "group": "1_feature"
-                },
+                    "group": "2_rebase"
+                }
+            ],
+            "zerogit.release.menu": [
                 {
                     "command": "extension.StartNewRelease",
-                    "group": "2_release"
+                    "group": "0_start"
                 },
                 {
                     "command": "extension.FinishRelease",
-                    "group": "2_release"
-                },
+                    "group": "1_finish"
+                }
+            ],
+            "zerogit.hotfix.menu": [
                 {
                     "command": "extension.StartNewHotfix",
-                    "group": "3_hotfix"
+                    "group": "0_start"
                 },
                 {
                     "command": "extension.FinishHotfix",
-                    "group": "3_hotfix"
+                    "group": "1_finish"
                 }
             ]
         },
@@ -166,6 +190,22 @@
             {
                 "id": "zerogit.menu",
                 "label": "ZeroGit"
+            },
+            {
+                "id": "zerogit.maven.menu",
+                "label": "Maven"
+            },
+            {
+                "id": "zerogit.feature.menu",
+                "label": "Feature"
+            },
+            {
+                "id": "zerogit.release.menu",
+                "label": "Release"
+            },
+            {
+                "id": "zerogit.hotfix.menu",
+                "label": "Hotfix"
             }
         ]
     },
