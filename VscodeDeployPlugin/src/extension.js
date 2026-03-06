@@ -1088,6 +1088,18 @@ async function resolveGitRootPath (candidatePath) {
     }
 }
 
+async function pickWorkspaceFolder () {
+    const workspaceFolders = vscode.workspace.workspaceFolders || []
+    if (workspaceFolders.length === 0) {
+        vscode.window.showErrorMessage('No workspace folder found, task aborted.')
+        return null
+    }
+    if (workspaceFolders.length === 1) {
+        return workspaceFolders[0]
+    }
+    return vscode.window.showWorkspaceFolderPick()
+}
+
 async function executeGitFlowCommand (commandId) {
     const scriptName = gitFlowScriptByCommand[commandId]
     if (!scriptName) {
@@ -1134,7 +1146,7 @@ async function executeGitFlowCommand (commandId) {
         }
     }
 
-    let selectedItem = await vscode.window.showWorkspaceFolderPick()
+    let selectedItem = await pickWorkspaceFolder()
     if (!selectedItem) {
         debugLog('workspace pick cancelled')
         return { executed: false, groupName }
