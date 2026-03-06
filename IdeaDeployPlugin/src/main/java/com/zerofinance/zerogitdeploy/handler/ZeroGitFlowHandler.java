@@ -197,6 +197,9 @@ public class ZeroGitFlowHandler {
     public void startNewRelease() throws Exception {
         debugLog("command triggered", "Start New Release");
         String groupName = requireGroupName();
+        if (!yes("请确认：是否已通过 MavenChange 进行 release 操作？", "ZeroGit: Start New Release")) {
+            return;
+        }
         if (!yes("请确认：是否已执行 Finish Feature 操作？", "ZeroGit: Start New Release")) {
             return;
         }

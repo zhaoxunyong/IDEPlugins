@@ -63,6 +63,11 @@
                         "Group B"
                     ],
                     "description": "Required group name for running tasks. Must be a or b."
+                },
+                "zerofinanceGit.gitBash": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Git directory or bash.exe path on Windows. Recommended: set Git install directory (e.g. C:\\Program Files\\Git), extension will use <dir>\\bin\\bash.exe. Leave empty on macOS/Linux."
                 }
             }
         },

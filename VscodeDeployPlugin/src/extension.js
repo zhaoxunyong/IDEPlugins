@@ -18,6 +18,7 @@ const CONFIG_CHECK_GIT_VERSION = `${CONFIG_ROOT}.checkGitVersion`
 const CONFIG_DEBUG = `${CONFIG_ROOT}.debug`
 const CONFIG_COMMIT_MESSAGE_MODEL = `${CONFIG_ROOT}.commitMessageModel`
 const CONFIG_GROUP_NAME = `${CONFIG_ROOT}.groupName`
+const CONFIG_GIT_BASH = `${CONFIG_ROOT}.gitBash`
 const DEFAULT_SCRIPT_ROOT_URL = 'https://gitlab.zerofinance.net/dave.zhao/deployPlugin/-/raw/git-flow'
 const COMMAND_PREFIX = 'extension.'
 const GITFLOW_GUIDELINE_URL = 'https://v04jaasnl45.feishu.cn/wiki/Vg5PwK2smiPxGLk7w4Gc7tZanjb'
@@ -375,6 +376,10 @@ async function confirmFinishFeature (groupName) {
 
 async function confirmFinishFeatureForRelease (groupName) {
     return showModalConfirmDialog('是否已执行Finish Feature操作？')
+}
+
+async function confirmMavenChangeForRelease () {
+    return showModalYesNoDialog('是否已通过MavenChange进行release操作？')
 }
 
 async function confirmOpsReleaseDone () {
@@ -1158,6 +1163,11 @@ async function executeGitFlowCommand (commandId) {
         scriptArgs.push(featureName)
     }
     if (commandId === 'extension.StartNewRelease') {
+        const confirmedMavenChange = await confirmMavenChangeForRelease()
+        if (!confirmedMavenChange) {
+            debugLog('start release aborted: maven change not confirmed')
+            return { executed: false, groupName }
+        }
         const confirmed = await confirmFinishFeatureForRelease(groupName)
         if (!confirmed) {
             debugLog('start release aborted by user')
@@ -1315,17 +1325,61 @@ function getTerminal () {
     return mdTml
 }
 
+function buildGitBashPathFromConfig (configuredGitBash) {
+    const normalizedInput = normalizePath(String(configuredGitBash || '').trim()).replace(/\/+$/, '')
+    if (!normalizedInput) {
+        return ''
+    }
+    if (/bash\.exe$/i.test(normalizedInput)) {
+        return normalizedInput
+    }
+    return `${normalizedInput}/bin/bash.exe`
+}
+
+function promptConfigureGitBashPath () {
+    const selectGitDirAction = 'Select Git Directory'
+    const openSettingsAction = 'Open Settings'
+    const errMsg = `Please configure "${CONFIG_GIT_BASH}" before running tasks. You can set a Git directory (extension will append bin/bash.exe) or a full bash.exe path.`
+    vscode.window.showErrorMessage(errMsg, selectGitDirAction, openSettingsAction).then(async selectedAction => {
+        if (selectedAction === selectGitDirAction) {
+            const selected = await vscode.window.showOpenDialog({
+                canSelectFiles: false,
+                canSelectFolders: true,
+                canSelectMany: false,
+                openLabel: 'Select Git Directory'
+            })
+            if (!selected || selected.length === 0) {
+                return
+            }
+            const selectedGitDir = normalizePath(selected[0].fsPath).replace(/\/+$/, '')
+            const resolvedBashPath = `${selectedGitDir}/bin/bash.exe`
+            if (!fs.existsSync(resolvedBashPath)) {
+                vscode.window.showErrorMessage(`Cannot find "${resolvedBashPath}". Please select your Git install directory.`)
+                return
+            }
+            await vscode.workspace.getConfiguration().update(CONFIG_GIT_BASH, selectedGitDir, vscode.ConfigurationTarget.Global)
+            vscode.window.showInformationMessage(`Configured ${CONFIG_GIT_BASH}: ${selectedGitDir}`)
+            return
+        }
+        if (selectedAction === openSettingsAction) {
+            await vscode.commands.executeCommand('workbench.action.openSettings', CONFIG_GIT_BASH)
+        }
+    })
+}
+
 function getBashPath () {
     let gitBash = 'bash'
     if (process.platform === 'win32') {
-        // gitBash = vscode.workspace.getConfiguration().get('terminal.integrated.shell.windows')
-        // if (gitBash === null || !gitBash.includes('bash.exe')) {
-        //     const errMsg = 'Please set "git bash" for the terminal at "settings.json": "terminal.integrated.shell.windows": "YourGitPath\\\\bin\\\\bash.exe"'
-        //     vscode.window.showErrorMessage(errMsg)
-        //     throw new Error(errMsg)
-        // }
-        // gitBash = normalizePath(gitBash)
-        gitBash = 'D:/Developer/Git/bin/bash.exe'
+        const configuredGitBash = String(vscode.workspace.getConfiguration().get(CONFIG_GIT_BASH) || '').trim()
+        if (!configuredGitBash) {
+            promptConfigureGitBashPath()
+            throw new Error(`Please configure "${CONFIG_GIT_BASH}" before running tasks.`)
+        }
+        gitBash = buildGitBashPathFromConfig(configuredGitBash)
+        if (!fs.existsSync(gitBash)) {
+            promptConfigureGitBashPath()
+            throw new Error(`Configured "${CONFIG_GIT_BASH}" is invalid. Expected "${gitBash}" to exist.`)
+        }
     }
     return gitBash
 }
