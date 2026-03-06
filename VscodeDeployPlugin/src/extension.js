@@ -334,7 +334,7 @@ async function confirmOpsReleaseDone () {
 }
 
 async function confirmMaintainerPermission () {
-    return showModalYesNoDialog('1. 正常情况此流程会在CI/CD中执行，你无需手动执行。只有紧急情况才考虑手动执行。\n2. 只有Maintainer角色才有权限操作，请确认你对该项目是否有Maintainer权限？')
+    return showModalYesNoDialog('只有Maintainer角色才有权限操作，请确认你对该项目是否有Maintainer权限？')
 }
 
 async function showModalConfirmDialog (message) {
@@ -908,7 +908,7 @@ async function executeGitFlowCommand (commandId) {
         }
     }
 
-    let selectedItem = await myPlugin.chooicingFolder()
+    let selectedItem = await vscode.window.showWorkspaceFolderPick()
     if (!selectedItem) {
         debugLog('workspace pick cancelled')
         return { executed: false, groupName }
