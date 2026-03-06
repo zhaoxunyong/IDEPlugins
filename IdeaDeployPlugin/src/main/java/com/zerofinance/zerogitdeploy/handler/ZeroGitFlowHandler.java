@@ -151,10 +151,7 @@ public class ZeroGitFlowHandler {
     public void mavenChange() throws Exception {
         debugLog("command triggered", "Maven Change");
         String groupName = requireGroupName();
-        String rootPath = getRootPath();
-        if (!isMavenProject(rootPath)) {
-            throw new DeployPluginException("当前项目不是 Maven 项目（缺少 pom.xml），流程已中断。");
-        }
+        String rootPath = getMavenProjectRootPath();
         runGitCheck(rootPath);
         CommandUtils.clearZeroGitScriptCache();
         String script = CommandUtils.processZeroGitScript(rootPath, "MavenChange.sh");
@@ -320,11 +317,56 @@ public class ZeroGitFlowHandler {
         return CommandUtils.getRootProjectPath(modulePath);
     }
 
-    private boolean isMavenProject(String rootPath) {
-        File pomFile = new File(rootPath, "pom.xml");
+    private String getMavenProjectRootPath() {
+        File current = toDirectory(modulePath);
+        String gitRootPath = getRootPath();
+        File gitRoot = StringUtils.isBlank(gitRootPath) ? null : new File(gitRootPath);
+        while (current != null) {
+            if (hasValidMavenPom(current)) {
+                return current.getPath();
+            }
+            if (gitRoot != null && sameFile(current, gitRoot)) {
+                break;
+            }
+            current = current.getParentFile();
+        }
+        throw new DeployPluginException("在当前选择目录及其上级目录中未找到有效的 Maven 项目（缺少可用 pom.xml）。请先选择子项目目录后重试。");
+    }
+
+    private File toDirectory(String path) {
+        if (StringUtils.isBlank(path)) {
+            return null;
+        }
+        File file = new File(path);
+        if (!file.exists()) {
+            return null;
+        }
+        if (file.isDirectory()) {
+            return file;
+        }
+        return file.getParentFile();
+    }
+
+    private boolean sameFile(File left, File right) {
+        try {
+            return left.getCanonicalFile().equals(right.getCanonicalFile());
+        } catch (IOException e) {
+            return left.equals(right);
+        }
+    }
+
+    private boolean hasValidMavenPom(File directory) {
+        if (directory == null) {
+            return false;
+        }
+        File pomFile = new File(directory, "pom.xml");
         if (!pomFile.exists() || !pomFile.isFile()) {
             return false;
         }
+        return looksLikeMavenPom(pomFile);
+    }
+
+    private boolean looksLikeMavenPom(File pomFile) {
         try {
             String content = Files.readString(pomFile.toPath(), StandardCharsets.UTF_8);
             return content.contains("<project");
