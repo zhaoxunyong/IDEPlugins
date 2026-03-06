@@ -18,13 +18,14 @@
     ZeroGit Flow commands are executed by shared scripts to keep IDEA/VS Code workflows consistent. <br /><br />
     <b>features:</b>
     <ul>
-        <li>1. Start New Feature</li>
-        <li>2. Finish Feature</li>
-        <li>3. Rebase Feature</li>
-        <li>4. Start New Release</li>
-        <li>5. Finish Release</li>
-        <li>6. Start New Hotfix</li>
-        <li>7. Finish Hotfix</li>
+        <li>1. Maven Change</li>
+        <li>2. Start New Feature</li>
+        <li>3. Finish Feature</li>
+        <li>4. Rebase Feature</li>
+        <li>5. Start New Release</li>
+        <li>6. Finish Release</li>
+        <li>7. Start New Hotfix</li>
+        <li>8. Finish Hotfix</li>
     </ul>
     ]]></description>
 
@@ -70,6 +71,7 @@
         <group id="ZeroMainAction" text="Zero" description="A git deploy plugin tool">
             <add-to-group group-id="MainMenu"  anchor="after" relative-to-action="ToolsMenu" />
             <separator text="ZeroGit Feature"/>
+            <action id="MavenChangeMainMenu" class="com.zerofinance.zerogitdeploy.action.MavenChangeAction" icon="AllIcons.Actions.EditSource" text="Maven Change" description="ZeroGit Maven Change" />
             <action id="StartNewFeatureMainMenu" class="com.zerofinance.zerogitdeploy.action.StartNewFeatureAction" icon="AllIcons.Vcs.Branch" text="Start New Feature" description="ZeroGit Start New Feature" />
             <action id="FinishFeatureMainMenu" class="com.zerofinance.zerogitdeploy.action.FinishFeatureAction" icon="AllIcons.Vcs.Branch" text="Finish Feature" description="ZeroGit Finish Feature" />
             <action id="RebaseFeatureMainMenu" class="com.zerofinance.zerogitdeploy.action.RebaseFeatureAction" icon="AllIcons.Actions.MoveTo2" text="Rebase Feature" description="ZeroGit Rebase Feature" />
@@ -87,6 +89,7 @@
             <separator/>
             <add-to-group group-id="ProjectViewPopupMenu" anchor="after" relative-to-action="WeighingNewGroup" />
             <separator text="ZeroGit Feature"/>
+            <action id="MavenChangePopupMenu" class="com.zerofinance.zerogitdeploy.action.MavenChangeAction" icon="AllIcons.Actions.EditSource" text="Maven Change" description="ZeroGit Maven Change" />
             <action id="StartNewFeaturePopupMenu" class="com.zerofinance.zerogitdeploy.action.StartNewFeatureAction" icon="AllIcons.Vcs.Branch" text="Start New Feature" description="ZeroGit Start New Feature" />
             <action id="FinishFeaturePopupMenu" class="com.zerofinance.zerogitdeploy.action.FinishFeatureAction" icon="AllIcons.Vcs.Branch" text="Finish Feature" description="ZeroGit Finish Feature" />
             <action id="RebaseFeaturePopupMenu" class="com.zerofinance.zerogitdeploy.action.RebaseFeatureAction" icon="AllIcons.Actions.MoveTo2" text="Rebase Feature" description="ZeroGit Rebase Feature" />
@@ -103,6 +106,7 @@
             <add-to-group group-id="ToolbarRunGroup" anchor="first" />
             <!-- icon can see: https://intellij-icons.jetbrains.design/ -->
             <action class="com.zerofinance.zerogitdeploy.action.ZeroToolbarLabelAction" id="ZeroToolbarLabelAction" />
+            <action id="MavenChangeToolbar" class="com.zerofinance.zerogitdeploy.action.MavenChangeAction" icon="AllIcons.Actions.EditSource" text="Maven Change" description="ZeroGit Maven Change" />
             <action id="StartNewFeatureToolbar" class="com.zerofinance.zerogitdeploy.action.StartNewFeatureAction" icon="AllIcons.Vcs.Branch" text="Start New Feature" description="ZeroGit Start New Feature" />
             <action id="FinishFeatureToolbar" class="com.zerofinance.zerogitdeploy.action.FinishFeatureAction" icon="AllIcons.Vcs.Branch" text="Finish Feature" description="ZeroGit Finish Feature" />
             <action id="RebaseFeatureToolbar" class="com.zerofinance.zerogitdeploy.action.RebaseFeatureAction" icon="AllIcons.Actions.MoveTo2" text="Rebase Feature" description="ZeroGit Rebase Feature" />

@@ -41,6 +41,8 @@ import org.jetbrains.plugins.terminal.TerminalView;
 import javax.swing.*;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -54,6 +56,7 @@ import java.util.regex.Pattern;
 public class ZeroGitFlowHandler {
     private static final Pattern FEATURE_SUFFIX_PATTERN = Pattern.compile("^\\d+-\\S.*$");
     private static final Pattern SEMVER_PATTERN = Pattern.compile("^(\\d+)\\.(\\d+)\\.(\\d+)$");
+    private static final Pattern MAVEN_VERSION_PATTERN = Pattern.compile("^(\\d+)\\.(\\d+)\\.(\\d+)(-SNAPSHOT)?$", Pattern.CASE_INSENSITIVE);
     private static final String[] GROUPS = new String[]{"a", "b"};
     private static final String TITLE = "ZeroGit";
     private static final Logger LOG = Logger.getInstance(ZeroGitFlowHandler.class);
@@ -143,6 +146,45 @@ public class ZeroGitFlowHandler {
             throw new DeployPluginException("当前分支不是 " + requiredPrefix + " 开头，无法 Rebase Feature。");
         }
         confirmAndRunInTerminal("Rebase Feature", rootPath, script, Lists.newArrayList(groupName, currentBranch));
+    }
+
+    public void mavenChange() throws Exception {
+        debugLog("command triggered", "Maven Change");
+        String groupName = requireGroupName();
+        String rootPath = getRootPath();
+        if (!isMavenProject(rootPath)) {
+            throw new DeployPluginException("当前项目不是 Maven 项目（缺少 pom.xml），流程已中断。");
+        }
+        runGitCheck(rootPath);
+        CommandUtils.clearZeroGitScriptCache();
+        String script = CommandUtils.processZeroGitScript(rootPath, "MavenChange.sh");
+
+        String changeType = chooseMavenChangeType();
+        if (StringUtils.isBlank(changeType)) {
+            return;
+        }
+        String suggestedVersion = buildSuggestedMavenVersion(readMavenPomVersion(rootPath), changeType);
+        String inputVersion = Messages.showInputDialog(
+                "请输入 Maven 版本号",
+                "ZeroGit: Maven Change",
+                Messages.getInformationIcon(),
+                suggestedVersion,
+                nonEmptyValidator()
+        );
+        if (StringUtils.isBlank(inputVersion)) {
+            return;
+        }
+        String mavenVersion = inputVersion.trim();
+        if (!MAVEN_VERSION_PATTERN.matcher(mavenVersion).matches()) {
+            throw new DeployPluginException("Maven version must be x.y.z or x.y.z-SNAPSHOT");
+        }
+        if ("release".equals(changeType) && StringUtils.endsWithIgnoreCase(mavenVersion, "-SNAPSHOT")) {
+            throw new DeployPluginException("Release 版本不能以 -SNAPSHOT 结尾。");
+        }
+        if ("snapshot".equals(changeType) && !StringUtils.endsWithIgnoreCase(mavenVersion, "-SNAPSHOT")) {
+            throw new DeployPluginException("Snapshot 版本必须以 -SNAPSHOT 结尾。");
+        }
+        confirmAndRunInTerminal("Maven Change", rootPath, script, Lists.newArrayList(groupName, mavenVersion));
     }
 
     public void startNewRelease() throws Exception {
@@ -276,6 +318,76 @@ public class ZeroGitFlowHandler {
 
     private String getRootPath() {
         return CommandUtils.getRootProjectPath(modulePath);
+    }
+
+    private boolean isMavenProject(String rootPath) {
+        File pomFile = new File(rootPath, "pom.xml");
+        if (!pomFile.exists() || !pomFile.isFile()) {
+            return false;
+        }
+        try {
+            String content = Files.readString(pomFile.toPath(), StandardCharsets.UTF_8);
+            return content.contains("<project");
+        } catch (IOException e) {
+            debugLog("failed to read pom.xml", e.getMessage());
+            return false;
+        }
+    }
+
+    private String chooseMavenChangeType() {
+        String[] types = new String[]{"release", "snapshot"};
+        String selected = Messages.showEditableChooseDialog(
+                "请选择 Maven 版本类型",
+                "ZeroGit: Maven Change",
+                Messages.getInformationIcon(),
+                types,
+                types[0],
+                null
+        );
+        if (StringUtils.isBlank(selected)) {
+            return null;
+        }
+        String normalized = selected.trim().toLowerCase(Locale.ROOT);
+        if (!"release".equals(normalized) && !"snapshot".equals(normalized)) {
+            throw new DeployPluginException("仅支持选择 release 或 snapshot。");
+        }
+        return normalized;
+    }
+
+    private String readMavenPomVersion(String rootPath) {
+        File pomFile = new File(rootPath, "pom.xml");
+        if (!pomFile.exists() || !pomFile.isFile()) {
+            return null;
+        }
+        try {
+            String content = Files.readString(pomFile.toPath(), StandardCharsets.UTF_8);
+            String noComments = content.replaceAll("(?s)<!--.*?-->", "");
+            String noParentBlock = noComments.replaceAll("(?s)<parent>.*?</parent>", "");
+            Matcher matcher = Pattern.compile("<version>\\s*([^<\\s]+)\\s*</version>").matcher(noParentBlock);
+            if (matcher.find()) {
+                return matcher.group(1).trim();
+            }
+            return null;
+        } catch (IOException e) {
+            debugLog("failed to parse pom version", e.getMessage());
+            return null;
+        }
+    }
+
+    private String buildSuggestedMavenVersion(String currentVersion, String changeType) {
+        String baseVersion = StringUtils.defaultString(currentVersion).trim().replaceFirst("(?i)-SNAPSHOT$", "");
+        String nextVersion = "1.0.1";
+        Matcher matcher = SEMVER_PATTERN.matcher(baseVersion);
+        if (matcher.matches()) {
+            int major = Integer.parseInt(matcher.group(1));
+            int minor = Integer.parseInt(matcher.group(2));
+            int patch = Integer.parseInt(matcher.group(3)) + 1;
+            nextVersion = major + "." + minor + "." + patch;
+        }
+        if ("snapshot".equals(changeType)) {
+            return nextVersion + "-SNAPSHOT";
+        }
+        return nextVersion;
     }
 
     private void runGitCheck(String rootPath) throws Exception {
