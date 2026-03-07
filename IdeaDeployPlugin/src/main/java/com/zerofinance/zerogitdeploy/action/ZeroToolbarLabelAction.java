@@ -19,6 +19,6 @@ public class ZeroToolbarLabelAction extends ToolbarLabelAction {
 
     @NlsContexts.Label
     private static String getConsolidatedVcsName(@Nullable Project project) {
-        return "Zero:";
+        return "ZeroGit:";
     }
 }
