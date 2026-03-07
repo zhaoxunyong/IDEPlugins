@@ -1280,7 +1280,7 @@ async function executeGitFlowCommand (commandId, resourceUri) {
     }
     debugLog('workspace git root', rootPath)
 
-    if (commandId !== 'extension.GenerateCommitMessage') {
+    if (commandId !== 'extension.GenerateCommitMessage' && commandId !== 'extension.MavenChange') {
         await gitCheck(rootPath)
     }
     const scriptPath = await resolveScriptPath(rootPath, scriptName)

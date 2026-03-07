@@ -67,6 +67,49 @@ public class ZeroGitFlowHandler {
     private static final String TITLE = "ZeroGit";
     private static final Logger LOG = Logger.getInstance(ZeroGitFlowHandler.class);
 
+    /** Runs script preparation in background (no gitCheck), then invokes continuation on EDT. Used by MavenChange. */
+    private void runWithScriptInBackground(String rootPath, String scriptFileName, GitCheckContinuation continuation) {
+        ProgressManager.getInstance().run(new Task.Backgroundable(project, "ZeroGit: 准备脚本...") {
+            private String resultRootPath;
+            private String resultScript;
+            private Exception runError;
+
+            @Override
+            public void run(@NotNull ProgressIndicator indicator) {
+                try {
+                    CommandUtils.clearZeroGitScriptCache();
+                    resultRootPath = rootPath;
+                    resultScript = CommandUtils.processZeroGitScript(rootPath, scriptFileName);
+                } catch (Exception e) {
+                    runError = e;
+                }
+            }
+
+            @Override
+            public void onFinished() {
+                if (runError != null) {
+                    String detail = MessagesUtils.buildDetailedErrorMessage(runError);
+                    String summary = runError.getMessage();
+                    if (summary == null || summary.trim().isEmpty()) {
+                        summary = "脚本准备失败，请点击“复制完整错误”获取详细信息。";
+                    }
+                    MessagesUtils.showErrorWithDetails(project, "ZeroGit", summary, detail);
+                    return;
+                }
+                try {
+                    continuation.run(resultRootPath, resultScript);
+                } catch (Exception e) {
+                    String detail = MessagesUtils.buildDetailedErrorMessage(e);
+                    String summary = e.getMessage();
+                    if (summary == null || summary.trim().isEmpty()) {
+                        summary = "执行失败，请点击“复制完整错误”获取详细信息。";
+                    }
+                    MessagesUtils.showErrorWithDetails(project, "ZeroGit", summary, detail);
+                }
+            }
+        });
+    }
+
     /** Runs gitCheck and script preparation in background, then invokes continuation on EDT to avoid freezing the IDE. */
     private void runWithGitCheckInBackground(String rootPath, String scriptFileName, GitCheckContinuation continuation) {
         ProgressManager.getInstance().run(new Task.Backgroundable(project, "ZeroGit: gitCheck...") {
@@ -202,7 +245,7 @@ public class ZeroGitFlowHandler {
         debugLog("command triggered", "Maven Change");
         String groupName = requireGroupName();
         String rootPath = getMavenProjectRootPath();
-        runWithGitCheckInBackground(rootPath, "MavenChange.sh", (rPath, script) -> {
+        runWithScriptInBackground(rootPath, "MavenChange.sh", (rPath, script) -> {
             String changeType = chooseMavenChangeType();
             if (StringUtils.isBlank(changeType)) {
                 return;
