@@ -26,8 +26,8 @@ if [[ "$releaseName" != "$releasePrefix"* ]]; then
   exit 1
 fi
 
-if ! [[ "$releaseVersion" =~ ^[0-9]+\.[0-9]+\.[0-9]+-RC[0-9]+$ ]]; then
-  echo "Release version must follow format X.Y.Z-RCN, e.g. 1.0.0-RC1"
+if ! [[ "$releaseVersion" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "Release version must follow SemVer format, e.g. 1.0.0"
   exit 1
 fi
 
@@ -51,17 +51,19 @@ git checkout "$developBranch"
 git pull origin "$developBranch"
 git checkout -b "$releaseName"
 
+
 if [ -f "pom.xml" ]; then
-  echo "Maven project detected, updating pom version to: $releaseVersion"
+  mvnReleaseVersion="${releaseVersion}-RC1"
+  echo "Maven project detected, updating pom version to: $mvnReleaseVersion"
   set +e
-  mvn -q versions:set -DnewVersion="${releaseVersion}"
+  mvn -q versions:set -DnewVersion="${mvnReleaseVersion}"
   setResult=$?
   set -e
   if [ "$setResult" -eq 0 ]; then
     mvn -q versions:commit
     if [ -n "$(git status --porcelain)" ]; then
       git add -A
-      git commit -m "chore: set version to ${releaseVersion}"
+      git commit -m "chore: set version to ${mvnReleaseVersion}"
     fi
   else
     echo "mvn versions:set failed, reverting..."

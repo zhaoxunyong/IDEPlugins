@@ -62,11 +62,53 @@ interface GitCheckContinuation {
 public class ZeroGitFlowHandler {
     private static final Pattern FEATURE_SUFFIX_PATTERN = Pattern.compile("^\\d+-\\S.*$");
     private static final Pattern SEMVER_PATTERN = Pattern.compile("^(\\d+)\\.(\\d+)\\.(\\d+)$");
-    private static final Pattern RELEASE_VERSION_RC_PATTERN = Pattern.compile("^(\\d+)\\.(\\d+)\\.(\\d+)-RC(\\d+)$");
-    private static final Pattern MAVEN_VERSION_PATTERN = Pattern.compile("^(\\d+)\\.(\\d+)\\.(\\d+)(-SNAPSHOT)?$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern MAVEN_VERSION_PATTERN = Pattern.compile("^(\\d+)\\.(\\d+)\\.(\\d+)(-SNAPSHOT|-RC\\d+)?$", Pattern.CASE_INSENSITIVE);
     private static final String[] GROUPS = new String[]{"a", "b"};
     private static final String TITLE = "ZeroGit";
     private static final Logger LOG = Logger.getInstance(ZeroGitFlowHandler.class);
+
+    /** Runs script preparation in background (no gitCheck), then invokes continuation on EDT. Used by MavenChange. */
+    private void runWithScriptInBackground(String rootPath, String scriptFileName, GitCheckContinuation continuation) {
+        ProgressManager.getInstance().run(new Task.Backgroundable(project, "ZeroGit: 准备脚本...") {
+            private String resultRootPath;
+            private String resultScript;
+            private Exception runError;
+
+            @Override
+            public void run(@NotNull ProgressIndicator indicator) {
+                try {
+                    CommandUtils.clearZeroGitScriptCache();
+                    resultRootPath = rootPath;
+                    resultScript = CommandUtils.processZeroGitScript(rootPath, scriptFileName);
+                } catch (Exception e) {
+                    runError = e;
+                }
+            }
+
+            @Override
+            public void onFinished() {
+                if (runError != null) {
+                    String detail = MessagesUtils.buildDetailedErrorMessage(runError);
+                    String summary = runError.getMessage();
+                    if (summary == null || summary.trim().isEmpty()) {
+                        summary = "脚本准备失败，请点击“复制完整错误”获取详细信息。";
+                    }
+                    MessagesUtils.showErrorWithDetails(project, "ZeroGit", summary, detail);
+                    return;
+                }
+                try {
+                    continuation.run(resultRootPath, resultScript);
+                } catch (Exception e) {
+                    String detail = MessagesUtils.buildDetailedErrorMessage(e);
+                    String summary = e.getMessage();
+                    if (summary == null || summary.trim().isEmpty()) {
+                        summary = "执行失败，请点击“复制完整错误”获取详细信息。";
+                    }
+                    MessagesUtils.showErrorWithDetails(project, "ZeroGit", summary, detail);
+                }
+            }
+        });
+    }
 
     /** Runs gitCheck and script preparation in background, then invokes continuation on EDT to avoid freezing the IDE. */
     private void runWithGitCheckInBackground(String rootPath, String scriptFileName, GitCheckContinuation continuation) {
@@ -203,17 +245,30 @@ public class ZeroGitFlowHandler {
         debugLog("command triggered", "Maven Change");
         String groupName = requireGroupName();
         String rootPath = getMavenProjectRootPath();
-        runWithGitCheckInBackground(rootPath, "MavenChange.sh", (rPath, script) -> {
+        runWithScriptInBackground(rootPath, "MavenChange.sh", (rPath, script) -> {
             String changeType = chooseMavenChangeType();
             if (StringUtils.isBlank(changeType)) {
                 return;
             }
-            String suggestedVersion = buildSuggestedMavenVersion(readMavenPomVersion(rPath), changeType);
+            String currentPomVersion = readMavenPomVersion(rPath);
+            if ("release".equals(changeType)) {
+                boolean hasRc = Pattern.compile("-RC\\d+$", Pattern.CASE_INSENSITIVE).matcher(StringUtils.defaultString(currentPomVersion)).find();
+                boolean hasSnapshot = StringUtils.endsWithIgnoreCase(currentPomVersion, "-SNAPSHOT");
+                if (!hasRc && !hasSnapshot) {
+                    Messages.showErrorDialog(project, "你只能基于RC或SNAPSHOT进行release操作", "ZeroGit: Maven Change");
+                    return;
+                }
+            }
+            String suggestedVersion = buildSuggestedMavenVersion(currentPomVersion, changeType);
+            if ("release".equals(changeType) && suggestedVersion == null) {
+                Messages.showErrorDialog(project, "你只能基于RC或SNAPSHOT进行release操作", "ZeroGit: Maven Change");
+                return;
+            }
             String inputVersion = Messages.showInputDialog(
                     "请输入 Maven 版本号",
                     "ZeroGit: Maven Change",
                     Messages.getInformationIcon(),
-                    suggestedVersion,
+                    suggestedVersion != null ? suggestedVersion : "",
                     nonEmptyValidator()
             );
             if (StringUtils.isBlank(inputVersion)) {
@@ -221,7 +276,7 @@ public class ZeroGitFlowHandler {
             }
             String mavenVersion = inputVersion.trim();
             if (!MAVEN_VERSION_PATTERN.matcher(mavenVersion).matches()) {
-                throw new DeployPluginException("Maven version must be x.y.z or x.y.z-SNAPSHOT");
+                throw new DeployPluginException("Maven version must be x.y.z, x.y.z-SNAPSHOT or x.y.z-RCN (N为数字).");
             }
             if ("release".equals(changeType) && StringUtils.endsWithIgnoreCase(mavenVersion, "-SNAPSHOT")) {
                 throw new DeployPluginException("Release 版本不能以 -SNAPSHOT 结尾。");
@@ -245,17 +300,17 @@ public class ZeroGitFlowHandler {
     public void startNewRelease() throws Exception {
         debugLog("command triggered", "Start New Release");
         String groupName = requireGroupName();
-        if (!yes("请确认：是否已执行 Finish Feature 操作？", "ZeroGit: Start New Release")) {
+        if (!yes("确认好准备提测了吗？是否已执行FinishFeature删除本地多余的feature分支？\n\n1. StartNewRelease只能在提测时执行一次，maven项目会自动更新pom.xml版本，并打上-RC1后缀。\n2. 后续无需再次打release分支，直接在release分支上进行bug的修复。如需升级maven版本，执行MavenChange操作即可。", "ZeroGit: Start New Release")) {
             return;
         }
         String rootPath = getRootPath();
         runWithGitCheckInBackground(rootPath, "StartNewRelease.sh", (rPath, script) -> {
             List<String> releases = listReleaseBranches(rPath, groupName);
             List<String> hotfixes = listHotfixBranches(rPath, groupName);
-            String suggested = suggestReleaseVersion(releases, hotfixes);
+            String suggested = suggestNextVersion(releases, hotfixes, listTags(rPath));
             String prefix = "release/" + groupName + "/";
             String value = Messages.showInputDialog(
-                    "请输入 Release 分支（格式 X.Y.Z-RCN，如 1.0.0-RC1）",
+                    "请输入 Release 分支（SemVer）",
                     "ZeroGit: Start New Release",
                     Messages.getInformationIcon(),
                     prefix + suggested,
@@ -267,8 +322,8 @@ public class ZeroGitFlowHandler {
             if (!value.startsWith(prefix)) {
                 throw new DeployPluginException("Release 分支必须以 " + prefix + " 开头。");
             }
-            String version = value.substring(prefix.length()).trim();
-            ensureReleaseVersionRC(version, "Release 版本格式无效，必须是 X.Y.Z-RCN（如 1.0.0-RC1）");
+            String version = value.substring(prefix.length());
+            ensureSemver(version, "Release 版本格式无效，必须是 X.Y.Z");
             ensureVersionNotExists(version, releases, "release");
             ensureVersionNotExists(version, hotfixes, "hotfix");
 
@@ -527,19 +582,34 @@ public class ZeroGitFlowHandler {
     }
 
     private String buildSuggestedMavenVersion(String currentVersion, String changeType) {
-        String baseVersion = StringUtils.defaultString(currentVersion).trim().replaceFirst("(?i)-SNAPSHOT$", "");
-        String nextVersion = "1.0.1";
-        Matcher matcher = SEMVER_PATTERN.matcher(baseVersion);
-        if (matcher.matches()) {
-            int major = Integer.parseInt(matcher.group(1));
-            int minor = Integer.parseInt(matcher.group(2));
-            int patch = Integer.parseInt(matcher.group(3)) + 1;
-            nextVersion = major + "." + minor + "." + patch;
+        String raw = StringUtils.defaultString(currentVersion).trim();
+        if (raw.isEmpty()) {
+            return "release".equals(changeType) ? null : "1.0.1-SNAPSHOT";
         }
         if ("snapshot".equals(changeType)) {
+            // 如果有 - 字符，去掉 - 后面的内容，得到 base x.y.z，递增尾数后添加 -SNAPSHOT
+            String baseVersion = raw.contains("-") ? raw.split("-")[0].trim() : raw.replaceFirst("(?i)-SNAPSHOT$", "");
+            String nextVersion = "1.0.1";
+            Matcher matcher = SEMVER_PATTERN.matcher(baseVersion);
+            if (matcher.matches()) {
+                int major = Integer.parseInt(matcher.group(1));
+                int minor = Integer.parseInt(matcher.group(2));
+                int patch = Integer.parseInt(matcher.group(3)) + 1;
+                nextVersion = major + "." + minor + "." + patch;
+            }
             return nextVersion + "-SNAPSHOT";
         }
-        return nextVersion;
+        // release: -RCN 递增 N；-SNAPSHOT 去掉；否则返回 null
+        Matcher rcMatcher = Pattern.compile("-RC(\\d+)$", Pattern.CASE_INSENSITIVE).matcher(raw);
+        if (rcMatcher.find()) {
+            int n = Integer.parseInt(rcMatcher.group(1));
+            String base = raw.substring(0, rcMatcher.start());
+            return base + "-RC" + (n + 1);
+        }
+        if (StringUtils.endsWithIgnoreCase(raw, "-SNAPSHOT")) {
+            return raw.replaceFirst("(?i)-SNAPSHOT$", "");
+        }
+        return null;
     }
 
     private void runGitCheck(String rootPath) throws Exception {
@@ -752,7 +822,7 @@ public class ZeroGitFlowHandler {
                 "--format=%(refname:short)",
                 "refs/heads/release/" + groupName + "/*",
                 "refs/remotes/origin/release/" + groupName + "/*");
-        return sortByReleaseVersionDesc(uniqueNormalizedBranches(splitLines(result.getResult()), "origin/"));
+        return sortBySemverDesc(uniqueNormalizedBranches(splitLines(result.getResult()), "origin/"));
     }
 
     private List<String> listHotfixBranches(String rootPath, String groupName) throws Exception {
@@ -788,142 +858,6 @@ public class ZeroGitFlowHandler {
         }
         versions.sort(this::compareSemver);
         return nextPatch(versions.get(versions.size() - 1));
-    }
-
-    /** Release 建议版本：若有 X.Y.Z-RCN 则递增 RC，否则取 release/hotfix 最大 base 再 -RC1；并避免与已有分支冲突。 */
-    private String suggestReleaseVersion(List<String> releases, List<String> hotfixes) {
-        List<String> releaseVersions = new ArrayList<>();
-        for (String b : releases) {
-            String v = extractVersion(b);
-            if (StringUtils.isNotBlank(v)) {
-                releaseVersions.add(v);
-            }
-        }
-        List<String> hotfixVersions = new ArrayList<>();
-        for (String b : hotfixes) {
-            String v = extractVersion(b);
-            if (StringUtils.isNotBlank(v)) {
-                hotfixVersions.add(v);
-            }
-        }
-        java.util.Set<String> releaseSet = new java.util.HashSet<>(releaseVersions);
-        List<String> rcVersions = new ArrayList<>();
-        for (String v : releaseVersions) {
-            if (parseReleaseVersionRC(v) != null && parseReleaseVersionRC(v)[3] > 0) {
-                rcVersions.add(v);
-            }
-        }
-        String suggested;
-        if (!rcVersions.isEmpty()) {
-            rcVersions.sort((a, b) -> compareReleaseVersion(b, a));
-            int[] top = parseReleaseVersionRC(rcVersions.get(0));
-            if (top != null) {
-                suggested = top[0] + "." + top[1] + "." + top[2] + "-RC" + (top[3] + 1);
-            } else {
-                suggested = "1.0.0-RC1";
-            }
-        } else {
-            List<String> allBases = new ArrayList<>();
-            allBases.addAll(releaseVersions);
-            allBases.addAll(hotfixVersions);
-            String maxBase = getMaxBaseVersionFromVersionStrings(allBases);
-            suggested = (maxBase != null ? maxBase : "1.0.0") + "-RC1";
-        }
-        while (releaseSet.contains(suggested)) {
-            int[] p = parseReleaseVersionRC(suggested);
-            if (p == null) {
-                break;
-            }
-            suggested = p[0] + "." + p[1] + "." + p[2] + "-RC" + (p[3] + 1);
-        }
-        return suggested;
-    }
-
-    /** 解析 X.Y.Z 或 X.Y.Z-RCN，返回 int[]{ major, minor, patch, rc }，纯 X.Y.Z 时 rc=0；不匹配则 null。 */
-    private int[] parseReleaseVersionRC(String versionText) {
-        if (StringUtils.isBlank(versionText)) {
-            return null;
-        }
-        String s = versionText.trim();
-        Matcher rcMatcher = RELEASE_VERSION_RC_PATTERN.matcher(s);
-        if (rcMatcher.matches()) {
-            return new int[]{
-                    Integer.parseInt(rcMatcher.group(1)),
-                    Integer.parseInt(rcMatcher.group(2)),
-                    Integer.parseInt(rcMatcher.group(3)),
-                    Integer.parseInt(rcMatcher.group(4))
-            };
-        }
-        Matcher plainMatcher = SEMVER_PATTERN.matcher(s);
-        if (plainMatcher.matches()) {
-            return new int[]{
-                    Integer.parseInt(plainMatcher.group(1)),
-                    Integer.parseInt(plainMatcher.group(2)),
-                    Integer.parseInt(plainMatcher.group(3)),
-                    0
-            };
-        }
-        return null;
-    }
-
-    private String getMaxBaseVersionFromVersionStrings(List<String> versionStrings) {
-        String maxBase = null;
-        int[] maxParts = null;
-        for (String v : versionStrings) {
-            int[] parsed = parseReleaseVersionRC(v);
-            if (parsed == null) {
-                continue;
-            }
-            int[] baseParts = new int[]{parsed[0], parsed[1], parsed[2]};
-            if (maxParts == null || compareSemverParts(baseParts, maxParts) > 0) {
-                maxBase = parsed[0] + "." + parsed[1] + "." + parsed[2];
-                maxParts = baseParts;
-            }
-        }
-        return maxBase;
-    }
-
-    /** 比较 base 三段版本，返回正数表示 a > b。 */
-    private int compareSemverParts(int[] a, int[] b) {
-        for (int i = 0; i < 3; i++) {
-            int d = a[i] - b[i];
-            if (d != 0) {
-                return d;
-            }
-        }
-        return 0;
-    }
-
-    /** 比较 release 版本 (X.Y.Z 或 X.Y.Z-RCN)，用于降序排序：v1>v2 时返回负值。 */
-    private int compareReleaseVersion(String v1, String v2) {
-        int[] p1 = parseReleaseVersionRC(v1);
-        int[] p2 = parseReleaseVersionRC(v2);
-        if (p1 == null && p2 == null) {
-            return v2.compareTo(v1);
-        }
-        if (p1 == null) {
-            return 1;
-        }
-        if (p2 == null) {
-            return -1;
-        }
-        int baseCmp = compareSemverParts(p1, p2);
-        if (baseCmp != 0) {
-            return -baseCmp;
-        }
-        return p2[3] - p1[3];
-    }
-
-    private List<String> sortByReleaseVersionDesc(List<String> branches) {
-        List<String> copy = new ArrayList<>(branches);
-        copy.sort((o1, o2) -> compareReleaseVersion(extractVersion(o1), extractVersion(o2)));
-        return copy;
-    }
-
-    private void ensureReleaseVersionRC(String version, String error) {
-        if (!RELEASE_VERSION_RC_PATTERN.matcher(version).matches()) {
-            throw new DeployPluginException(error);
-        }
     }
 
     private void ensureSemver(String version, String error) {
@@ -1065,8 +999,8 @@ public class ZeroGitFlowHandler {
         if (StringUtils.isBlank(output)) {
             return;
         }
-        String key = "release".equals(type) ? "REMAINING_RELEASES:" : "REMAINING_HOTFIXES:";
-        String fallback = "release".equals(type) ? "Remaining release branches:" : "Remaining hotfix branches:";
+        // 只从返回内容中取包含 REMAINING_RELEASES 的那一行进行解析（FinishRelease/FinishHotfix 脚本均输出该行）
+        final String key = "REMAINING_RELEASES:";
         String remaining = null;
         for (String line : output.split("\\R")) {
             String text = line.trim();
@@ -1075,10 +1009,6 @@ public class ZeroGitFlowHandler {
             }
             if (text.startsWith(key)) {
                 remaining = StringUtils.trim(StringUtils.substringAfter(text, key));
-                break;
-            }
-            if (text.startsWith(fallback)) {
-                remaining = StringUtils.trim(StringUtils.substringAfter(text, fallback));
                 break;
             }
         }
