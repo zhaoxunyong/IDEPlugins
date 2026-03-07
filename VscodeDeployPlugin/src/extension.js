@@ -183,7 +183,42 @@ async function askStartFeatureName (groupName) {
 }
 
 async function getSuggestedReleaseVersion (rootPath, groupName) {
-    return getSuggestedReleaseOrHotfixVersion(rootPath, groupName, 'release')
+    const branchPrefix = `release/${groupName}/`
+    const conflictPrefix = `hotfix/${groupName}/`
+    const defaultBase = '1.0.0'
+    try {
+        const releaseBranches = await getReleaseBranches(rootPath, groupName, { includeLocal: false })
+        const hotfixBranches = await getHotfixBranches(rootPath, groupName, { includeLocal: false })
+        const releaseVersions = extractBranchVersions(releaseBranches, branchPrefix)
+        const hotfixVersions = extractBranchVersions(hotfixBranches, conflictPrefix)
+        const releaseVersionSet = new Set(releaseVersions)
+        const rcVersions = releaseVersions.filter(v => {
+            const p = parseReleaseVersionRC(v)
+            return p && p.rc > 0
+        })
+        let suggested
+        if (rcVersions.length > 0) {
+            rcVersions.sort((a, b) => compareReleaseVersionDesc(b, a))
+            const top = parseReleaseVersionRC(rcVersions[0])
+            if (top) {
+                suggested = `${top.base}-RC${top.rc + 1}`
+            }
+        }
+        if (!suggested) {
+            const allBases = [...releaseVersions, ...hotfixVersions]
+            const maxBase = getMaxBaseVersionFromVersionStrings(allBases) || defaultBase
+            suggested = `${maxBase}-RC1`
+        }
+        while (releaseVersionSet.has(suggested)) {
+            const p = parseReleaseVersionRC(suggested)
+            if (!p) break
+            suggested = `${p.base}-RC${p.rc + 1}`
+        }
+        return suggested
+    } catch (err) {
+        debugLog('failed to resolve suggested release version', err && err.message ? err.message : String(err))
+    }
+    return `${defaultBase}-RC1`
 }
 
 async function getLatestRemoteReleaseVersion (rootPath, groupName) {
@@ -275,7 +310,7 @@ async function getLatestRemoteTagVersion (rootPath) {
 async function askStartReleaseName (rootPath, groupName) {
     const branchPrefix = `release/${groupName}/`
     const conflictPrefix = `hotfix/${groupName}/`
-    const semverRule = /^\d+\.\d+\.\d+$/
+    const releaseVersionRule = /^\d+\.\d+\.\d+-RC\d+$/
     const suggestedVersion = await getSuggestedReleaseVersion(rootPath, groupName)
     const releaseBranches = await getReleaseBranches(rootPath, groupName)
     const hotfixBranches = await getHotfixBranches(rootPath, groupName)
@@ -284,7 +319,7 @@ async function askStartReleaseName (rootPath, groupName) {
     const fullReleaseName = await vscode.window.showInputBox({
         ignoreFocusOut: true,
         placeHolder: 'Please input release name',
-        prompt: 'Please input release version after prefix (e.g. 1.0.0).',
+        prompt: 'Please input release version after prefix (e.g. 1.0.0-RC1).',
         value: `${branchPrefix}${suggestedVersion}`,
         validateInput: function (text) {
             const value = (text || '').trim()
@@ -295,8 +330,8 @@ async function askStartReleaseName (rootPath, groupName) {
             if (!releaseVersion) {
                 return 'Please input release version after the prefix.'
             }
-            if (!semverRule.test(releaseVersion)) {
-                return 'Release version must follow SemVer format (e.g. 1.0.0).'
+            if (!releaseVersionRule.test(releaseVersion)) {
+                return 'Release version must follow format X.Y.Z-RCN (e.g. 1.0.0-RC1).'
             }
             if (releaseVersions.has(releaseVersion)) {
                 return `Release version already exists: ${releaseVersion}`
@@ -314,8 +349,8 @@ async function askStartReleaseName (rootPath, groupName) {
     }
     const normalizedReleaseName = fullReleaseName.trim()
     const releaseVersion = normalizedReleaseName.slice(branchPrefix.length).trim()
-    if (!normalizedReleaseName.startsWith(branchPrefix) || !releaseVersion || !semverRule.test(releaseVersion)) {
-        vscode.window.showErrorMessage('Please input valid release name after the prefix, task aborted.')
+    if (!normalizedReleaseName.startsWith(branchPrefix) || !releaseVersion || !releaseVersionRule.test(releaseVersion)) {
+        vscode.window.showErrorMessage('Please input valid release name (X.Y.Z-RCN) after the prefix, task aborted.')
         return null
     }
     return `${branchPrefix}${releaseVersion}`
@@ -376,10 +411,6 @@ async function confirmFinishFeature (groupName) {
 
 async function confirmFinishFeatureForRelease (groupName) {
     return showModalConfirmDialog('是否已执行Finish Feature操作？')
-}
-
-async function confirmMavenChangeForRelease () {
-    return showModalYesNoDialog('是否已通过MavenChange进行release操作？')
 }
 
 async function confirmOpsReleaseDone () {
@@ -493,23 +524,7 @@ async function getLocalFeatureBranches (rootPath, groupName) {
 function compareReleaseBranchVersionDesc (leftBranch, rightBranch, releasePrefix) {
     const leftVersion = leftBranch.startsWith(releasePrefix) ? leftBranch.slice(releasePrefix.length) : leftBranch
     const rightVersion = rightBranch.startsWith(releasePrefix) ? rightBranch.slice(releasePrefix.length) : rightBranch
-    const semverRule = /^(\d+)\.(\d+)\.(\d+)$/
-    const leftMatch = leftVersion.match(semverRule)
-    const rightMatch = rightVersion.match(semverRule)
-
-    if (leftMatch && rightMatch) {
-        const leftParts = leftMatch.slice(1).map(item => parseInt(item, 10))
-        const rightParts = rightMatch.slice(1).map(item => parseInt(item, 10))
-        return compareSemverPartsDesc(leftParts, rightParts)
-    }
-
-    if (leftMatch && !rightMatch) {
-        return -1
-    }
-    if (!leftMatch && rightMatch) {
-        return 1
-    }
-    return rightVersion.localeCompare(leftVersion)
+    return compareReleaseVersionDesc(rightVersion, leftVersion)
 }
 
 function extractBranchVersions (branches, branchPrefix) {
@@ -535,6 +550,53 @@ function parseSemverVersion (versionText) {
         return null
     }
     return matched.slice(1).map(item => parseInt(item, 10))
+}
+
+/** Release 版本格式：X.Y.Z 或 X.Y.Z-RCN。返回 { base, baseParts, rc } 或 null。 */
+function parseReleaseVersionRC (versionText) {
+    const s = String(versionText || '').trim()
+    const rcRule = /^(\d+)\.(\d+)\.(\d+)-RC(\d+)$/
+    const plainRule = /^(\d+)\.(\d+)\.(\d+)$/
+    let matched = s.match(rcRule)
+    if (matched) {
+        const base = `${matched[1]}.${matched[2]}.${matched[3]}`
+        const baseParts = matched.slice(1, 4).map(item => parseInt(item, 10))
+        return { base, baseParts, rc: parseInt(matched[4], 10) }
+    }
+    matched = s.match(plainRule)
+    if (matched) {
+        const base = `${matched[1]}.${matched[2]}.${matched[3]}`
+        const baseParts = matched.slice(1, 4).map(item => parseInt(item, 10))
+        return { base, baseParts, rc: 0 }
+    }
+    return null
+}
+
+/** 从一组 release/hotfix 版本字符串中取最大 base 版本 (X.Y.Z)。 */
+function getMaxBaseVersionFromVersionStrings (versionStrings) {
+    let maxBase = null
+    let maxParts = null
+    for (const v of versionStrings) {
+        const parsed = parseReleaseVersionRC(v)
+        if (!parsed) continue
+        if (!maxParts || compareSemverPartsDesc(parsed.baseParts, maxParts) < 0) {
+            maxBase = parsed.base
+            maxParts = parsed.baseParts
+        }
+    }
+    return maxBase
+}
+
+/** 比较 release 版本 (X.Y.Z 或 X.Y.Z-RCN)，降序：先 base 再 rc。 */
+function compareReleaseVersionDesc (leftVersion, rightVersion) {
+    const left = parseReleaseVersionRC(leftVersion)
+    const right = parseReleaseVersionRC(rightVersion)
+    if (!left && !right) return String(rightVersion || '').localeCompare(String(leftVersion || ''))
+    if (left && !right) return -1
+    if (!left && right) return 1
+    const baseCmp = compareSemverPartsDesc(left.baseParts, right.baseParts)
+    if (baseCmp !== 0) return baseCmp
+    return right.rc - left.rc
 }
 
 function compareSemverVersionDesc (leftVersion, rightVersion) {
@@ -1210,11 +1272,6 @@ async function executeGitFlowCommand (commandId, resourceUri) {
         scriptArgs.push(featureName)
     }
     if (commandId === 'extension.StartNewRelease') {
-        const confirmedMavenChange = await confirmMavenChangeForRelease()
-        if (!confirmedMavenChange) {
-            debugLog('start release aborted: maven change not confirmed')
-            return { executed: false, groupName }
-        }
         const confirmed = await confirmFinishFeatureForRelease(groupName)
         if (!confirmed) {
             debugLog('start release aborted by user')

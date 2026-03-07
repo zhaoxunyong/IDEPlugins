@@ -26,8 +26,8 @@ if [[ "$releaseName" != "$releasePrefix"* ]]; then
   exit 1
 fi
 
-if ! [[ "$releaseVersion" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  echo "Release version must follow SemVer format, e.g. 1.0.0"
+if ! [[ "$releaseVersion" =~ ^[0-9]+\.[0-9]+\.[0-9]+-RC[0-9]+$ ]]; then
+  echo "Release version must follow format X.Y.Z-RCN, e.g. 1.0.0-RC1"
   exit 1
 fi
 
@@ -50,6 +50,29 @@ echo "checkout branch: $developBranch"
 git checkout "$developBranch"
 git pull origin "$developBranch"
 git checkout -b "$releaseName"
+
+if [ -f "pom.xml" ]; then
+  echo "Maven project detected, updating pom version to: $releaseVersion"
+  set +e
+  mvn -q versions:set -DnewVersion="${releaseVersion}"
+  setResult=$?
+  set -e
+  if [ "$setResult" -eq 0 ]; then
+    mvn -q versions:commit
+    if [ -n "$(git status --porcelain)" ]; then
+      git add -A
+      git commit -m "chore: set version to ${releaseVersion}"
+    fi
+  else
+    echo "mvn versions:set failed, reverting..."
+    set +e
+    mvn -q versions:revert
+    set -e
+    echo "Release branch created but pom version not updated. Please fix manually."
+    exit 1
+  fi
+fi
+
 git push --set-upstream origin "$releaseName"
 
 echo "release branch created: $releaseName"
