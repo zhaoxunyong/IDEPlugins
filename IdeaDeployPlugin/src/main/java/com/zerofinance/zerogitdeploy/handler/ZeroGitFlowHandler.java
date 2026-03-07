@@ -52,6 +52,12 @@ import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/** Continuation after gitCheck and script preparation finished in background. */
+@FunctionalInterface
+interface GitCheckContinuation {
+    void run(String rootPath, String script) throws Exception;
+}
+
 @SuppressWarnings("restriction")
 public class ZeroGitFlowHandler {
     private static final Pattern FEATURE_SUFFIX_PATTERN = Pattern.compile("^\\d+-\\S.*$");
@@ -60,6 +66,55 @@ public class ZeroGitFlowHandler {
     private static final String[] GROUPS = new String[]{"a", "b"};
     private static final String TITLE = "ZeroGit";
     private static final Logger LOG = Logger.getInstance(ZeroGitFlowHandler.class);
+
+    /** Runs gitCheck and script preparation in background, then invokes continuation on EDT to avoid freezing the IDE. */
+    private void runWithGitCheckInBackground(String rootPath, String scriptFileName, GitCheckContinuation continuation) {
+        ProgressManager.getInstance().run(new Task.Backgroundable(project, "ZeroGit: gitCheck...") {
+            private String resultRootPath;
+            private String resultScript;
+            private Exception runError;
+
+            @Override
+            public void run(@NotNull ProgressIndicator indicator) {
+                try {
+                    runGitCheck(rootPath);
+                    CommandUtils.clearZeroGitScriptCache();
+                    resultRootPath = rootPath;
+                    resultScript = CommandUtils.processZeroGitScript(rootPath, scriptFileName);
+                } catch (Exception e) {
+                    runError = e;
+                }
+            }
+
+            @Override
+            public void onFinished() {
+                if (runError != null) {
+                    String detail = MessagesUtils.buildDetailedErrorMessage(runError);
+                    String summary = runError.getMessage();
+                    if (summary == null || summary.trim().isEmpty()) {
+                        summary = "gitCheck 或脚本准备失败，请点击“复制完整错误”获取详细信息。";
+                    }
+                    MessagesUtils.showErrorWithDetails(project, "ZeroGit", summary, detail);
+                    return;
+                }
+                try {
+                    continuation.run(resultRootPath, resultScript);
+                } catch (Exception e) {
+                    String detail = MessagesUtils.buildDetailedErrorMessage(e);
+                    String summary = e.getMessage();
+                    if (summary == null || summary.trim().isEmpty()) {
+                        summary = "执行失败，请点击“复制完整错误”获取详细信息。";
+                    }
+                    MessagesUtils.showErrorWithDetails(project, "ZeroGit", summary, detail);
+                }
+            }
+        });
+    }
+
+    @FunctionalInterface
+    private interface GitCheckContinuation {
+        void run(String rootPath, String script) throws Exception;
+    }
 
     private final Project project;
     private final String modulePath;
@@ -86,29 +141,27 @@ public class ZeroGitFlowHandler {
         debugLog("command triggered", "Start New Feature");
         String groupName = requireGroupName();
         String rootPath = getRootPath();
-        runGitCheck(rootPath);
-        CommandUtils.clearZeroGitScriptCache();
-        String script = CommandUtils.processZeroGitScript(rootPath, "StartNewFeature.sh");
-
-        String prefix = "feature/" + groupName + "/";
-        String input = Messages.showInputDialog(
-                "请输入 Feature 分支名（需以 " + prefix + " 开头）",
-                "ZeroGit: Start New Feature",
-                Messages.getInformationIcon(),
-                prefix,
-                nonEmptyValidator()
-        );
-        if (StringUtils.isBlank(input)) {
-            throw new DeployPluginException("已取消 Start New Feature。");
-        }
-        if (!input.startsWith(prefix)) {
-            throw new DeployPluginException("Feature 分支必须以 " + prefix + " 开头。");
-        }
-        String suffix = input.substring(prefix.length());
-        if (!FEATURE_SUFFIX_PATTERN.matcher(suffix).matches()) {
-            throw new DeployPluginException("Feature 后缀格式必须为 数字-描述，例如 001-login。");
-        }
-        confirmAndRunInTerminal("Start New Feature", rootPath, script, Lists.newArrayList(groupName, input));
+        runWithGitCheckInBackground(rootPath, "StartNewFeature.sh", (rPath, script) -> {
+            String prefix = "feature/" + groupName + "/";
+            String input = Messages.showInputDialog(
+                    "请输入 Feature 分支名（需以 " + prefix + " 开头）",
+                    "ZeroGit: Start New Feature",
+                    Messages.getInformationIcon(),
+                    prefix,
+                    nonEmptyValidator()
+            );
+            if (StringUtils.isBlank(input)) {
+                throw new DeployPluginException("已取消 Start New Feature。");
+            }
+            if (!input.startsWith(prefix)) {
+                throw new DeployPluginException("Feature 分支必须以 " + prefix + " 开头。");
+            }
+            String suffix = input.substring(prefix.length());
+            if (!FEATURE_SUFFIX_PATTERN.matcher(suffix).matches()) {
+                throw new DeployPluginException("Feature 后缀格式必须为 数字-描述，例如 001-login。");
+            }
+            confirmAndRunInTerminal("Start New Feature", rPath, script, Lists.newArrayList(groupName, input));
+        });
     }
 
     public void finishFeature() throws Exception {
@@ -118,71 +171,65 @@ public class ZeroGitFlowHandler {
             return;
         }
         String rootPath = getRootPath();
-        runGitCheck(rootPath);
-        CommandUtils.clearZeroGitScriptCache();
-        String script = CommandUtils.processZeroGitScript(rootPath, "FinishFeature.sh");
-
-        List<String> branches = listLocalFeatureBranches(rootPath, groupName);
-        if (branches.isEmpty()) {
-            throw new DeployPluginException("No local feature branch found for group \"" + groupName + "\"");
-        }
-        String selected = chooseBranch("请选择要结束的 feature 分支", "ZeroGit: Finish Feature", branches);
-        if (StringUtils.isBlank(selected)) {
-            return;
-        }
-        confirmAndRunInTerminal("Finish Feature", rootPath, script, Lists.newArrayList(groupName, selected));
+        runWithGitCheckInBackground(rootPath, "FinishFeature.sh", (rPath, script) -> {
+            List<String> branches = listLocalFeatureBranches(rPath, groupName);
+            if (branches.isEmpty()) {
+                throw new DeployPluginException("No local feature branch found for group \"" + groupName + "\"");
+            }
+            String selected = chooseBranch("请选择要结束的 feature 分支", "ZeroGit: Finish Feature", branches);
+            if (StringUtils.isBlank(selected)) {
+                return;
+            }
+            confirmAndRunInTerminal("Finish Feature", rPath, script, Lists.newArrayList(groupName, selected));
+        });
     }
 
     public void rebaseFeature() throws Exception {
         debugLog("command triggered", "Rebase Feature");
         String groupName = requireGroupName();
         String rootPath = getRootPath();
-        runGitCheck(rootPath);
-        CommandUtils.clearZeroGitScriptCache();
-        String script = CommandUtils.processZeroGitScript(rootPath, "RebaseFeature.sh");
-
-        String currentBranch = getCurrentBranch(rootPath);
-        String requiredPrefix = "feature/" + groupName + "/";
-        if (!currentBranch.startsWith(requiredPrefix)) {
-            throw new DeployPluginException("当前分支不是 " + requiredPrefix + " 开头，无法 Rebase Feature。");
-        }
-        confirmAndRunInTerminal("Rebase Feature", rootPath, script, Lists.newArrayList(groupName, currentBranch));
+        runWithGitCheckInBackground(rootPath, "RebaseFeature.sh", (rPath, script) -> {
+            String currentBranch = getCurrentBranch(rPath);
+            String requiredPrefix = "feature/" + groupName + "/";
+            if (!currentBranch.startsWith(requiredPrefix)) {
+                throw new DeployPluginException("当前分支不是 " + requiredPrefix + " 开头，无法 Rebase Feature。");
+            }
+            confirmAndRunInTerminal("Rebase Feature", rPath, script, Lists.newArrayList(groupName, currentBranch));
+        });
     }
 
     public void mavenChange() throws Exception {
         debugLog("command triggered", "Maven Change");
         String groupName = requireGroupName();
         String rootPath = getMavenProjectRootPath();
-        runGitCheck(rootPath);
-        CommandUtils.clearZeroGitScriptCache();
-        String script = CommandUtils.processZeroGitScript(rootPath, "MavenChange.sh");
-
-        String changeType = chooseMavenChangeType();
-        if (StringUtils.isBlank(changeType)) {
-            return;
-        }
-        String suggestedVersion = buildSuggestedMavenVersion(readMavenPomVersion(rootPath), changeType);
-        String inputVersion = Messages.showInputDialog(
-                "请输入 Maven 版本号",
-                "ZeroGit: Maven Change",
-                Messages.getInformationIcon(),
-                suggestedVersion,
-                nonEmptyValidator()
-        );
-        if (StringUtils.isBlank(inputVersion)) {
-            return;
-        }
-        String mavenVersion = inputVersion.trim();
-        if (!MAVEN_VERSION_PATTERN.matcher(mavenVersion).matches()) {
-            throw new DeployPluginException("Maven version must be x.y.z or x.y.z-SNAPSHOT");
-        }
-        if ("release".equals(changeType) && StringUtils.endsWithIgnoreCase(mavenVersion, "-SNAPSHOT")) {
-            throw new DeployPluginException("Release 版本不能以 -SNAPSHOT 结尾。");
-        }
-        if ("snapshot".equals(changeType) && !StringUtils.endsWithIgnoreCase(mavenVersion, "-SNAPSHOT")) {
-            throw new DeployPluginException("Snapshot 版本必须以 -SNAPSHOT 结尾。");
-        }
-        confirmAndRunInTerminal("Maven Change", rootPath, script, Lists.newArrayList(groupName, mavenVersion));
+        runWithGitCheckInBackground(rootPath, "MavenChange.sh", (rPath, script) -> {
+            String changeType = chooseMavenChangeType();
+            if (StringUtils.isBlank(changeType)) {
+                return;
+            }
+            String suggestedVersion = buildSuggestedMavenVersion(readMavenPomVersion(rPath), changeType);
+            String inputVersion = Messages.showInputDialog(
+                    "请输入 Maven 版本号",
+                    "ZeroGit: Maven Change",
+                    Messages.getInformationIcon(),
+                    suggestedVersion,
+                    nonEmptyValidator()
+            );
+            if (StringUtils.isBlank(inputVersion)) {
+                return;
+            }
+            String mavenVersion = inputVersion.trim();
+            if (!MAVEN_VERSION_PATTERN.matcher(mavenVersion).matches()) {
+                throw new DeployPluginException("Maven version must be x.y.z or x.y.z-SNAPSHOT");
+            }
+            if ("release".equals(changeType) && StringUtils.endsWithIgnoreCase(mavenVersion, "-SNAPSHOT")) {
+                throw new DeployPluginException("Release 版本不能以 -SNAPSHOT 结尾。");
+            }
+            if ("snapshot".equals(changeType) && !StringUtils.endsWithIgnoreCase(mavenVersion, "-SNAPSHOT")) {
+                throw new DeployPluginException("Snapshot 版本必须以 -SNAPSHOT 结尾。");
+            }
+            confirmAndRunInTerminal("Maven Change", rPath, script, Lists.newArrayList(groupName, mavenVersion));
+        });
     }
 
     public void generateCommitMessage() throws Exception {
@@ -204,33 +251,31 @@ public class ZeroGitFlowHandler {
             return;
         }
         String rootPath = getRootPath();
-        runGitCheck(rootPath);
-        CommandUtils.clearZeroGitScriptCache();
-        String script = CommandUtils.processZeroGitScript(rootPath, "StartNewRelease.sh");
+        runWithGitCheckInBackground(rootPath, "StartNewRelease.sh", (rPath, script) -> {
+            List<String> releases = listReleaseBranches(rPath, groupName);
+            List<String> hotfixes = listHotfixBranches(rPath, groupName);
+            String suggested = suggestNextVersion(releases, hotfixes, listTags(rPath));
+            String prefix = "release/" + groupName + "/";
+            String value = Messages.showInputDialog(
+                    "请输入 Release 分支（SemVer）",
+                    "ZeroGit: Start New Release",
+                    Messages.getInformationIcon(),
+                    prefix + suggested,
+                    nonEmptyValidator()
+            );
+            if (StringUtils.isBlank(value)) {
+                return;
+            }
+            if (!value.startsWith(prefix)) {
+                throw new DeployPluginException("Release 分支必须以 " + prefix + " 开头。");
+            }
+            String version = value.substring(prefix.length());
+            ensureSemver(version, "Release 版本格式无效，必须是 X.Y.Z");
+            ensureVersionNotExists(version, releases, "release");
+            ensureVersionNotExists(version, hotfixes, "hotfix");
 
-        List<String> releases = listReleaseBranches(rootPath, groupName);
-        List<String> hotfixes = listHotfixBranches(rootPath, groupName);
-        String suggested = suggestNextVersion(releases, hotfixes, listTags(rootPath));
-        String prefix = "release/" + groupName + "/";
-        String value = Messages.showInputDialog(
-                "请输入 Release 分支（SemVer）",
-                "ZeroGit: Start New Release",
-                Messages.getInformationIcon(),
-                prefix + suggested,
-                nonEmptyValidator()
-        );
-        if (StringUtils.isBlank(value)) {
-            return;
-        }
-        if (!value.startsWith(prefix)) {
-            throw new DeployPluginException("Release 分支必须以 " + prefix + " 开头。");
-        }
-        String version = value.substring(prefix.length());
-        ensureSemver(version, "Release 版本格式无效，必须是 X.Y.Z");
-        ensureVersionNotExists(version, releases, "release");
-        ensureVersionNotExists(version, hotfixes, "hotfix");
-
-        confirmAndRunInTerminal("Start New Release", rootPath, script, Lists.newArrayList(groupName, value));
+            confirmAndRunInTerminal("Start New Release", rPath, script, Lists.newArrayList(groupName, value));
+        });
     }
 
     public void finishRelease() throws Exception {
@@ -243,52 +288,49 @@ public class ZeroGitFlowHandler {
             return;
         }
         String rootPath = getRootPath();
-        runGitCheck(rootPath);
-        CommandUtils.clearZeroGitScriptCache();
-        String script = CommandUtils.processZeroGitScript(rootPath, "FinishRelease.sh");
-        List<String> releases = listReleaseBranches(rootPath, groupName);
-        if (releases.isEmpty()) {
-            throw new DeployPluginException("No remote release branch found for group \"" + groupName + "\"");
-        }
-        String selected = chooseBranch("请选择要结束的 release 分支", "ZeroGit: Finish Release", releases);
-        if (StringUtils.isBlank(selected)) {
-            return;
-        }
-        List<String> params = Lists.newArrayList(groupName, selected, String.join(",", GROUPS));
-        confirmAndRunSyncAsync("Finish Release", rootPath, script, params, "release");
+        runWithGitCheckInBackground(rootPath, "FinishRelease.sh", (rPath, script) -> {
+            List<String> releases = listReleaseBranches(rPath, groupName);
+            if (releases.isEmpty()) {
+                throw new DeployPluginException("No remote release branch found for group \"" + groupName + "\"");
+            }
+            String selected = chooseBranch("请选择要结束的 release 分支", "ZeroGit: Finish Release", releases);
+            if (StringUtils.isBlank(selected)) {
+                return;
+            }
+            List<String> params = Lists.newArrayList(groupName, selected, String.join(",", GROUPS));
+            confirmAndRunSyncAsync("Finish Release", rPath, script, params, "release");
+        });
     }
 
     public void startNewHotfix() throws Exception {
         debugLog("command triggered", "Start New Hotfix");
         String groupName = requireGroupName();
         String rootPath = getRootPath();
-        runGitCheck(rootPath);
-        CommandUtils.clearZeroGitScriptCache();
-        String script = CommandUtils.processZeroGitScript(rootPath, "StartNewHotfix.sh");
+        runWithGitCheckInBackground(rootPath, "StartNewHotfix.sh", (rPath, script) -> {
+            List<String> releases = listReleaseBranches(rPath, groupName);
+            List<String> hotfixes = listHotfixBranches(rPath, groupName);
+            String suggested = suggestNextVersion(releases, hotfixes, listTags(rPath));
+            String prefix = "hotfix/" + groupName + "/";
+            String value = Messages.showInputDialog(
+                    "请输入 Hotfix 分支（SemVer）",
+                    "ZeroGit: Start New Hotfix",
+                    Messages.getInformationIcon(),
+                    prefix + suggested,
+                    nonEmptyValidator()
+            );
+            if (StringUtils.isBlank(value)) {
+                return;
+            }
+            if (!value.startsWith(prefix)) {
+                throw new DeployPluginException("Hotfix 分支必须以 " + prefix + " 开头。");
+            }
+            String version = value.substring(prefix.length());
+            ensureSemver(version, "Hotfix 版本格式无效，必须是 X.Y.Z");
+            ensureVersionNotExists(version, hotfixes, "hotfix");
+            ensureVersionNotExists(version, releases, "release");
 
-        List<String> releases = listReleaseBranches(rootPath, groupName);
-        List<String> hotfixes = listHotfixBranches(rootPath, groupName);
-        String suggested = suggestNextVersion(releases, hotfixes, listTags(rootPath));
-        String prefix = "hotfix/" + groupName + "/";
-        String value = Messages.showInputDialog(
-                "请输入 Hotfix 分支（SemVer）",
-                "ZeroGit: Start New Hotfix",
-                Messages.getInformationIcon(),
-                prefix + suggested,
-                nonEmptyValidator()
-        );
-        if (StringUtils.isBlank(value)) {
-            return;
-        }
-        if (!value.startsWith(prefix)) {
-            throw new DeployPluginException("Hotfix 分支必须以 " + prefix + " 开头。");
-        }
-        String version = value.substring(prefix.length());
-        ensureSemver(version, "Hotfix 版本格式无效，必须是 X.Y.Z");
-        ensureVersionNotExists(version, hotfixes, "hotfix");
-        ensureVersionNotExists(version, releases, "release");
-
-        confirmAndRunInTerminal("Start New Hotfix", rootPath, script, Lists.newArrayList(groupName, value));
+            confirmAndRunInTerminal("Start New Hotfix", rPath, script, Lists.newArrayList(groupName, value));
+        });
     }
 
     public void finishHotfix() throws Exception {
@@ -301,19 +343,18 @@ public class ZeroGitFlowHandler {
             return;
         }
         String rootPath = getRootPath();
-        runGitCheck(rootPath);
-        CommandUtils.clearZeroGitScriptCache();
-        String script = CommandUtils.processZeroGitScript(rootPath, "FinishHotfix.sh");
-        List<String> hotfixes = listHotfixBranches(rootPath, groupName);
-        if (hotfixes.isEmpty()) {
-            throw new DeployPluginException("No remote hotfix branch found for group \"" + groupName + "\"");
-        }
-        String selected = chooseBranch("请选择要结束的 hotfix 分支", "ZeroGit: Finish Hotfix", hotfixes);
-        if (StringUtils.isBlank(selected)) {
-            return;
-        }
-        List<String> params = Lists.newArrayList(groupName, selected, String.join(",", GROUPS));
-        confirmAndRunSyncAsync("Finish Hotfix", rootPath, script, params, "hotfix");
+        runWithGitCheckInBackground(rootPath, "FinishHotfix.sh", (rPath, script) -> {
+            List<String> hotfixes = listHotfixBranches(rPath, groupName);
+            if (hotfixes.isEmpty()) {
+                throw new DeployPluginException("No remote hotfix branch found for group \"" + groupName + "\"");
+            }
+            String selected = chooseBranch("请选择要结束的 hotfix 分支", "ZeroGit: Finish Hotfix", hotfixes);
+            if (StringUtils.isBlank(selected)) {
+                return;
+            }
+            List<String> params = Lists.newArrayList(groupName, selected, String.join(",", GROUPS));
+            confirmAndRunSyncAsync("Finish Hotfix", rPath, script, params, "hotfix");
+        });
     }
 
     private String requireGroupName() {
@@ -343,19 +384,65 @@ public class ZeroGitFlowHandler {
     }
 
     private String getMavenProjectRootPath() {
-        File current = toDirectory(modulePath);
         String gitRootPath = getRootPath();
-        File gitRoot = StringUtils.isBlank(gitRootPath) ? null : new File(gitRootPath);
-        while (current != null) {
-            if (hasValidMavenPom(current)) {
-                return current.getPath();
-            }
-            if (gitRoot != null && sameFile(current, gitRoot)) {
-                break;
-            }
-            current = current.getParentFile();
+        if (StringUtils.isBlank(gitRootPath)) {
+            throw new DeployPluginException("无法获取 Git 根目录。");
         }
-        throw new DeployPluginException("在当前选择目录及其上级目录中未找到有效的 Maven 项目（缺少可用 pom.xml）。请先选择子项目目录后重试。");
+        File gitRoot = new File(gitRootPath);
+        if (!gitRoot.isDirectory()) {
+            throw new DeployPluginException("Git 根目录无效。");
+        }
+        File currentDir = toDirectory(modulePath);
+        if (currentDir == null) {
+            throw new DeployPluginException("无法确定当前文件所在目录。");
+        }
+        String currentCanonicalPath;
+        try {
+            currentCanonicalPath = currentDir.getCanonicalPath();
+        } catch (IOException e) {
+            currentCanonicalPath = currentDir.getAbsolutePath();
+        }
+        List<File> mavenRoots = new ArrayList<>();
+        collectMavenRootsUnder(gitRoot, mavenRoots);
+        File bestRoot = null;
+        int bestPathLength = Integer.MAX_VALUE;
+        String separator = File.separator;
+        for (File root : mavenRoots) {
+            String rootPath;
+            try {
+                rootPath = root.getCanonicalPath();
+            } catch (IOException e) {
+                rootPath = root.getAbsolutePath();
+            }
+            boolean underThisRoot = currentCanonicalPath.equals(rootPath)
+                    || currentCanonicalPath.startsWith(rootPath + separator);
+            if (underThisRoot && rootPath.length() < bestPathLength) {
+                bestRoot = root;
+                bestPathLength = rootPath.length();
+            }
+        }
+        if (bestRoot == null) {
+            throw new DeployPluginException("在当前选择目录及其上级目录中未找到有效的 Maven 项目（缺少可用 pom.xml）。请先选择子项目目录后重试。");
+        }
+        return bestRoot.getPath();
+    }
+
+    /** 从 gitRoot 往下递归收集所有含有效 pom.xml 的 Maven 项目根目录。 */
+    private void collectMavenRootsUnder(File dir, List<File> result) {
+        if (dir == null || !dir.isDirectory()) {
+            return;
+        }
+        if (hasValidMavenPom(dir)) {
+            result.add(dir);
+        }
+        File[] children = dir.listFiles();
+        if (children != null) {
+            for (File child : children) {
+                if (child.isDirectory() && !".git".equals(child.getName())) {
+                    collectMavenRootsUnder(child, result);
+                }
+            }
+        }
     }
 
     private File toDirectory(String path) {

@@ -566,6 +566,53 @@ function isMavenProject (rootPath) {
     }
 }
 
+/** 从 gitRoot 往下递归收集所有含有效 pom.xml 的 Maven 项目根目录。 */
+function collectMavenRootsUnder (dirPath, result) {
+    if (!dirPath || !fs.existsSync(dirPath) || !fs.statSync(dirPath).isDirectory()) {
+        return
+    }
+    if (isMavenProject(dirPath)) {
+        result.push(normalizePath(dirPath))
+    }
+    try {
+        const names = fs.readdirSync(dirPath)
+        for (const name of names) {
+            if (name === '.git') continue
+            const childPath = path.join(dirPath, name)
+            if (fs.statSync(childPath).isDirectory()) {
+                collectMavenRootsUnder(childPath, result)
+            }
+        }
+    } catch (err) {
+        debugLog('collectMavenRootsUnder readdir failed', err && err.message ? err.message : String(err))
+    }
+}
+
+/**
+ * 从 git 根往下找包含 pathContained 的 Maven 项目根，返回路径最短的（最外层）。
+ * @param {string} gitRootPath - git 根目录
+ * @param {string} pathContained - 当前选中的路径（工作区目录或文件所在目录）
+ * @returns {string|null} 最外层的 Maven 项目根路径，未找到返回 null
+ */
+function getMavenProjectRootPath (gitRootPath, pathContained) {
+    const roots = []
+    collectMavenRootsUnder(gitRootPath, roots)
+    const normalizedContained = normalizePath(path.resolve(pathContained))
+    let bestRoot = null
+    let bestPathLength = Number.MAX_SAFE_INTEGER
+    const sep = '/'
+    for (const root of roots) {
+        const normalizedRoot = normalizePath(path.resolve(root))
+        const underThisRoot = normalizedContained === normalizedRoot ||
+            normalizedContained.startsWith(normalizedRoot + sep)
+        if (underThisRoot && normalizedRoot.length < bestPathLength) {
+            bestRoot = normalizedRoot
+            bestPathLength = normalizedRoot.length
+        }
+    }
+    return bestRoot
+}
+
 function getMavenVersionFromPom (rootPath) {
     const pomPath = path.join(rootPath, 'pom.xml')
     if (!fs.existsSync(pomPath)) {
@@ -992,11 +1039,11 @@ function activate (context) {
 
     Object.keys(gitFlowScriptByCommand).forEach(commandId => {
         context.subscriptions.push(
-            vscode.commands.registerCommand(commandId, async () => {
+            vscode.commands.registerCommand(commandId, async (resourceUri) => {
                 clearCacheFile()
                 try {
-                    debugLog('command triggered', commandId)
-                    const executionResult = await executeGitFlowCommand(commandId)
+                    debugLog('command triggered', { commandId, resourceUri: resourceUri ? resourceUri.fsPath : null })
+                    const executionResult = await executeGitFlowCommand(commandId, resourceUri)
                     if (executionResult.executed) {
                         vscode.window.showInformationMessage(getCommandSuccessMessage(commandId, executionResult.groupName))
                     }
@@ -1135,7 +1182,7 @@ async function pickWorkspaceFolder () {
     return vscode.window.showWorkspaceFolderPick()
 }
 
-async function executeGitFlowCommand (commandId) {
+async function executeGitFlowCommand (commandId, resourceUri) {
     const scriptName = gitFlowScriptByCommand[commandId]
     if (!scriptName) {
         throw new Error(`Unsupported command: ${commandId}`)
@@ -1187,12 +1234,24 @@ async function executeGitFlowCommand (commandId) {
         }
     }
 
-    let selectedItem = await pickWorkspaceFolder()
-    if (!selectedItem) {
-        debugLog('workspace pick cancelled')
-        return { executed: false, groupName }
+    let selectedPath
+    if (resourceUri && resourceUri.fsPath) {
+        const p = normalizePath(resourceUri.fsPath)
+        try {
+            selectedPath = fs.existsSync(p) && fs.statSync(p).isFile() ? path.dirname(p) : p
+        } catch (_) {
+            selectedPath = path.dirname(p)
+        }
+        debugLog('use resource path as selected', selectedPath)
     }
-    const selectedPath = selectedItem.uri.fsPath
+    if (!selectedPath) {
+        const selectedItem = await pickWorkspaceFolder()
+        if (!selectedItem) {
+            debugLog('workspace pick cancelled')
+            return { executed: false, groupName }
+        }
+        selectedPath = selectedItem.uri.fsPath
+    }
     debugLog('workspace selected', selectedPath)
     const rootPath = await resolveGitRootPath(selectedPath)
     if (!rootPath) {
@@ -1242,19 +1301,31 @@ async function executeGitFlowCommand (commandId) {
         scriptArgs.push(hotfixName)
     }
     if (commandId === 'extension.MavenChange') {
-        if (!isMavenProject(rootPath)) {
-            vscode.window.showErrorMessage(`${normalizePath(rootPath)} is not a maven project, task aborted.`)
+        const mavenRootPath = getMavenProjectRootPath(rootPath, selectedPath)
+        if (!mavenRootPath) {
+            vscode.window.showErrorMessage(`在当前选择目录及其上级目录中未找到有效的 Maven 项目（缺少可用 pom.xml）。请先选择子项目目录后重试。`)
+            return { executed: false, groupName }
+        }
+        if (!isMavenProject(mavenRootPath)) {
+            vscode.window.showErrorMessage(`${normalizePath(mavenRootPath)} is not a maven project, task aborted.`)
             return { executed: false, groupName }
         }
         const changeType = await askMavenChangeType()
         if (!changeType) {
             return { executed: false, groupName }
         }
-        const mavenVersion = await askMavenChangeVersion(rootPath, changeType)
+        const mavenVersion = await askMavenChangeVersion(mavenRootPath, changeType)
         if (!mavenVersion) {
             return { executed: false, groupName }
         }
         scriptArgs.push(mavenVersion)
+        const confirmedToRun = await confirmRunScript(commandId, mavenRootPath, scriptPath, scriptArgs)
+        if (!confirmedToRun) {
+            debugLog('script execution cancelled by user', { commandId, scriptPath, scriptArgs })
+            return { executed: false, groupName }
+        }
+        runScriptInTerminal(mavenRootPath, scriptPath, scriptArgs)
+        return { executed: true, groupName }
     }
     if (commandId === 'extension.FinishRelease') {
         const selectedReleaseBranch = await askFinishReleaseBranch(rootPath, groupName)
