@@ -21,7 +21,7 @@ STEP_DESC[3]="将最新 master 合并回所有 develop 分支"
 STEP_DESC[4]="将最新 master 合并回所有未完成的 release 分支"
 STEP_DESC[5]="将最新 master 合并回所有未完成的 hotfix 分支"
 STEP_DESC[6]="在 master 上打 tag 并推送"
-STEP_DESC[7]="切回当前组的 develop 分支，删除已完成的 release 分支（本地和远程）"
+STEP_DESC[7]="切回当前组的 develop 分支，先打 purge 临时 tag，再删除已完成的 release 分支（本地和远程）"
 
 for i in 1 2 3 4 5 6 7; do
   STEP_STATUS[$i]="NOT_RUN"
@@ -80,6 +80,32 @@ run_git() {
   if [ -n "$output" ]; then
     echo "$output"
   fi
+}
+
+create_and_push_purge_tag_for_branch() {
+  local branchName="$1"
+  local tagRef=""
+  local safeBranch="${branchName//\//-}"
+  local baseTag="purge-${safeBranch}-$(date +%Y%m%d%H%M)"
+  local purgeTag="$baseTag"
+  local idx=1
+
+  if git show-ref --verify --quiet "refs/heads/$branchName"; then
+    tagRef="$branchName"
+  elif git show-ref --verify --quiet "refs/remotes/origin/$branchName"; then
+    tagRef="origin/$branchName"
+  else
+    echo "Cannot create purge tag. Branch not found in local/remote: $branchName"
+    exit 1
+  fi
+
+  while git show-ref --verify --quiet "refs/tags/$purgeTag" || git ls-remote --tags --refs --exit-code origin "refs/tags/$purgeTag" >/dev/null 2>&1; do
+    purgeTag="${baseTag}-${idx}"
+    idx=$((idx + 1))
+  done
+
+  run_git "Create purge tag $purgeTag for $branchName" git tag -a "$purgeTag" "$tagRef" -m "Purge backup for $branchName before deletion"
+  run_git "Push purge tag $purgeTag" git push origin "refs/tags/$purgeTag"
 }
 
 # 若 remote 存在但本地不存在则 checkout（创建本地跟踪分支），否则仅 checkout。
@@ -221,6 +247,7 @@ STEP_STATUS[6]="DONE"
 # 7) Switch back to develop branch and delete finished release branch.
 set_step 7
 checkout_or_track_branch "$developBranch"
+create_and_push_purge_tag_for_branch "$releaseBranch"
 
 if git show-ref --verify --quiet "refs/heads/$releaseBranch"; then
   run_git "Delete local branch $releaseBranch" git branch -d "$releaseBranch"

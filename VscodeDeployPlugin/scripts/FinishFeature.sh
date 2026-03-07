@@ -24,9 +24,20 @@ if ! git show-ref --verify --quiet "refs/heads/$featureName"; then
   exit 1
 fi
 
+safeFeatureName="${featureName//\//-}"
+basePurgeTag="purge-${safeFeatureName}-$(date +%Y%m%d%H%M)"
+purgeTag="$basePurgeTag"
+idx=1
+while git show-ref --verify --quiet "refs/tags/$purgeTag"; do
+  purgeTag="${basePurgeTag}-${idx}"
+  idx=$((idx + 1))
+done
+
 echo "Checkout branch: $developBranch"
 git checkout "$developBranch"
 git pull origin "$developBranch"
+git tag -a "$purgeTag" "$featureName" -m "Purge backup for $featureName before deletion"
+echo "Created local purge tag: $purgeTag"
 git branch -d "$featureName"
 echo "Deleted local feature branch: $featureName"
 git checkout "$developBranch"
