@@ -62,6 +62,7 @@ interface GitCheckContinuation {
 public class ZeroGitFlowHandler {
     private static final Pattern FEATURE_SUFFIX_PATTERN = Pattern.compile("^\\d+-\\S.*$");
     private static final Pattern SEMVER_PATTERN = Pattern.compile("^(\\d+)\\.(\\d+)\\.(\\d+)$");
+    private static final Pattern RELEASE_VERSION_RC_PATTERN = Pattern.compile("^(\\d+)\\.(\\d+)\\.(\\d+)-RC(\\d+)$");
     private static final Pattern MAVEN_VERSION_PATTERN = Pattern.compile("^(\\d+)\\.(\\d+)\\.(\\d+)(-SNAPSHOT)?$", Pattern.CASE_INSENSITIVE);
     private static final String[] GROUPS = new String[]{"a", "b"};
     private static final String TITLE = "ZeroGit";
@@ -244,9 +245,6 @@ public class ZeroGitFlowHandler {
     public void startNewRelease() throws Exception {
         debugLog("command triggered", "Start New Release");
         String groupName = requireGroupName();
-        if (!yes("请确认：是否已通过 MavenChange 进行 release 操作？", "ZeroGit: Start New Release")) {
-            return;
-        }
         if (!yes("请确认：是否已执行 Finish Feature 操作？", "ZeroGit: Start New Release")) {
             return;
         }
@@ -254,10 +252,10 @@ public class ZeroGitFlowHandler {
         runWithGitCheckInBackground(rootPath, "StartNewRelease.sh", (rPath, script) -> {
             List<String> releases = listReleaseBranches(rPath, groupName);
             List<String> hotfixes = listHotfixBranches(rPath, groupName);
-            String suggested = suggestNextVersion(releases, hotfixes, listTags(rPath));
+            String suggested = suggestReleaseVersion(releases, hotfixes);
             String prefix = "release/" + groupName + "/";
             String value = Messages.showInputDialog(
-                    "请输入 Release 分支（SemVer）",
+                    "请输入 Release 分支（格式 X.Y.Z-RCN，如 1.0.0-RC1）",
                     "ZeroGit: Start New Release",
                     Messages.getInformationIcon(),
                     prefix + suggested,
@@ -269,8 +267,8 @@ public class ZeroGitFlowHandler {
             if (!value.startsWith(prefix)) {
                 throw new DeployPluginException("Release 分支必须以 " + prefix + " 开头。");
             }
-            String version = value.substring(prefix.length());
-            ensureSemver(version, "Release 版本格式无效，必须是 X.Y.Z");
+            String version = value.substring(prefix.length()).trim();
+            ensureReleaseVersionRC(version, "Release 版本格式无效，必须是 X.Y.Z-RCN（如 1.0.0-RC1）");
             ensureVersionNotExists(version, releases, "release");
             ensureVersionNotExists(version, hotfixes, "hotfix");
 
@@ -754,7 +752,7 @@ public class ZeroGitFlowHandler {
                 "--format=%(refname:short)",
                 "refs/heads/release/" + groupName + "/*",
                 "refs/remotes/origin/release/" + groupName + "/*");
-        return sortBySemverDesc(uniqueNormalizedBranches(splitLines(result.getResult()), "origin/"));
+        return sortByReleaseVersionDesc(uniqueNormalizedBranches(splitLines(result.getResult()), "origin/"));
     }
 
     private List<String> listHotfixBranches(String rootPath, String groupName) throws Exception {
@@ -790,6 +788,142 @@ public class ZeroGitFlowHandler {
         }
         versions.sort(this::compareSemver);
         return nextPatch(versions.get(versions.size() - 1));
+    }
+
+    /** Release 建议版本：若有 X.Y.Z-RCN 则递增 RC，否则取 release/hotfix 最大 base 再 -RC1；并避免与已有分支冲突。 */
+    private String suggestReleaseVersion(List<String> releases, List<String> hotfixes) {
+        List<String> releaseVersions = new ArrayList<>();
+        for (String b : releases) {
+            String v = extractVersion(b);
+            if (StringUtils.isNotBlank(v)) {
+                releaseVersions.add(v);
+            }
+        }
+        List<String> hotfixVersions = new ArrayList<>();
+        for (String b : hotfixes) {
+            String v = extractVersion(b);
+            if (StringUtils.isNotBlank(v)) {
+                hotfixVersions.add(v);
+            }
+        }
+        java.util.Set<String> releaseSet = new java.util.HashSet<>(releaseVersions);
+        List<String> rcVersions = new ArrayList<>();
+        for (String v : releaseVersions) {
+            if (parseReleaseVersionRC(v) != null && parseReleaseVersionRC(v)[3] > 0) {
+                rcVersions.add(v);
+            }
+        }
+        String suggested;
+        if (!rcVersions.isEmpty()) {
+            rcVersions.sort((a, b) -> compareReleaseVersion(b, a));
+            int[] top = parseReleaseVersionRC(rcVersions.get(0));
+            if (top != null) {
+                suggested = top[0] + "." + top[1] + "." + top[2] + "-RC" + (top[3] + 1);
+            } else {
+                suggested = "1.0.0-RC1";
+            }
+        } else {
+            List<String> allBases = new ArrayList<>();
+            allBases.addAll(releaseVersions);
+            allBases.addAll(hotfixVersions);
+            String maxBase = getMaxBaseVersionFromVersionStrings(allBases);
+            suggested = (maxBase != null ? maxBase : "1.0.0") + "-RC1";
+        }
+        while (releaseSet.contains(suggested)) {
+            int[] p = parseReleaseVersionRC(suggested);
+            if (p == null) {
+                break;
+            }
+            suggested = p[0] + "." + p[1] + "." + p[2] + "-RC" + (p[3] + 1);
+        }
+        return suggested;
+    }
+
+    /** 解析 X.Y.Z 或 X.Y.Z-RCN，返回 int[]{ major, minor, patch, rc }，纯 X.Y.Z 时 rc=0；不匹配则 null。 */
+    private int[] parseReleaseVersionRC(String versionText) {
+        if (StringUtils.isBlank(versionText)) {
+            return null;
+        }
+        String s = versionText.trim();
+        Matcher rcMatcher = RELEASE_VERSION_RC_PATTERN.matcher(s);
+        if (rcMatcher.matches()) {
+            return new int[]{
+                    Integer.parseInt(rcMatcher.group(1)),
+                    Integer.parseInt(rcMatcher.group(2)),
+                    Integer.parseInt(rcMatcher.group(3)),
+                    Integer.parseInt(rcMatcher.group(4))
+            };
+        }
+        Matcher plainMatcher = SEMVER_PATTERN.matcher(s);
+        if (plainMatcher.matches()) {
+            return new int[]{
+                    Integer.parseInt(plainMatcher.group(1)),
+                    Integer.parseInt(plainMatcher.group(2)),
+                    Integer.parseInt(plainMatcher.group(3)),
+                    0
+            };
+        }
+        return null;
+    }
+
+    private String getMaxBaseVersionFromVersionStrings(List<String> versionStrings) {
+        String maxBase = null;
+        int[] maxParts = null;
+        for (String v : versionStrings) {
+            int[] parsed = parseReleaseVersionRC(v);
+            if (parsed == null) {
+                continue;
+            }
+            int[] baseParts = new int[]{parsed[0], parsed[1], parsed[2]};
+            if (maxParts == null || compareSemverParts(baseParts, maxParts) > 0) {
+                maxBase = parsed[0] + "." + parsed[1] + "." + parsed[2];
+                maxParts = baseParts;
+            }
+        }
+        return maxBase;
+    }
+
+    /** 比较 base 三段版本，返回正数表示 a > b。 */
+    private int compareSemverParts(int[] a, int[] b) {
+        for (int i = 0; i < 3; i++) {
+            int d = a[i] - b[i];
+            if (d != 0) {
+                return d;
+            }
+        }
+        return 0;
+    }
+
+    /** 比较 release 版本 (X.Y.Z 或 X.Y.Z-RCN)，用于降序排序：v1>v2 时返回负值。 */
+    private int compareReleaseVersion(String v1, String v2) {
+        int[] p1 = parseReleaseVersionRC(v1);
+        int[] p2 = parseReleaseVersionRC(v2);
+        if (p1 == null && p2 == null) {
+            return v2.compareTo(v1);
+        }
+        if (p1 == null) {
+            return 1;
+        }
+        if (p2 == null) {
+            return -1;
+        }
+        int baseCmp = compareSemverParts(p1, p2);
+        if (baseCmp != 0) {
+            return -baseCmp;
+        }
+        return p2[3] - p1[3];
+    }
+
+    private List<String> sortByReleaseVersionDesc(List<String> branches) {
+        List<String> copy = new ArrayList<>(branches);
+        copy.sort((o1, o2) -> compareReleaseVersion(extractVersion(o1), extractVersion(o2)));
+        return copy;
+    }
+
+    private void ensureReleaseVersionRC(String version, String error) {
+        if (!RELEASE_VERSION_RC_PATTERN.matcher(version).matches()) {
+            throw new DeployPluginException(error);
+        }
     }
 
     private void ensureSemver(String version, String error) {

@@ -21,7 +21,7 @@ STEP_DESC[3]="将最新 master 合并回所有 develop 分支"
 STEP_DESC[4]="将最新 master 合并回所有未完成的 release 分支"
 STEP_DESC[5]="将最新 master 合并回所有未完成的 hotfix 分支"
 STEP_DESC[6]="在 master 上打 tag 并推送"
-STEP_DESC[7]="切回当前组的 develop 分支，删除已完成的 release 分支（本地和远程）"
+STEP_DESC[7]="切回当前组的 develop 分支，删除已完成的 release 分支及其所有 RC 分支（本地和远程）"
 
 for i in 1 2 3 4 5 6 7; do
   STEP_STATUS[$i]="NOT_RUN"
@@ -164,6 +164,7 @@ fi
 set_step 4
 mapfile -t releaseBranches < <(git for-each-ref --sort=-committerdate --format='%(refname:short)' 'refs/remotes/origin/release/' | sed 's#^origin/##')
 remainingVersions=()
+remainingReleaseBranches=()
 for branch in "${releaseBranches[@]}"; do
   [ -z "$branch" ] && continue
   # 当前正在 Finish 的 release 分支会在后面被删除，这里不再视为“进行中”的 release 分支
@@ -175,10 +176,12 @@ for branch in "${releaseBranches[@]}"; do
   run_git "Merge master into $branch" git merge --no-ff master
   run_git "Push $branch" git push origin "$branch"
   remainingVersions+=("$branch")
+  remainingReleaseBranches+=("$branch")
 done
 
-if [ ${#releaseBranches[@]} -gt 0 ]; then
-  echo "Remaining release branches: ${releaseBranches[*]}"
+if [ ${#remainingReleaseBranches[@]} -gt 0 ]; then
+  list=$(IFS='、'; echo "${remainingReleaseBranches[*]}")
+  echo "所有未完成的 release 分支($list)"
 fi
 if [ ${#releaseBranches[@]} -gt 0 ]; then
   STEP_STATUS[4]="DONE"
@@ -198,6 +201,8 @@ for branch in "${hotfixBranches[@]}"; do
   remainingVersions+=("$branch")
 done
 if [ ${#hotfixBranches[@]} -gt 0 ]; then
+  list=$(IFS='、'; echo "${hotfixBranches[*]}")
+  echo "所有未完成的 hotfix 分支($list)"
   STEP_STATUS[5]="DONE"
 else
   STEP_STATUS[5]="SKIPPED"
@@ -218,9 +223,27 @@ run_git "Create release tag $tagName" git tag -a "$tagName" -m "Release $release
 run_git "Push tags" git push origin --tags
 STEP_STATUS[6]="DONE"
 
-# 7) Switch back to develop branch and delete finished release branch.
+# 7) Switch back to develop branch, delete all RC branches for this release, then delete the release branch.
 set_step 7
 checkout_or_track_branch "$developBranch"
+
+# Delete all RC branches for this release version (e.g. release/a/1.0.0-RC1, release/a/1.0.0-RC2)
+rcBranches=()
+while IFS= read -r b; do
+  b="${b#"${b%%[![:space:]]*}"}"
+  b="${b#origin/}"
+  [ -z "$b" ] && continue
+  rcBranches+=("$b")
+done < <(git branch -r --list "origin/release/$groupName/$releaseVersion-RC*" 2>/dev/null || true)
+for rcBranch in "${rcBranches[@]}"; do
+  [ -z "$rcBranch" ] && continue
+  if git show-ref --verify --quiet "refs/heads/$rcBranch"; then
+    run_git "Delete local RC branch $rcBranch" git branch -d "$rcBranch"
+  fi
+  if git ls-remote --exit-code --heads origin "$rcBranch" >/dev/null 2>&1; then
+    run_git "Delete remote RC branch $rcBranch" git push origin --delete "$rcBranch"
+  fi
+done
 
 if git show-ref --verify --quiet "refs/heads/$releaseBranch"; then
   run_git "Delete local branch $releaseBranch" git branch -d "$releaseBranch"
@@ -229,5 +252,11 @@ if git ls-remote --exit-code --heads origin "$releaseBranch" >/dev/null 2>&1; th
   run_git "Delete remote branch $releaseBranch" git push origin --delete "$releaseBranch"
 fi
 STEP_STATUS[7]="DONE"
+
+list=$(IFS='、'; echo "${remainingReleaseBranches[*]}")
+echo "所有未完成的 release 分支: $list"
+
+list=$(IFS='、'; echo "${hotfixBranches[*]}")
+echo "所有未完成的 hotfix 分支: $list"
 
 echo "REMAINING_RELEASES: ${remainingVersions[*]}"
