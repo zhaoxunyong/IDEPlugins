@@ -374,12 +374,8 @@ async function confirmFinishFeature (groupName) {
     return showModalYesNoDialog(`是否已在gitlab中MR到develop-${groupName}，并完成了Merge操作？继续流程只会删除本地的feature分支。`)
 }
 
-async function confirmFinishFeatureForRelease (groupName) {
-    return showModalConfirmDialog('是否已执行Finish Feature操作？')
-}
-
 async function confirmMavenChangeForRelease () {
-    return showModalYesNoDialog('是否已通过MavenChange进行release操作？')
+    return showModalYesNoDialog('确认好准备提测了吗？是否已执行FinishFeature删除本地多余的feature分支？\n\n1. StartNewRelease只能在提测时执行一次，maven项目会自动更新pom.xml版本，并打上-RC1后缀。\n2. 后续无需再次打release分支，直接在release分支上进行bug的修复。如需升级maven版本，执行MavenChange操作即可。')
 }
 
 async function confirmOpsReleaseDone () {
@@ -632,20 +628,36 @@ function getMavenVersionFromPom (rootPath) {
 }
 
 function buildSuggestedMavenVersion (currentVersion, changeType) {
-    const baseVersion = String(currentVersion || '')
-        .trim()
-        .replace(/-SNAPSHOT$/i, '')
+    const raw = String(currentVersion || '').trim()
+    if (!raw) {
+        return changeType === 'snapshot' ? '1.0.1-SNAPSHOT' : null
+    }
 
-    const semverParts = parseSemverVersion(baseVersion)
-    const nextVersion = semverParts
-        ? `${semverParts[0]}.${semverParts[1]}.${semverParts[2] + 1}`
-        : '1.0.1'
+    if (changeType === 'snapshot') {
+        // 如果有 - 字符，去掉 - 后面的内容，得到 base x.y.z
+        const baseVersion = raw.includes('-') ? raw.split('-')[0].trim() : raw.replace(/-SNAPSHOT$/i, '')
+        const semverParts = parseSemverVersion(baseVersion)
+        const nextVersion = semverParts
+            ? `${semverParts[0]}.${semverParts[1]}.${semverParts[2] + 1}`
+            : '1.0.1'
+        return `${nextVersion}-SNAPSHOT`
+    }
 
-    return changeType === 'snapshot' ? `${nextVersion}-SNAPSHOT` : nextVersion
+    // release
+    const rcMatch = raw.match(/-RC(\d+)$/i)
+    if (rcMatch) {
+        const base = raw.replace(/-RC\d+$/i, '')
+        const num = parseInt(rcMatch[1], 10)
+        return `${base}-RC${num + 1}`
+    }
+    if (/-SNAPSHOT$/i.test(raw)) {
+        return raw.replace(/-SNAPSHOT$/i, '')
+    }
+    return null
 }
 
 function isValidMavenVersionText (versionText) {
-    const mavenVersionRule = /^\d+\.\d+\.\d+(?:-SNAPSHOT)?$/
+    const mavenVersionRule = /^\d+\.\d+\.\d+(?:-SNAPSHOT|-RC\d+)?$/
     return mavenVersionRule.test(String(versionText || '').trim())
 }
 
@@ -678,19 +690,31 @@ async function askMavenChangeType () {
 
 async function askMavenChangeVersion (rootPath, changeType) {
     const currentPomVersion = getMavenVersionFromPom(rootPath)
+    if (changeType === 'release') {
+        const hasRc = /-RC\d+$/i.test(String(currentPomVersion || ''))
+        const hasSnapshot = /-SNAPSHOT$/i.test(String(currentPomVersion || ''))
+        if (!hasRc && !hasSnapshot) {
+            vscode.window.showErrorMessage('你只能基于RC或SNAPSHOT进行release操作')
+            return null
+        }
+    }
     const suggestedVersion = buildSuggestedMavenVersion(currentPomVersion, changeType)
+    if (changeType === 'release' && suggestedVersion == null) {
+        vscode.window.showErrorMessage('你只能基于RC或SNAPSHOT进行release操作')
+        return null
+    }
     const inputVersion = await vscode.window.showInputBox({
         ignoreFocusOut: true,
         placeHolder: 'Please input maven version',
         prompt: `Please input maven version (${changeType}).`,
-        value: suggestedVersion,
+        value: suggestedVersion || '',
         validateInput: function (text) {
             const value = String(text || '').trim()
             if (!value) {
                 return 'Please input maven version.'
             }
             if (!isValidMavenVersionText(value)) {
-                return 'Maven version must be x.y.z or x.y.z-SNAPSHOT, and x/y/z must be numbers.'
+                return 'Maven version must be x.y.z, x.y.z-SNAPSHOT or x.y.z-RCN (N为数字).'
             }
             if (changeType === 'release' && /-SNAPSHOT$/i.test(value)) {
                 return 'Release version cannot end with -SNAPSHOT.'
@@ -1213,11 +1237,6 @@ async function executeGitFlowCommand (commandId, resourceUri) {
         const confirmedMavenChange = await confirmMavenChangeForRelease()
         if (!confirmedMavenChange) {
             debugLog('start release aborted: maven change not confirmed')
-            return { executed: false, groupName }
-        }
-        const confirmed = await confirmFinishFeatureForRelease(groupName)
-        if (!confirmed) {
-            debugLog('start release aborted by user')
             return { executed: false, groupName }
         }
     }

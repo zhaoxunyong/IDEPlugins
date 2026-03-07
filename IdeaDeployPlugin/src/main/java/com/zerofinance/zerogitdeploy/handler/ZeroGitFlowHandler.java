@@ -62,7 +62,7 @@ interface GitCheckContinuation {
 public class ZeroGitFlowHandler {
     private static final Pattern FEATURE_SUFFIX_PATTERN = Pattern.compile("^\\d+-\\S.*$");
     private static final Pattern SEMVER_PATTERN = Pattern.compile("^(\\d+)\\.(\\d+)\\.(\\d+)$");
-    private static final Pattern MAVEN_VERSION_PATTERN = Pattern.compile("^(\\d+)\\.(\\d+)\\.(\\d+)(-SNAPSHOT)?$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern MAVEN_VERSION_PATTERN = Pattern.compile("^(\\d+)\\.(\\d+)\\.(\\d+)(-SNAPSHOT|-RC\\d+)?$", Pattern.CASE_INSENSITIVE);
     private static final String[] GROUPS = new String[]{"a", "b"};
     private static final String TITLE = "ZeroGit";
     private static final Logger LOG = Logger.getInstance(ZeroGitFlowHandler.class);
@@ -207,12 +207,25 @@ public class ZeroGitFlowHandler {
             if (StringUtils.isBlank(changeType)) {
                 return;
             }
-            String suggestedVersion = buildSuggestedMavenVersion(readMavenPomVersion(rPath), changeType);
+            String currentPomVersion = readMavenPomVersion(rPath);
+            if ("release".equals(changeType)) {
+                boolean hasRc = Pattern.compile("-RC\\d+$", Pattern.CASE_INSENSITIVE).matcher(StringUtils.defaultString(currentPomVersion)).find();
+                boolean hasSnapshot = StringUtils.endsWithIgnoreCase(currentPomVersion, "-SNAPSHOT");
+                if (!hasRc && !hasSnapshot) {
+                    Messages.showErrorDialog(project, "你只能基于RC或SNAPSHOT进行release操作", "ZeroGit: Maven Change");
+                    return;
+                }
+            }
+            String suggestedVersion = buildSuggestedMavenVersion(currentPomVersion, changeType);
+            if ("release".equals(changeType) && suggestedVersion == null) {
+                Messages.showErrorDialog(project, "你只能基于RC或SNAPSHOT进行release操作", "ZeroGit: Maven Change");
+                return;
+            }
             String inputVersion = Messages.showInputDialog(
                     "请输入 Maven 版本号",
                     "ZeroGit: Maven Change",
                     Messages.getInformationIcon(),
-                    suggestedVersion,
+                    suggestedVersion != null ? suggestedVersion : "",
                     nonEmptyValidator()
             );
             if (StringUtils.isBlank(inputVersion)) {
@@ -220,7 +233,7 @@ public class ZeroGitFlowHandler {
             }
             String mavenVersion = inputVersion.trim();
             if (!MAVEN_VERSION_PATTERN.matcher(mavenVersion).matches()) {
-                throw new DeployPluginException("Maven version must be x.y.z or x.y.z-SNAPSHOT");
+                throw new DeployPluginException("Maven version must be x.y.z, x.y.z-SNAPSHOT or x.y.z-RCN (N为数字).");
             }
             if ("release".equals(changeType) && StringUtils.endsWithIgnoreCase(mavenVersion, "-SNAPSHOT")) {
                 throw new DeployPluginException("Release 版本不能以 -SNAPSHOT 结尾。");
@@ -244,10 +257,7 @@ public class ZeroGitFlowHandler {
     public void startNewRelease() throws Exception {
         debugLog("command triggered", "Start New Release");
         String groupName = requireGroupName();
-        if (!yes("请确认：是否已通过 MavenChange 进行 release 操作？", "ZeroGit: Start New Release")) {
-            return;
-        }
-        if (!yes("请确认：是否已执行 Finish Feature 操作？", "ZeroGit: Start New Release")) {
+        if (!yes("确认好准备提测了吗？是否已执行FinishFeature删除本地多余的feature分支？\n\n1. StartNewRelease只能在提测时执行一次，maven项目会自动更新pom.xml版本，并打上-RC1后缀。\n2. 后续无需再次打release分支，直接在release分支上进行bug的修复。如需升级maven版本，执行MavenChange操作即可。", "ZeroGit: Start New Release")) {
             return;
         }
         String rootPath = getRootPath();
@@ -529,19 +539,34 @@ public class ZeroGitFlowHandler {
     }
 
     private String buildSuggestedMavenVersion(String currentVersion, String changeType) {
-        String baseVersion = StringUtils.defaultString(currentVersion).trim().replaceFirst("(?i)-SNAPSHOT$", "");
-        String nextVersion = "1.0.1";
-        Matcher matcher = SEMVER_PATTERN.matcher(baseVersion);
-        if (matcher.matches()) {
-            int major = Integer.parseInt(matcher.group(1));
-            int minor = Integer.parseInt(matcher.group(2));
-            int patch = Integer.parseInt(matcher.group(3)) + 1;
-            nextVersion = major + "." + minor + "." + patch;
+        String raw = StringUtils.defaultString(currentVersion).trim();
+        if (raw.isEmpty()) {
+            return "release".equals(changeType) ? null : "1.0.1-SNAPSHOT";
         }
         if ("snapshot".equals(changeType)) {
+            // 如果有 - 字符，去掉 - 后面的内容，得到 base x.y.z，递增尾数后添加 -SNAPSHOT
+            String baseVersion = raw.contains("-") ? raw.split("-")[0].trim() : raw.replaceFirst("(?i)-SNAPSHOT$", "");
+            String nextVersion = "1.0.1";
+            Matcher matcher = SEMVER_PATTERN.matcher(baseVersion);
+            if (matcher.matches()) {
+                int major = Integer.parseInt(matcher.group(1));
+                int minor = Integer.parseInt(matcher.group(2));
+                int patch = Integer.parseInt(matcher.group(3)) + 1;
+                nextVersion = major + "." + minor + "." + patch;
+            }
             return nextVersion + "-SNAPSHOT";
         }
-        return nextVersion;
+        // release: -RCN 递增 N；-SNAPSHOT 去掉；否则返回 null
+        Matcher rcMatcher = Pattern.compile("-RC(\\d+)$", Pattern.CASE_INSENSITIVE).matcher(raw);
+        if (rcMatcher.find()) {
+            int n = Integer.parseInt(rcMatcher.group(1));
+            String base = raw.substring(0, rcMatcher.start());
+            return base + "-RC" + (n + 1);
+        }
+        if (StringUtils.endsWithIgnoreCase(raw, "-SNAPSHOT")) {
+            return raw.replaceFirst("(?i)-SNAPSHOT$", "");
+        }
+        return null;
     }
 
     private void runGitCheck(String rootPath) throws Exception {

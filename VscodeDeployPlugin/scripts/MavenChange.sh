@@ -14,8 +14,8 @@ if [ ! -f "pom.xml" ]; then
   exit 1
 fi
 
-if ! [[ "$mvnVersion" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-SNAPSHOT)?$ ]]; then
-  echo "Maven version must be x.y.z or x.y.z-SNAPSHOT"
+if ! [[ "$mvnVersion" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-SNAPSHOT|-RC[0-9]+)?$ ]]; then
+  echo "Maven version must be x.y.z, x.y.z-SNAPSHOT or x.y.z-RCN (N为数字)"
   exit 1
 fi
 

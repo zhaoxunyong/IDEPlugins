@@ -50,6 +50,31 @@ echo "checkout branch: $developBranch"
 git checkout "$developBranch"
 git pull origin "$developBranch"
 git checkout -b "$releaseName"
+
+
+if [ -f "pom.xml" ]; then
+  mvnReleaseVersion="${releaseVersion}-RC1"
+  echo "Maven project detected, updating pom version to: $mvnReleaseVersion"
+  set +e
+  mvn -q versions:set -DnewVersion="${mvnReleaseVersion}"
+  setResult=$?
+  set -e
+  if [ "$setResult" -eq 0 ]; then
+    mvn -q versions:commit
+    if [ -n "$(git status --porcelain)" ]; then
+      git add -A
+      git commit -m "chore: set version to ${mvnReleaseVersion}"
+    fi
+  else
+    echo "mvn versions:set failed, reverting..."
+    set +e
+    mvn -q versions:revert
+    set -e
+    echo "Release branch created but pom version not updated. Please fix manually."
+    exit 1
+  fi
+fi
+
 git push --set-upstream origin "$releaseName"
 
 echo "release branch created: $releaseName"
