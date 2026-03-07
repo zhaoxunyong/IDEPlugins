@@ -410,7 +410,7 @@ async function confirmRunScript (commandId, rootPath, scriptPath, scriptArgs) {
         `脚本：${scriptName}`,
         `参数：${argsText}`,
         '',
-        '请确认已经理解脚本功能与影响，是否继续执行？'
+        '是否继续执行？'
     ]
     const yesAction = { title: 'Yes' }
     const noAction = { title: 'No', isCloseAffordance: true }
@@ -830,9 +830,12 @@ async function askFinishFeatureBranch (rootPath, groupName) {
 
 function parseRemainingReleaseVersions (outputText) {
     const output = String(outputText || '')
-    const markerMatches = [...output.matchAll(/REMAINING_RELEASES:\s*([^\r\n]*)/g)]
-    if (markerMatches.length > 0) {
-        const lastMatchedText = (markerMatches[markerMatches.length - 1][1] || '').trim()
+    // 只从返回内容中取包含 REMAINING_RELEASES 的那一行进行解析
+    const lines = output.split(/\r?\n/)
+    const remainingLine = lines.find(line => /REMAINING_RELEASES:\s*/.test(line))
+    if (remainingLine) {
+        const match = remainingLine.match(/REMAINING_RELEASES:\s*(.*)/)
+        const lastMatchedText = (match && match[1] ? match[1] : '').trim()
         if (!lastMatchedText) {
             return []
         }
@@ -847,21 +850,6 @@ function parseRemainingReleaseVersions (outputText) {
         return lastMatchedText
             .split(/\s+/)
             .map(item => item.trim())
-            .filter(Boolean)
-    }
-
-    const fallbackMatches = [...output.matchAll(/Remaining release branches:\s*([^\r\n]*)/g)]
-    if (fallbackMatches.length > 0) {
-        const lastBranchesText = (fallbackMatches[fallbackMatches.length - 1][1] || '').trim()
-        if (!lastBranchesText) {
-            return []
-        }
-        return lastBranchesText
-            .split(/\s+/)
-            .map(item => item.trim())
-            .filter(Boolean)
-            .map(item => item.replace(/^origin\//, ''))
-            .map(item => item.split('/').pop())
             .filter(Boolean)
     }
 

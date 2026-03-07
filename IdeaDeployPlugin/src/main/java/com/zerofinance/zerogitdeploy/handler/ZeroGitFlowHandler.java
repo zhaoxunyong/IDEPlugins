@@ -999,8 +999,8 @@ public class ZeroGitFlowHandler {
         if (StringUtils.isBlank(output)) {
             return;
         }
-        String key = "release".equals(type) ? "REMAINING_RELEASES:" : "REMAINING_HOTFIXES:";
-        String fallback = "release".equals(type) ? "Remaining release branches:" : "Remaining hotfix branches:";
+        // 只从返回内容中取包含 REMAINING_RELEASES 的那一行进行解析（FinishRelease/FinishHotfix 脚本均输出该行）
+        final String key = "REMAINING_RELEASES:";
         String remaining = null;
         for (String line : output.split("\\R")) {
             String text = line.trim();
@@ -1009,10 +1009,6 @@ public class ZeroGitFlowHandler {
             }
             if (text.startsWith(key)) {
                 remaining = StringUtils.trim(StringUtils.substringAfter(text, key));
-                break;
-            }
-            if (text.startsWith(fallback)) {
-                remaining = StringUtils.trim(StringUtils.substringAfter(text, fallback));
                 break;
             }
         }
