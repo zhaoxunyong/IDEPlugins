@@ -86,9 +86,9 @@
    - 若本地存在但远程没有（视为陈旧 Tag）：先删除本地 Tag 再重建。
    - 创建新的发布 Tag：`git tag -a "v<releaseVersion>" -m "Release <releaseVersion>"`。
 
-5. **推送 master 与 tags**
-   - `git push origin master --tags`
-   - 将最新的 master 以及新创建的 Tag 推送到远程。
+5. **推送 master 与 Tag**
+   - master 在合并后已通过 `git push origin master` 推送（见步骤 2）。
+   - 仅推送本流程新创建的 Tag：`git push origin v<releaseVersion>`（不推送本地其他 tag）。
 
 #### 步骤 3：删除已完成的 release 分支
 

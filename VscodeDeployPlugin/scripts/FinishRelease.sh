@@ -84,7 +84,7 @@ print_summary() {
 
 # 任意命令出错时，把当前步骤从 RUNNING 标记为 FAILED，EXIT trap 负责统一打印。
 trap 'if [ "$CURRENT_STEP" -ne 0 ] && [ "${STEP_STATUS[$CURRENT_STEP]}" = "RUNNING" ]; then STEP_STATUS[$CURRENT_STEP]="FAILED"; fi' ERR
-trap print_summary EXIT
+trap 'exit_status=$?; print_summary; exit $exit_status' EXIT
 
 run_git() {
   local desc="$1"
@@ -219,7 +219,7 @@ fi
 
 # 5) Tag on master and push tags.
 set_step 6
-run_git "Sync tags from origin" git fetch origin --tags --prune-tags
+# run_git "Sync tags from origin" git fetch origin --tags --prune-tags
 tagName="v$version"
 if git ls-remote --tags --refs --exit-code origin "refs/tags/$tagName" >/dev/null 2>&1; then
   echo "Tag already exists on remote: $tagName"
@@ -229,7 +229,7 @@ if git show-ref --verify --quiet "refs/tags/$tagName"; then
   run_git "Delete local stale tag $tagName" git tag -d "$tagName"
 fi
 run_git "Create ${MODE} tag $tagName" git tag -a "$tagName" -m "${MODE^} $version"
-run_git "Push tags" git push origin --tags
+run_git "Push tag $tagName" git push origin "$tagName"
 STEP_STATUS[6]="DONE"
 
 # 6) Switch to master and delete finished branch.
