@@ -17,6 +17,10 @@ if [ -z "$targetBranch" ]; then
   exit 1
 fi
 
+git config --global user.email "dev@zerofinance.com"
+git config --global user.name "ai-dev"
+git config --global pull.rebase false
+
 set -e
 
 if [[ "$targetBranch" == release/* ]]; then
