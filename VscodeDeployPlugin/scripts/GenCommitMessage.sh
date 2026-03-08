@@ -2,8 +2,6 @@
 
 modelName="${1:-new-api/GLM-5}"
 
-git config user.email "dev@zerofinance.com"
-git config user.name "ai-dev"
 git config pull.rebase false
 
 if ! command -v opencode >/dev/null 2>&1; then

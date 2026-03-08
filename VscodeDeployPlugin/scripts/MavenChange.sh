@@ -4,8 +4,6 @@ groupName=$1
 mvnVersion=$2
 NEXUS_BASE_URL="http://nexus.zerofinance.net"
 
-git config user.email "dev@zerofinance.com"
-git config user.name "ai-dev"
 git config pull.rebase false
 
 if [ -z "$groupName" ] || [ -z "$mvnVersion" ]; then

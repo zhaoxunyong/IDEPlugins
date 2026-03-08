@@ -8,8 +8,6 @@ if [ -z "$groupName" ] || [ -z "$hotfixName" ]; then
   exit 1
 fi
 
-git config user.email "dev@zerofinance.com"
-git config user.name "ai-dev"
 git config pull.rebase false
 
 set -e

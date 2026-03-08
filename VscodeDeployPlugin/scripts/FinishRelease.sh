@@ -17,8 +17,6 @@ if [ -z "$targetBranch" ]; then
   exit 1
 fi
 
-git config user.email "dev@zerofinance.com"
-git config user.name "ai-dev"
 git config pull.rebase false
 
 set -e

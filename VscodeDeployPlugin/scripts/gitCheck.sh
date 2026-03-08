@@ -2,8 +2,6 @@
 
 export PATH="/usr/local/bin:/usr/bin:$JAVA_HOME/bin:$MVN_HOME/bin:$PATH"
 
-git config user.email "dev@zerofinance.com"
-git config user.name "ai-dev"
 git config pull.rebase false
 
 fail() {
