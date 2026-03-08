@@ -1,27 +1,65 @@
 #!/bin/bash
 
-groupName=$1
-releaseBranch=$2
-groupsList="${3:-$groupName}"
+# 用法: FinishRelease.sh <branch>
+# 根据分支名前缀自动区分 release / hotfix：release/ 或 hotfix/ 开头。
+# 示例: FinishRelease.sh release/groupA/1.0.0
+#       FinishRelease.sh hotfix/groupA/1.0.1
 
-if [ -z "$groupName" ] || [ -z "$releaseBranch" ]; then
-  echo "Usage: $0 <groupName> <releaseBranch> [groupsList]"
+targetBranch="${1:-}"
+
+if [ -z "$targetBranch" ]; then
+  echo "Usage: $0 <branch>"
+  echo "  Branch must start with release/ or hotfix/, e.g.:"
+  echo "  $0 release/<groupName>/<version>"
+  echo "  $0 hotfix/<groupName>/<version>"
+  echo "Example: $0 release/groupA/1.0.0"
+  echo "Example: $0 hotfix/groupA/1.0.1"
   exit 1
 fi
 
 set -e
+
+if [[ "$targetBranch" == release/* ]]; then
+  MODE="release"
+  if [[ "$targetBranch" != release/*/* ]]; then
+    echo "Release branch must match pattern: release/<groupName>/<version>"
+    exit 1
+  fi
+  groupName="${targetBranch#release/}"
+  groupName="${groupName%%/*}"
+  prefix="release/$groupName/"
+  version="${targetBranch#$prefix}"
+elif [[ "$targetBranch" == hotfix/* ]]; then
+  MODE="hotfix"
+  if [[ "$targetBranch" != hotfix/*/* ]]; then
+    echo "Hotfix branch must match pattern: hotfix/<groupName>/<version>"
+    exit 1
+  fi
+  groupName="${targetBranch#hotfix/}"
+  groupName="${groupName%%/*}"
+  prefix="hotfix/$groupName/"
+  version="${targetBranch#$prefix}"
+else
+  echo "Branch must start with 'release/' or 'hotfix/'."
+  exit 1
+fi
+
+if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "Version must follow SemVer format, e.g. 1.0.0"
+  exit 1
+fi
 
 CURRENT_STEP=0
 declare -a STEP_DESC
 declare -a STEP_STATUS
 
 STEP_DESC[1]="准备阶段：拉取远程分支信息"
-STEP_DESC[2]="将目标 release 分支合并到 master，并推送"
+STEP_DESC[2]="将目标 $MODE 分支合并到 master，并推送"
 STEP_DESC[3]="将最新 master 合并回所有 develop 分支"
 STEP_DESC[4]="将最新 master 合并回所有未完成的 release 分支"
 STEP_DESC[5]="将最新 master 合并回所有未完成的 hotfix 分支"
 STEP_DESC[6]="在 master 上打 tag 并推送"
-STEP_DESC[7]="切回当前组的 develop 分支，删除已完成的 release 分支（本地和远程）"
+STEP_DESC[7]="切换到 master 分支，删除已完成的 $MODE 分支（本地和远程）"
 
 for i in 1 2 3 4 5 6 7; do
   STEP_STATUS[$i]="NOT_RUN"
@@ -34,7 +72,7 @@ set_step() {
 
 print_summary() {
   echo
-  echo "FinishRelease 执行结果："
+  echo "Finish${MODE^} 执行结果："
   for i in 1 2 3 4 5 6 7; do
     status="${STEP_STATUS[$i]}"
     [ -z "$status" ] && status="NOT_RUN"
@@ -45,20 +83,6 @@ print_summary() {
 # 任意命令出错时，把当前步骤从 RUNNING 标记为 FAILED，EXIT trap 负责统一打印。
 trap 'if [ "$CURRENT_STEP" -ne 0 ] && [ "${STEP_STATUS[$CURRENT_STEP]}" = "RUNNING" ]; then STEP_STATUS[$CURRENT_STEP]="FAILED"; fi' ERR
 trap print_summary EXIT
-
-developBranch="develop-$groupName"
-releasePrefix="release/$groupName/"
-
-if [[ "$releaseBranch" != "$releasePrefix"* ]]; then
-  echo "Release branch name must start with: $releasePrefix"
-  exit 1
-fi
-
-releaseVersion="${releaseBranch#$releasePrefix}"
-if ! [[ "$releaseVersion" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  echo "Release version must follow SemVer format, e.g. 1.0.0"
-  exit 1
-fi
 
 run_git() {
   local desc="$1"
@@ -71,7 +95,7 @@ run_git() {
     if [ -n "$output" ]; then
       echo "$output"
     fi
-    echo "Please resolve the conflict/problem and rerun Finish Release."
+    echo "Please resolve the conflict/problem and rerun Finish ${MODE^}."
     if [ "$CURRENT_STEP" -ne 0 ]; then
       STEP_STATUS[$CURRENT_STEP]="FAILED"
     fi
@@ -104,12 +128,11 @@ checkout_or_track_branch() {
   exit 1
 }
 
-echo "group name is: $groupName"
-echo "release branch is: $releaseBranch"
-echo "groups list (develop targets): $groupsList"
+echo "target branch: $targetBranch (detected mode: $MODE)"
+echo "develop branches (from remote develop-*): will be collected in step 1"
 
 echo
-echo "即将执行 FinishRelease 流程："
+echo "即将执行 Finish${MODE^} 流程："
 for i in 1 2 3 4 5 6 7; do
   printf "%d. %s\n" "$i" "${STEP_DESC[$i]}"
 done
@@ -119,34 +142,23 @@ set_step 1
 run_git "Fetch remote branches" git fetch origin --prune
 STEP_STATUS[1]="DONE"
 
-# 1) Merge selected release to master, then push.
+# 1) Merge selected branch to master, then push.
 set_step 2
-checkout_or_track_branch "$releaseBranch"
-[ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $releaseBranch" git pull origin "$releaseBranch"
+checkout_or_track_branch "$targetBranch"
+[ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $targetBranch" git pull origin "$targetBranch"
 checkout_or_track_branch "master"
 [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest master" git pull origin master
-run_git "Merge $releaseBranch into master" git merge --no-ff "$releaseBranch"
+run_git "Merge $targetBranch into master" git merge --no-ff "$targetBranch"
 run_git "Push master" git push origin master
 STEP_STATUS[2]="DONE"
 
-# 2) Merge master to all develop-{groupName} (from config groups, 列表从 remote 获取存在性).
-#git fetch origin --prune:在从远程仓库获取更新的同时，清理掉本地那些在远程仓库中已经被删除的远程追踪分支引用
+# 2) Merge master to all develop-* branches (列表从 remote 获取).
 set_step 3
-run_git "Refresh remote branches after release cleanup" git fetch origin --prune
+run_git "Refresh remote branches" git fetch origin --prune
 developBranches=()
-# 使用 || true 防止 read 在 set -e 下因返回值非零导致脚本退出（某些环境下 here-string/stdin 会导致 read 返回 1）
-targetGroups=()
-if [ -n "$groupsList" ]; then
-  IFS=',' read -ra targetGroups <<< "$groupsList" || true
-fi
-for g in "${targetGroups[@]}"; do
-  g="${g// /}"
-  [ -z "$g" ] && continue
-  d="develop-$g"
-  if git show-ref --verify --quiet "refs/remotes/origin/$d"; then
-    developBranches+=("$d")
-  fi
-done
+while IFS= read -r b; do
+  [ -n "$b" ] && developBranches+=("$b")
+done < <(git for-each-ref --format='%(refname:short)' 'refs/remotes/origin' | sed 's#^origin/##' | grep '^develop-' || true)
 for branch in "${developBranches[@]}"; do
   [ -z "$branch" ] && continue
   checkout_or_track_branch "$branch"
@@ -160,16 +172,14 @@ else
   STEP_STATUS[3]="SKIPPED"
 fi
 
-# 4) Merge master to all ongoing release branches (列表从 remote 获取).
+# 3) Merge master to all ongoing release branches (列表从 remote 获取).
+#    release 模式下跳过当前正在 finish 的 release 分支。
 set_step 4
 mapfile -t releaseBranches < <(git for-each-ref --sort=-committerdate --format='%(refname:short)' 'refs/remotes/origin/release/' | sed 's#^origin/##')
 remainingVersions=()
 for branch in "${releaseBranches[@]}"; do
   [ -z "$branch" ] && continue
-  # 当前正在 Finish 的 release 分支会在后面被删除，这里不再视为“进行中”的 release 分支
-  if [ "$branch" = "$releaseBranch" ]; then
-    continue
-  fi
+  [ "$MODE" = "release" ] && [ "$branch" = "$targetBranch" ] && continue
   checkout_or_track_branch "$branch"
   [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $branch" git pull origin "$branch"
   run_git "Merge master into $branch" git merge --no-ff master
@@ -186,11 +196,13 @@ else
   STEP_STATUS[4]="SKIPPED"
 fi
 
-# 5) Merge master to all ongoing hotfix branches (列表从 remote 获取).
+# 4) Merge master to all ongoing hotfix branches (列表从 remote 获取).
+#    hotfix 模式下跳过当前正在 finish 的 hotfix 分支。
 set_step 5
 mapfile -t hotfixBranches < <(git for-each-ref --sort=-committerdate --format='%(refname:short)' 'refs/remotes/origin/hotfix/' | sed 's#^origin/##')
 for branch in "${hotfixBranches[@]}"; do
   [ -z "$branch" ] && continue
+  [ "$MODE" = "hotfix" ] && [ "$branch" = "$targetBranch" ] && continue
   checkout_or_track_branch "$branch"
   [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $branch" git pull origin "$branch"
   run_git "Merge master into $branch" git merge --no-ff master
@@ -203,10 +215,10 @@ else
   STEP_STATUS[5]="SKIPPED"
 fi
 
-# 6) Tag on master and push tags.
+# 5) Tag on master and push tags.
 set_step 6
 run_git "Sync tags from origin" git fetch origin --tags --prune-tags
-tagName="v$releaseVersion"
+tagName="v$version"
 if git ls-remote --tags --refs --exit-code origin "refs/tags/$tagName" >/dev/null 2>&1; then
   echo "Tag already exists on remote: $tagName"
   exit 1
@@ -214,19 +226,19 @@ fi
 if git show-ref --verify --quiet "refs/tags/$tagName"; then
   run_git "Delete local stale tag $tagName" git tag -d "$tagName"
 fi
-run_git "Create release tag $tagName" git tag -a "$tagName" -m "Release $releaseVersion"
+run_git "Create ${MODE} tag $tagName" git tag -a "$tagName" -m "${MODE^} $version"
 run_git "Push tags" git push origin --tags
 STEP_STATUS[6]="DONE"
 
-# 7) Switch back to develop branch and delete finished release branch.
+# 6) Switch to master and delete finished branch.
 set_step 7
-checkout_or_track_branch "$developBranch"
+checkout_or_track_branch "master"
 
-if git show-ref --verify --quiet "refs/heads/$releaseBranch"; then
-  run_git "Delete local branch $releaseBranch" git branch -d "$releaseBranch"
+if git show-ref --verify --quiet "refs/heads/$targetBranch"; then
+  run_git "Delete local branch $targetBranch" git branch -d "$targetBranch"
 fi
-if git ls-remote --exit-code --heads origin "$releaseBranch" >/dev/null 2>&1; then
-  run_git "Delete remote branch $releaseBranch" git push origin --delete "$releaseBranch"
+if git ls-remote --exit-code --heads origin "$targetBranch" >/dev/null 2>&1; then
+  run_git "Delete remote branch $targetBranch" git push origin --delete "$targetBranch"
 fi
 STEP_STATUS[7]="DONE"
 

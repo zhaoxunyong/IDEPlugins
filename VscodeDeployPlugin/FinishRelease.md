@@ -1,6 +1,6 @@
 ## FinishRelease.sh 使用说明与流程梳理
 
-本文档说明 `FinishRelease.sh` 的入参含义及整体执行流程，方便在使用 Git Flow 发布流程时快速理解脚本做了什么。
+本文档说明 `FinishRelease.sh` 的入参含义及整体执行流程。**Release 与 Hotfix 共用此脚本**，通过分支名前缀（`release/` 或 `hotfix/`）自动区分模式；插件与命令行均统一只调用本脚本。
 
 ---
 
@@ -9,32 +9,30 @@
 - **命令格式**
 
   ```bash
-  ./FinishRelease.sh <groupName> <releaseBranch> [groupsList]
+  ./FinishRelease.sh <branch>
   ```
 
 - **参数说明**
-- **groupName**：业务分组名称，例如 `core`，会用于拼接 `develop-<groupName>` 分支名。
-- **releaseBranch**：要完成发布的 release 分支名，必须以 `release/<groupName>/` 为前缀，例如 `release/core/1.2.3`。
-- **groupsList**（可选）：需要同步 `master` 的 develop 分组列表，逗号分隔，例如 `core,app,ops`。如果不传，则只会同步当前 `groupName` 对应的 `develop-<groupName>`。
+- **branch**：要结束的分支名。以 `release/` 开头视为 release，以 `hotfix/` 开头视为 hotfix，须分别符合 `release/<groupName>/<version>`、`hotfix/<groupName>/<version>`，例如 `release/core/1.2.3`、`hotfix/core/1.0.1`。脚本从分支名解析 groupName 和版本号；develop 目标列表由脚本自动从远程所有以 `develop-` 开头的分支获取，无需传参。
 
 - **约束校验**
-- 若缺少 `groupName` 或 `releaseBranch`，脚本会直接退出并输出 Usage。
-- `releaseBranch` 必须以 `release/<groupName>/` 开头，否则退出。
-- 从 `releaseBranch` 提取出的版本号（例如 `1.2.3`）必须满足 SemVer 格式 `X.Y.Z`，否则退出。
+- 若缺少分支参数，脚本会直接退出并输出 Usage。
+- 分支名必须以 `release/` 或 `hotfix/` 开头，否则退出。
+- 从分支名提取的版本号必须满足 SemVer 格式 `X.Y.Z`，否则退出。
 
 ---
 
 ### 2. 关键内部约定
 
-- **develop 分支命名**
-  - 当前组对应的 `develop` 分支：`develop-<groupName>`，例如 `develop-core`。
+- **develop 分支**
+  - 脚本自动从远程获取所有以 `develop-` 开头的分支作为合并 master 的目标，无需传参。
 
-- **release 分支前缀**
-  - `releasePrefix="release/<groupName>/"`，例如 `release/core/`。
+- **release 分支**
+  - 从入参 `releaseBranch` 解析：`release/<groupName>/<version>`，例如 `release/core/1.2.3`。
 
 - **统一 git 操作封装**
   - 所有 `git` 命令都通过 `run_git "<描述>" <命令...>` 封装。
-  - 若命令失败，输出错误信息，提示“请解决冲突/问题后重新执行 Finish Release”，并退出。
+  - 若命令失败，输出错误信息，提示“请解决冲突/问题后重新执行 Finish Release/Hotfix”，并退出。
 
 - **checkout_or_track_branch 函数**
   - 若本地已存在同名分支：直接 `checkout`，并将全局变量 `NEED_PULL` 置为 `1`，表示需要随后执行 `git pull`。
@@ -48,12 +46,12 @@
 脚本整体逻辑可以分为 7 个步骤：
 
 1. **准备阶段：拉取远程分支信息**
-2. **将目标 release 分支合并到 master，并打 tag、推送**
-3. **删除已完成的 release 分支（本地和远程）**
-4. **将最新 master 合并回所有 develop 分支**
-5. **将最新 master 合并回所有未完成的 release 分支**
-6. **将最新 master 合并回所有未完成的 hotfix 分支**
-7. **切回当前组的 develop 分支，并输出剩余的 release/hotfix 分支列表**
+2. **将目标 release 分支合并到 master，并推送**
+3. **将最新 master 合并回所有 develop 分支**（远程 `develop-*`）
+4. **将最新 master 合并回所有未完成的 release 分支**
+5. **将最新 master 合并回所有未完成的 hotfix 分支**
+6. **在 master 上打 tag 并推送**
+7. **切换到 master 分支，删除已完成的 release 分支（本地和远程）**
 
 下面对每个步骤做详细说明。
 
@@ -63,10 +61,7 @@
 
 #### 步骤 1：准备阶段
 
-- 输出当前参数：
-  - `group name is: <groupName>`
-  - `release branch is: <releaseBranch>`
-  - `groups list (develop targets): <groupsList>`
+- 输出当前参数：`target branch: <branch> (detected mode: <release|hotfix>)`；develop 列表在步骤 3 从远程 `develop-*` 获取。
 - 执行：
   - `git fetch origin --prune`
   - 从远程拉取最新分支信息，并清理已经在远程删除的本地远程跟踪分支引用。

@@ -25,8 +25,7 @@ public final class CommandUtils {
             "GenCommitMessage.sh",
             "StartNewRelease.sh",
             "FinishRelease.sh",
-            "StartNewHotfix.sh",
-            "FinishHotfix.sh"
+            "StartNewHotfix.sh"
     );
     
 	private CommandUtils() {}

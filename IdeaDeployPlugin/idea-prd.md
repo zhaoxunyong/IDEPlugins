@@ -35,7 +35,7 @@
 - **需要新增/改造**：
   - 配置项：**groupName**（必选，枚举 a/b）；可选 **checkGitVersion**。
   - 7 个独立 Action：StartNewFeature、FinishFeature、RebaseFeature、StartNewRelease、FinishRelease、StartNewHotfix、FinishHotfix（与 VS Code 命令一一对应）。
-  - 脚本名与 VS Code 对齐：`StartNewFeature.sh`、`FinishFeature.sh`、`RebaseFeature.sh`、`StartNewRelease.sh`、`FinishRelease.sh`、`StartNewHotfix.sh`、`FinishHotfix.sh`，以及执行前 `gitCheck.sh`。
+  - 脚本名与 VS Code 对齐：`StartNewFeature.sh`、`FinishFeature.sh`、`RebaseFeature.sh`、`StartNewRelease.sh`、`FinishRelease.sh`、`StartNewHotfix.sh`，以及执行前 `gitCheck.sh`。
   - 分支/版本逻辑：feature 命名规则、release/hotfix SemVer、建议版本计算、剩余分支解析等（见下文）。
 
 ---
@@ -146,7 +146,7 @@
   7. **同步执行**脚本（如 `DeployCmdExecuter.exec`），以便解析 stdout/stderr。
   8. 从输出中解析 `REMAINING_RELEASES:` 或 `Remaining release branches:`；若有剩余分支，再弹窗：「目前有进行中的 xxx 分支，请项目经理评估是否需要重新测试？」
   9. 失败时提示「FinishRelease 失败，请通过日志查看具体原因」。
-- **脚本参数**：`[groupName, selectedReleaseBranch, groupsList]`，groupsList 为所有有效 group 逗号拼接（如 `a,b`）。
+- **脚本参数**：`[selectedReleaseBranch]`（选中的 release 分支名）。脚本根据分支前缀 `release/` 自动识别模式。
 
 ### 4.6 ZeroGit: Start New Hotfix
 
@@ -159,9 +159,9 @@
 
 ### 4.7 ZeroGit: Finish Hotfix
 
-- **脚本**：`FinishHotfix.sh`
+- **脚本**：`FinishRelease.sh`（与 Finish Release 共用，根据分支前缀 `hotfix/` 自动识别）
 - **流程**：与 Finish Release 类似（Maintainer 确认、运维上线确认 → 选 Git 根 → gitCheck → 选择要结束的 hotfix 分支 → 确认 → **同步执行** → 解析剩余分支并可选提示）。失败时提示「FinishHotfix 失败，请通过日志查看具体原因」。
-- **脚本参数**：`[groupName, selectedHotfixBranch, groupsList]`。
+- **脚本参数**：`[selectedHotfixBranch]`（选中的 hotfix 分支名）。
 
 ---
 
@@ -183,7 +183,7 @@
 | Start New Release   | StartNewRelease.sh |
 | Finish Release      | FinishRelease.sh   |
 | Start New Hotfix    | StartNewHotfix.sh  |
-| Finish Hotfix       | FinishHotfix.sh    |
+| Finish Hotfix       | FinishRelease.sh   |
 
 ### 5.3 Bash 与参数
 
@@ -298,9 +298,8 @@
 | FinishFeature.sh   | 删除本地 feature 分支（前提：已在 GitLab MR 并 merge） |
 | RebaseFeature.sh   | 对当前 feature 分支做 rebase |
 | StartNewRelease.sh | 创建 release 分支 |
-| FinishRelease.sh   | release → master、打 tag、删 release、master 合并回 develop 及未完成 release/hotfix |
+| FinishRelease.sh   | release/hotfix → master、打 tag、删分支、master 合并回 develop 及未完成 release/hotfix（由分支前缀 release/ 或 hotfix/ 区分模式） |
 | StartNewHotfix.sh  | 创建 hotfix 分支 |
-| FinishHotfix.sh    | hotfix → master、打 tag、同步回 develop 等 |
 
 以上脚本**直接复用** VscodeDeployPlugin 的 `scripts/` 目录，不修改任何脚本代码。
 

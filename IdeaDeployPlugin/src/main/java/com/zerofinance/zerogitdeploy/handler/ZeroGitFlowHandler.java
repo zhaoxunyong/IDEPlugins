@@ -350,7 +350,7 @@ public class ZeroGitFlowHandler {
             if (StringUtils.isBlank(selected)) {
                 return;
             }
-            List<String> params = Lists.newArrayList(groupName, selected, String.join(",", GROUPS));
+            List<String> params = Lists.newArrayList(selected);
             confirmAndRunSyncAsync("Finish Release", rPath, script, params, "release");
         });
     }
@@ -396,7 +396,7 @@ public class ZeroGitFlowHandler {
             return;
         }
         String rootPath = getRootPath();
-        runWithGitCheckInBackground(rootPath, "FinishHotfix.sh", (rPath, script) -> {
+        runWithGitCheckInBackground(rootPath, "FinishRelease.sh", (rPath, script) -> {
             List<String> hotfixes = listHotfixBranches(rPath, groupName);
             if (hotfixes.isEmpty()) {
                 throw new DeployPluginException("No remote hotfix branch found for group \"" + groupName + "\"");
@@ -405,7 +405,7 @@ public class ZeroGitFlowHandler {
             if (StringUtils.isBlank(selected)) {
                 return;
             }
-            List<String> params = Lists.newArrayList(groupName, selected, String.join(",", GROUPS));
+            List<String> params = Lists.newArrayList(selected);
             confirmAndRunSyncAsync("Finish Hotfix", rPath, script, params, "hotfix");
         });
     }

@@ -35,7 +35,7 @@ const gitFlowScriptByCommand = {
     'extension.StartNewRelease': 'StartNewRelease.sh',
     'extension.FinishRelease': 'FinishRelease.sh',
     'extension.StartNewHotfix': 'StartNewHotfix.sh',
-    'extension.FinishHotfix': 'FinishHotfix.sh'
+    'extension.FinishHotfix': 'FinishRelease.sh'
 }
 
 function debugLog (message, payload) {
@@ -1339,9 +1339,8 @@ async function executeGitFlowCommand (commandId, resourceUri) {
         if (!selectedReleaseBranch) {
             return { executed: false, groupName }
         }
+        scriptArgs.length = 0
         scriptArgs.push(selectedReleaseBranch)
-        const groupsStr = getValidGroups().join(',')
-        scriptArgs.push(groupsStr)
         const confirmedToRun = await confirmRunScript(commandId, rootPath, scriptPath, scriptArgs)
         if (!confirmedToRun) {
             debugLog('script execution cancelled by user', { commandId, scriptPath, scriptArgs })
@@ -1355,9 +1354,8 @@ async function executeGitFlowCommand (commandId, resourceUri) {
         if (!selectedHotfixBranch) {
             return { executed: false, groupName }
         }
+        scriptArgs.length = 0
         scriptArgs.push(selectedHotfixBranch)
-        const groupsStr = getValidGroups().join(',')
-        scriptArgs.push(groupsStr)
         const confirmedToRun = await confirmRunScript(commandId, rootPath, scriptPath, scriptArgs)
         if (!confirmedToRun) {
             debugLog('script execution cancelled by user', { commandId, scriptPath, scriptArgs })
