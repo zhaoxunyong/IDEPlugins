@@ -4,9 +4,9 @@ groupName=$1
 mvnVersion=$2
 NEXUS_BASE_URL="http://nexus.zerofinance.net"
 
-git config --global user.email "dev@zerofinance.com"
-git config --global user.name "ai-dev"
-git config --global pull.rebase false
+git config user.email "dev@zerofinance.com"
+git config user.name "ai-dev"
+git config pull.rebase false
 
 if [ -z "$groupName" ] || [ -z "$mvnVersion" ]; then
   echo "Usage: $0 <groupName> <mavenVersion>"

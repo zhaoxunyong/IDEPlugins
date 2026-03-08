@@ -2,9 +2,9 @@
 
 modelName="${1:-new-api/GLM-5}"
 
-git config --global user.email "dev@zerofinance.com"
-git config --global user.name "ai-dev"
-git config --global pull.rebase false
+git config user.email "dev@zerofinance.com"
+git config user.name "ai-dev"
+git config pull.rebase false
 
 if ! command -v opencode >/dev/null 2>&1; then
   echo "未检测到 opencode 命令，请先安装并确保在 PATH 中可用"
