@@ -231,6 +231,7 @@ done
 tagName="v$version"
 if git ls-remote --tags --refs --exit-code origin "refs/tags/$tagName" >/dev/null 2>&1; then
   echo "Tag already exists on remote: $tagName"
+  STEP_STATUS[6]="FAILED"
   exit 1
 fi
 if git show-ref --verify --quiet "refs/tags/$tagName"; then
