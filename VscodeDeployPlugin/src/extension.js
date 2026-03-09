@@ -651,7 +651,8 @@ function buildSuggestedMavenVersion (currentVersion, changeType) {
         return `${base}-RC${num + 1}`
     }
     if (/-SNAPSHOT$/i.test(raw)) {
-        return raw.replace(/-SNAPSHOT$/i, '')
+        const base = raw.replace(/-SNAPSHOT$/i, '')
+        return `${base}-RC1`
     }
     return null
 }
@@ -694,13 +695,13 @@ async function askMavenChangeVersion (rootPath, changeType) {
         const hasRc = /-RC\d+$/i.test(String(currentPomVersion || ''))
         const hasSnapshot = /-SNAPSHOT$/i.test(String(currentPomVersion || ''))
         if (!hasRc && !hasSnapshot) {
-            vscode.window.showErrorMessage('你只能基于RC或SNAPSHOT进行release操作')
+            vscode.window.showErrorMessage('你只能基于RC或SNAPSHOT进行操作')
             return null
         }
     }
     const suggestedVersion = buildSuggestedMavenVersion(currentPomVersion, changeType)
     if (changeType === 'release' && suggestedVersion == null) {
-        vscode.window.showErrorMessage('你只能基于RC或SNAPSHOT进行release操作')
+        vscode.window.showErrorMessage('你只能基于RC或SNAPSHOT进行操作')
         return null
     }
     const inputVersion = await vscode.window.showInputBox({

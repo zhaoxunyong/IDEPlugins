@@ -255,13 +255,13 @@ public class ZeroGitFlowHandler {
                 boolean hasRc = Pattern.compile("-RC\\d+$", Pattern.CASE_INSENSITIVE).matcher(StringUtils.defaultString(currentPomVersion)).find();
                 boolean hasSnapshot = StringUtils.endsWithIgnoreCase(currentPomVersion, "-SNAPSHOT");
                 if (!hasRc && !hasSnapshot) {
-                    Messages.showErrorDialog(project, "你只能基于RC或SNAPSHOT进行release操作", "ZeroGit: Maven Change");
+                    Messages.showErrorDialog(project, "你只能基于RC或SNAPSHOT进行操作", "ZeroGit: Maven Change");
                     return;
                 }
             }
             String suggestedVersion = buildSuggestedMavenVersion(currentPomVersion, changeType);
             if ("release".equals(changeType) && suggestedVersion == null) {
-                Messages.showErrorDialog(project, "你只能基于RC或SNAPSHOT进行release操作", "ZeroGit: Maven Change");
+                Messages.showErrorDialog(project, "你只能基于RC或SNAPSHOT进行操作", "ZeroGit: Maven Change");
                 return;
             }
             String inputVersion = Messages.showInputDialog(
@@ -610,7 +610,8 @@ public class ZeroGitFlowHandler {
             return base + "-RC" + (n + 1);
         }
         if (StringUtils.endsWithIgnoreCase(raw, "-SNAPSHOT")) {
-            return raw.replaceFirst("(?i)-SNAPSHOT$", "");
+            String base = raw.replaceFirst("(?i)-SNAPSHOT$", "");
+            return base + "-RC1";
         }
         return null;
     }

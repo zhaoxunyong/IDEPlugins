@@ -56,11 +56,11 @@ declare -a STEP_DESC
 declare -a STEP_STATUS
 
 STEP_DESC[1]="准备阶段：拉取远程分支信息"
-STEP_DESC[2]="将目标 $MODE 分支合并到 master，并推送"
+STEP_DESC[2]="将目标 $MODE 分支合并到 master（本地）"
 STEP_DESC[3]="将最新 master 合并回所有 develop 分支"
 STEP_DESC[4]="将最新 master 合并回所有未完成的 release 分支"
 STEP_DESC[5]="将最新 master 合并回所有未完成的 hotfix 分支"
-STEP_DESC[6]="在 master 上打 tag 并推送"
+STEP_DESC[6]="推送所有分支与 tag 到远程（master、develop、release、hotfix、tag）"
 STEP_DESC[7]="切换到 master 分支，删除已完成的 $MODE 分支（本地和远程）"
 
 for i in 1 2 3 4 5 6 7; do
@@ -108,6 +108,9 @@ run_git() {
   fi
 }
 
+# 收集需在第 6 步统一 push 的分支（master + 各 develop/release/hotfix）
+PUSH_BRANCHES=()
+
 # 若 remote 存在但本地不存在则 checkout（创建本地跟踪分支），否则仅 checkout。
 # 通过全局 NEED_PULL 表示是否需要随后执行 pull：本地已存在时为 1，刚 checkout 自 origin 时为 0。
 NEED_PULL=0
@@ -151,7 +154,7 @@ checkout_or_track_branch "$targetBranch"
 checkout_or_track_branch "master"
 [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest master" git pull origin master
 run_git "Merge $targetBranch into master" git merge --no-ff "$targetBranch"
-run_git "Push master" git push origin master
+# master 在第 6 步统一推送
 STEP_STATUS[2]="DONE"
 
 # 2) Merge master to all develop-* branches (列表从 remote 获取).
@@ -166,7 +169,7 @@ for branch in "${developBranches[@]}"; do
   checkout_or_track_branch "$branch"
   [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $branch" git pull origin "$branch"
   run_git "Merge master into $branch" git merge --no-ff master
-  run_git "Push $branch" git push origin "$branch"
+  PUSH_BRANCHES+=("$branch")
 done
 if [ ${#developBranches[@]} -gt 0 ]; then
   STEP_STATUS[3]="DONE"
@@ -185,7 +188,7 @@ for branch in "${releaseBranches[@]}"; do
   checkout_or_track_branch "$branch"
   [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $branch" git pull origin "$branch"
   run_git "Merge master into $branch" git merge --no-ff master
-  run_git "Push $branch" git push origin "$branch"
+  PUSH_BRANCHES+=("$branch")
   remainingVersions+=("$branch")
 done
 
@@ -208,7 +211,7 @@ for branch in "${hotfixBranches[@]}"; do
   checkout_or_track_branch "$branch"
   [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $branch" git pull origin "$branch"
   run_git "Merge master into $branch" git merge --no-ff master
-  run_git "Push $branch" git push origin "$branch"
+  PUSH_BRANCHES+=("$branch")
   remainingVersions+=("$branch")
 done
 if [ ${#hotfixBranches[@]} -gt 0 ]; then
@@ -217,9 +220,14 @@ else
   STEP_STATUS[5]="SKIPPED"
 fi
 
-# 5) Tag on master and push tags.
+# 5) 第 6 步：统一推送所有分支与 tag 到远程。
 set_step 6
-# run_git "Sync tags from origin" git fetch origin --tags --prune-tags
+checkout_or_track_branch "master"
+run_git "Push master" git push origin master
+for branch in "${PUSH_BRANCHES[@]}"; do
+  [ -z "$branch" ] && continue
+  run_git "Push $branch" git push origin "$branch"
+done
 tagName="v$version"
 if git ls-remote --tags --refs --exit-code origin "refs/tags/$tagName" >/dev/null 2>&1; then
   echo "Tag already exists on remote: $tagName"
@@ -232,10 +240,9 @@ run_git "Create ${MODE} tag $tagName" git tag -a "$tagName" -m "${MODE^} $versio
 run_git "Push tag $tagName" git push origin "$tagName"
 STEP_STATUS[6]="DONE"
 
-# 6) Switch to master and delete finished branch.
+# 6) Switch to master and delete finished branch (local and remote).
 set_step 7
 checkout_or_track_branch "master"
-
 if git show-ref --verify --quiet "refs/heads/$targetBranch"; then
   run_git "Delete local branch $targetBranch" git branch -d "$targetBranch"
 fi
