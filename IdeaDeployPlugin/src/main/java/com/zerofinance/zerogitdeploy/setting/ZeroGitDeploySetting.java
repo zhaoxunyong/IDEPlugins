@@ -37,7 +37,7 @@ public class ZeroGitDeploySetting implements Configurable {
     private static final String GROUP_NAME_KEY = "gitDeployPluginGroupNameKey";
     private static final String CHECK_GIT_VERSION_KEY = "gitDeployPluginCheckGitVersionKey";
     private static final String COMMIT_MODEL_KEY = "gitDeployPluginCommitModelKey";
-    private static final String DEFAULT_COMMIT_MODEL = "new-api/glm-5";
+    private static final String DEFAULT_COMMIT_MODEL = "new-api/GLM-5";
 
     public ZeroGitDeploySetting() {
         textField.setText(getGitHome());

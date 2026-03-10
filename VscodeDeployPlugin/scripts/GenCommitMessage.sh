@@ -1,6 +1,6 @@
 #!/bin/bash
 
-modelName="${1:-new-api/glm-5}"
+modelName="${1:-new-api/GLM-5}"
 
 git config pull.rebase false
 
