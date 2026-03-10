@@ -46,7 +46,7 @@
                 },
                 "zerofinanceGit.commitMessageModel": {
                     "type": "string",
-                    "default": "new-api/GLM-5",
+                    "default": "new-api/glm-5",
                     "description": "Model used by Generate Commit Message command"
                 },
                 "zerofinanceGit.groupName": {

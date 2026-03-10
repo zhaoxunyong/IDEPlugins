@@ -1275,7 +1275,7 @@ async function executeGitFlowCommand (commandId, resourceUri) {
     const scriptPath = await resolveScriptPath(rootPath, scriptName)
     debugLog('ready to run script', scriptPath)
     if (commandId === 'extension.GenerateCommitMessage') {
-        const commitMessageModel = String(vscode.workspace.getConfiguration().get(CONFIG_COMMIT_MESSAGE_MODEL) || 'new-api/GLM-5').trim() || 'new-api/GLM-5'
+        const commitMessageModel = String(vscode.workspace.getConfiguration().get(CONFIG_COMMIT_MESSAGE_MODEL) || 'new-api/glm-5').trim() || 'new-api/glm-5'
         scriptArgs.push(commitMessageModel)
     }
     if (commandId === 'extension.FinishFeature') {
