@@ -879,7 +879,7 @@ async function runFinishReleaseScript (rootPath, scriptPath, scriptArgs) {
         const combinedOutput = `${String(stdout || '')}\n${String(realStderr || '')}`
         const remainingVersions = parseRemainingReleaseVersions(combinedOutput)
         if (remainingVersions.length > 0) {
-            await showModalConfirmDialog(`目前有进行中的${remainingVersions.join('、')}分支，请项目经理评估是否需要重新测试相关的功能点？`)
+            await showModalConfirmDialog(`目前有进行中的${remainingVersions.join('、')}分支，请评估是否需要重新测试相关的功能点？`)
         }
     } catch (err) {
         const stdout = err && err.stdout ? String(err.stdout) : ''

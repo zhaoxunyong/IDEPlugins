@@ -144,7 +144,7 @@
   5. 从远程（及本地）release 分支列表选择要结束的分支（按版本降序）。
   6. **确认 3**：展示命令、工作目录、脚本、参数 → 确认执行。
   7. **同步执行**脚本（如 `DeployCmdExecuter.exec`），以便解析 stdout/stderr。
-  8. 从输出中解析 `REMAINING_RELEASES:` 或 `Remaining release branches:`；若有剩余分支，再弹窗：「目前有进行中的 xxx 分支，请项目经理评估是否需要重新测试？」
+  8. 从输出中解析 `REMAINING_RELEASES:` 或 `Remaining release branches:`；若有剩余分支，再弹窗：「目前有进行中的 xxx 分支，请评估是否需要重新测试？」
   9. 失败时提示「FinishRelease 失败，请通过日志查看具体原因」。
 - **脚本参数**：`[selectedReleaseBranch]`（选中的 release 分支名）。脚本根据分支前缀 `release/` 自动识别模式。
 

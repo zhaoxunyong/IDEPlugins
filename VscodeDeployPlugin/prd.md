@@ -138,7 +138,7 @@
   5. 从远程（及本地）release 分支列表选择要结束的分支（按版本降序）。
   6. **确认 3**：展示命令、工作目录、脚本、参数，确认执行。
   7. **不**在终端执行，而是**同步执行**脚本（`child_process.exec`），以便解析 stdout/stderr。
-  8. 从输出中解析 `REMAINING_RELEASES:` 或 `Remaining release branches:`，得到剩余 release/hotfix 分支列表；若有，再弹窗：「目前有进行中的 xxx 分支，请项目经理评估是否需要重新测试？」
+  8. 从输出中解析 `REMAINING_RELEASES:` 或 `Remaining release branches:`，得到剩余 release/hotfix 分支列表；若有，再弹窗：「目前有进行中的 xxx 分支，请评估是否需要重新测试？」
   9. 失败时提示「FinishRelease 失败，请通过日志查看具体原因」。
 - **参数**：`[selectedReleaseBranch]`（选中的 release 分支名，如 `release/core/1.2.3`）。脚本根据分支前缀自动识别为 release。develop 列表由脚本从远程 `develop-*` 分支自动获取。
 - **脚本逻辑**：详见项目内 `FinishRelease.md`（合并到 master、打 tag、删 release、master 合并回各 develop / 未完成 release / 未完成 hotfix、输出剩余分支）。

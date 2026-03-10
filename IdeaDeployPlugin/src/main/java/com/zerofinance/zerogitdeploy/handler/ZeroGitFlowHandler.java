@@ -1017,7 +1017,7 @@ public class ZeroGitFlowHandler {
             }
         }
         if (StringUtils.isNotBlank(remaining) && !"none".equalsIgnoreCase(remaining)) {
-            Messages.showWarningDialog("目前有进行中的分支：" + remaining + "，请项目经理评估是否需要重新测试。", "ZeroGit");
+            Messages.showWarningDialog("目前有进行中的分支：" + remaining + "，请评估是否需要重新测试。", "ZeroGit");
         }
     }
 
