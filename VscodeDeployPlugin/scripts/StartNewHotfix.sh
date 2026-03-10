@@ -46,10 +46,10 @@ fi
 
 echo "group name is: $groupName"
 echo "hotfix name is: $hotfixName"
-echo "checkout branch: master"
+echo "checkout branch: main"
 
-git checkout "master"
-git pull origin "master"
+git checkout "main"
+git pull origin "main"
 git checkout -b "$hotfixName"
 git push --set-upstream origin "$hotfixName"
 

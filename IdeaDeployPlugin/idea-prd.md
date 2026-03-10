@@ -58,13 +58,13 @@
 | release | `release/<group>/`  | SemVer：`X.Y.Z`           | `release/a/1.0.0`     |
 | hotfix  | `hotfix/<group>/`   | SemVer：`X.Y.Z`           | `hotfix/a/1.0.1`      |
 
-- **develop**：`develop-<group>`。**master**：主发布分支，release/hotfix 完成后合并到 master 并打 tag（如 `v1.0.0`）。
+- **develop**：`develop-<group>`。**main**：主发布分支，release/hotfix 完成后合并到 main 并打 tag（如 `v1.0.0`）。
 
 ### 2.3 Git Flow 流程简述
 
 - **Feature**：从 `develop-<group>` 拉取 `feature/<group>/xxx`，开发完成后在 GitLab MR 到 `develop-<group>` 并 Merge，再在插件中「Finish Feature」删除本地 feature 分支。
-- **Release**：从 develop 拉取 `release/<group>/X.Y.Z`，测试通过后「Finish Release」：合并到 master、打 tag、删除 release 分支、将 master 合并回各 develop 及未完成的 release/hotfix 分支。
-- **Hotfix**：从 master 拉取 `hotfix/<group>/X.Y.Z`，修完后「Finish Hotfix」：合并回 master、打 tag、同步回 develop 等。
+- **Release**：从 develop 拉取 `release/<group>/X.Y.Z`，测试通过后「Finish Release」：合并到 main、打 tag、删除 release 分支、将 main 合并回各 develop 及未完成的 release/hotfix 分支。
+- **Hotfix**：从 main 拉取 `hotfix/<group>/X.Y.Z`，修完后「Finish Hotfix」：合并回 main、打 tag、同步回 develop 等。
 
 ---
 

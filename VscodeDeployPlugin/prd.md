@@ -47,13 +47,13 @@
 | hotfix   | `hotfix/<group>/`     | SemVer：`X.Y.Z`            | `hotfix/a/1.0.1`        |
 
 - **develop**：`develop-<group>`，如 `develop-a`。
-- **master**：主发布分支，release/hotfix 完成后合并到 master 并打 tag（如 `v1.0.0`）。
+- **main**：主发布分支，release/hotfix 完成后合并到 main 并打 tag（如 `v1.0.0`）。
 
 ### 2.3 Git Flow 流程简述
 
 - **Feature**：从 `develop-<group>` 拉取 `feature/<group>/xxx`，开发完成后 MR 到 `develop-<group>`，再在插件中「Finish Feature」删除本地 feature 分支。
-- **Release**：从 develop 拉取 `release/<group>/X.Y.Z`，测试通过后「Finish Release」：合并到 master、打 tag、删除 release 分支、将 master 合并回各 develop 及未完成的 release/hotfix 分支。
-- **Hotfix**：从 master 拉取 `hotfix/<group>/X.Y.Z`，修完后「Finish Hotfix」：合并回 master、打 tag、同步回 develop 等（与 Finish Release 类似）。
+- **Release**：从 develop 拉取 `release/<group>/X.Y.Z`，测试通过后「Finish Release」：合并到 main、打 tag、删除 release 分支、将 main 合并回各 develop 及未完成的 release/hotfix 分支。
+- **Hotfix**：从 main 拉取 `hotfix/<group>/X.Y.Z`，修完后「Finish Hotfix」：合并回 main、打 tag、同步回 develop 等（与 Finish Release 类似）。
 
 ---
 
@@ -141,7 +141,7 @@
   8. 从输出中解析 `REMAINING_RELEASES:` 或 `Remaining release branches:`，得到剩余 release/hotfix 分支列表；若有，再弹窗：「目前有进行中的 xxx 分支，请评估是否需要重新测试？」
   9. 失败时提示「FinishRelease 失败，请通过日志查看具体原因」。
 - **参数**：`[selectedReleaseBranch]`（选中的 release 分支名，如 `release/core/1.2.3`）。脚本根据分支前缀自动识别为 release。develop 列表由脚本从远程 `develop-*` 分支自动获取。
-- **脚本逻辑**：详见项目内 `FinishRelease.md`（合并到 master、打 tag、删 release、master 合并回各 develop / 未完成 release / 未完成 hotfix、输出剩余分支）。
+- **脚本逻辑**：详见项目内 `FinishRelease.md`（合并到 main、打 tag、删 release、main 合并回各 develop / 未完成 release / 未完成 hotfix、输出剩余分支）。
 
 ### 4.6 ZeroGit: Start New Hotfix
 

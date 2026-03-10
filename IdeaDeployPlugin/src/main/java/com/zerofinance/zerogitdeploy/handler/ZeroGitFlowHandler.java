@@ -358,7 +358,7 @@ public class ZeroGitFlowHandler {
     public void startNewHotfix() throws Exception {
         debugLog("command triggered", "Start New Hotfix");
         String groupName = requireGroupName();
-        if (!yes("请确认上线后是否有及时合并代码到 master/develop/release/hotfix 分支？如果未合并，master可能不是最新的生产环境代码。", "ZeroGit: Start New Hotfix")) {
+        if (!yes("请确认上线后是否有及时合并代码到 main/develop/release/hotfix 分支？如果未合并，main 可能不是最新的生产环境代码。", "ZeroGit: Start New Hotfix")) {
             return;
         }
         String rootPath = getRootPath();

@@ -1302,7 +1302,7 @@ async function executeGitFlowCommand (commandId, resourceUri) {
         scriptArgs.push(releaseName)
     }
     if (commandId === 'extension.StartNewHotfix') {
-        const confirmMessage = '请确认上线后是否有及时合并代码到 master/develop/release/hotfix 分支？如果未合并，master可能不是最新的生产环境代码。'
+        const confirmMessage = '请确认上线后是否有及时合并代码到 main/develop/release/hotfix 分支？如果未合并，main 可能不是最新的生产环境代码。'
         const continueAction = { title: '已确认，继续' }
         const cancelAction = { title: '取消', isCloseAffordance: true }
         const chosen = await vscode.window.showWarningMessage(confirmMessage, { modal: true }, continueAction, cancelAction)

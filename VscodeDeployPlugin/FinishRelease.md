@@ -46,12 +46,12 @@
 脚本整体逻辑可以分为 7 个步骤：
 
 1. **准备阶段：拉取远程分支信息**
-2. **将目标 release 分支合并到 master，并推送**
-3. **将最新 master 合并回所有 develop 分支**（远程 `develop-*`）
-4. **将最新 master 合并回所有未完成的 release 分支**
-5. **将最新 master 合并回所有未完成的 hotfix 分支**
-6. **在 master 上打 tag 并推送**
-7. **切换到 master 分支，删除已完成的 release 分支（本地和远程）**
+2. **将目标 release 分支合并到 main，并推送**
+3. **将最新 main 合并回所有 develop 分支**（远程 `develop-*`）
+4. **将最新 main 合并回所有未完成的 release 分支**
+5. **将最新 main 合并回所有未完成的 hotfix 分支**
+6. **在 main 上打 tag 并推送**
+7. **切换到 main 分支，删除已完成的 release 分支（本地和远程）**
 
 下面对每个步骤做详细说明。
 
@@ -66,17 +66,17 @@
   - `git fetch origin --prune`
   - 从远程拉取最新分支信息，并清理已经在远程删除的本地远程跟踪分支引用。
 
-#### 步骤 2：release → master 合并、打 Tag、推送
+#### 步骤 2：release → main 合并、打 Tag、推送
 
 1. **检出目标 release 分支**
    - `checkout_or_track_branch "$releaseBranch"`
    - 若本地已存在，则随后会 `git pull origin <releaseBranch>`。
 
-2. **检出 master 并拉取最新**
-   - `checkout_or_track_branch "master"`
-   - 若本地 master 已存在，则随后会 `git pull origin master`。
+2. **检出 main 并拉取最新**
+   - `checkout_or_track_branch "main"`
+   - 若本地 main 已存在，则随后会 `git pull origin main`。
 
-3. **将 release 分支合并到 master**
+3. **将 release 分支合并到 main**
    - `git merge --no-ff "$releaseBranch"`：保留合并记录，方便回溯。
 
 4. **处理 Tag**
@@ -86,8 +86,8 @@
    - 若本地存在但远程没有（视为陈旧 Tag）：先删除本地 Tag 再重建。
    - 创建新的发布 Tag：`git tag -a "v<releaseVersion>" -m "Release <releaseVersion>"`。
 
-5. **推送 master 与 Tag**
-   - master 在合并后已通过 `git push origin master` 推送（见步骤 2）。
+5. **推送 main 与 Tag**
+   - main 在合并后已通过 `git push origin main` 推送（见步骤 2）。
    - 仅推送本流程新创建的 Tag：`git push origin v<releaseVersion>`（不推送本地其他 tag）。
 
 #### 步骤 3：删除已完成的 release 分支
@@ -97,7 +97,7 @@
 - 在远程删除 release 分支：
   - `git push origin --delete "$releaseBranch"`
 
-#### 步骤 4：同步 master → 各 develop 分支
+#### 步骤 4：同步 main → 各 develop 分支
 
 1. **刷新远程分支信息**
    - 再次执行 `git fetch origin --prune`，确保删除完 release 分支后远程信息最新。
@@ -110,10 +110,10 @@
 3. **依次处理每个 develop 分支**
    - `checkout_or_track_branch "$branch"`
    - 若本地已存在，对应分支执行 `git pull origin "$branch"`。
-   - 合并 master：`git merge --no-ff master`
+   - 合并 main：`git merge --no-ff main`
    - 推送到远程：`git push origin "$branch"`
 
-#### 步骤 5：同步 master → 所有未完成的 release 分支
+#### 步骤 5：同步 main → 所有未完成的 release 分支
 
 1. **获取所有远程 release 分支列表**
    - 使用 `git for-each-ref` 从 `refs/remotes/origin/release/` 列出所有 release 分支。
@@ -122,11 +122,11 @@
 2. **依次处理每个 release 分支**
    - `checkout_or_track_branch "$branch"`
    - 如有需要，对应分支执行 `git pull origin "$branch"`。
-   - 合并 master：`git merge --no-ff master`
+   - 合并 main：`git merge --no-ff main`
    - 推送到远程：`git push origin "$branch"`
    - 将该分支名加入 `remainingVersions` 数组，记录为“仍然存在的发布分支”。
 
-#### 步骤 6：同步 master → 所有未完成的 hotfix 分支
+#### 步骤 6：同步 main → 所有未完成的 hotfix 分支
 
 1. **获取所有远程 hotfix 分支列表**
    - 同样通过 `git for-each-ref` 从 `refs/remotes/origin/hotfix/` 读取，得到形如 `hotfix/<...>` 的短分支名。
@@ -134,7 +134,7 @@
 2. **依次处理每个 hotfix 分支**
    - `checkout_or_track_branch "$branch"`
    - 如有需要，对应分支执行 `git pull origin "$branch"`。
-   - 合并 master：`git merge --no-ff master`
+   - 合并 main：`git merge --no-ff main`
    - 推送到远程：`git push origin "$branch"`
    - 同样记录进 `remainingVersions`，后续统一输出。
 
