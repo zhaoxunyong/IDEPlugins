@@ -1,5 +1,7 @@
 #!/bin/bash
 
+export PATH="/usr/local/bin:/usr/bin:~/.opencode/bin:$PATH"
+
 modelName="${1:-new-api/GLM-5}"
 
 git config pull.rebase false
