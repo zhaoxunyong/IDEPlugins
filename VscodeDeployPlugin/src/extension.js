@@ -184,66 +184,19 @@ async function askStartFeatureName (groupName) {
 
 async function getSuggestedReleaseVersion (rootPath, groupName) {
     const latestTag = await getLatestRemoteReleaseOrHotfixTagContext(rootPath, groupName)
-    if (!latestTag) {
-        return null
-    }
     const remoteVersions = await getRemoteReleaseHotfixVersions(rootPath, groupName)
-    const maxVersion = getMaxSemverVersion([latestTag.version, ...remoteVersions])
+    const maxVersion = getMaxSemverVersion([latestTag ? latestTag.version : null, ...remoteVersions])
     if (!maxVersion) {
-        return null
+        return '1.0.0'
+    }
+    const nextVersion = incrementSemverPatch(maxVersion)
+    if (!nextVersion) {
+        return '1.0.0'
     }
     return findNextAvailableVersion(
-        incrementSemverPatch(maxVersion),
+        nextVersion,
         new Set(remoteVersions)
     )
-}
-
-async function getLatestRemoteReleaseVersion (rootPath, groupName) {
-    const releasePrefix = `release/${groupName}/`
-    const releaseBranches = await getReleaseBranches(rootPath, groupName, { includeLocal: false })
-    for (const branchName of releaseBranches) {
-        if (!branchName.startsWith(releasePrefix)) {
-            continue
-        }
-        const version = branchName.slice(releasePrefix.length)
-        if (parseSemverVersion(version)) {
-            return version
-        }
-    }
-    return null
-}
-
-async function getSuggestedReleaseOrHotfixVersion (rootPath, groupName, branchType) {
-    const defaultVersion = '1.0.0'
-    try {
-        const latestReleaseVersion = await getLatestRemoteReleaseVersion(rootPath, groupName)
-        const latestHotfixVersion = await getLatestRemoteHotfixVersion(rootPath, groupName)
-        const latestTagVersion = await getLatestRemoteTagVersion(rootPath)
-        const candidates = [latestReleaseVersion, latestHotfixVersion, latestTagVersion].filter(Boolean)
-        if (candidates.length > 0) {
-            candidates.sort((left, right) => compareSemverVersionDesc(left, right))
-            const [major, minor, patch] = candidates[0].split('.').map(item => parseInt(item, 10))
-            return `${major}.${minor}.${patch + 1}`
-        }
-    } catch (err) {
-        debugLog(`failed to resolve latest ${branchType} version`, err && err.message ? err.message : String(err))
-    }
-    return defaultVersion
-}
-
-async function getLatestRemoteHotfixVersion (rootPath, groupName) {
-    const hotfixPrefix = `hotfix/${groupName}/`
-    const hotfixBranches = await getHotfixBranches(rootPath, groupName, { includeLocal: false })
-    for (const branchName of hotfixBranches) {
-        if (!branchName.startsWith(hotfixPrefix)) {
-            continue
-        }
-        const version = branchName.slice(hotfixPrefix.length)
-        if (parseSemverVersion(version)) {
-            return version
-        }
-    }
-    return null
 }
 
 async function getLatestRemoteReleaseOrHotfixTagContext (rootPath, groupName) {
@@ -297,52 +250,14 @@ async function getRemoteReleaseHotfixVersions (rootPath, groupName) {
     ]
 }
 
-async function getLatestRemoteTagVersion (rootPath) {
-    const semverTagRule = /^v?(\d+)\.(\d+)\.(\d+)$/
-    const cmd = `${buildCdCommand(rootPath)} && git ls-remote --tags --refs origin`
-    const { stdout } = await exec(cmd, { maxBuffer: 1024 * 1024 * 10 })
-    const versions = []
-    stdout.split(/\r?\n/).forEach(line => {
-        const raw = (line || '').trim()
-        if (!raw) {
-            return
-        }
-        const segments = raw.split(/\s+/)
-        const refName = segments.length > 1 ? segments[1] : ''
-        if (!refName.startsWith('refs/tags/')) {
-            return
-        }
-        const tagName = refName.slice('refs/tags/'.length).trim()
-        const matched = tagName.match(semverTagRule)
-        if (!matched) {
-            return
-        }
-        versions.push({
-            value: `${parseInt(matched[1], 10)}.${parseInt(matched[2], 10)}.${parseInt(matched[3], 10)}`,
-            parts: matched.slice(1).map(item => parseInt(item, 10))
-        })
-    })
-
-    if (versions.length === 0) {
-        return null
-    }
-
-    versions.sort((left, right) => compareSemverPartsDesc(left.parts, right.parts))
-    return versions[0].value
-}
-
 async function askStartReleaseName (rootPath, groupName) {
     const branchPrefix = `release/${groupName}/`
     const conflictPrefix = `hotfix/${groupName}/`
     const semverRule = /^\d+\.\d+\.\d+$/
     const latestReleaseTag = await getLatestRemoteReleaseOrHotfixTagContext(rootPath, groupName)
-    if (!latestReleaseTag) {
-        vscode.window.showErrorMessage(`未找到符合 release/${groupName}/X.Y.Z-YYYYMMDDHHmm 或 hotfix/${groupName}/X.Y.Z-YYYYMMDDHHmm 规则的远程 tag，Start Release 已中断。`)
-        return null
-    }
     const suggestedVersion = await getSuggestedReleaseVersion(rootPath, groupName)
     if (!suggestedVersion) {
-        vscode.window.showErrorMessage(`最新相关 tag ${latestReleaseTag.tagName} 无法解析出有效版本，Start Release 已中断。`)
+        vscode.window.showErrorMessage('无法生成有效的 release 版本，Start Release 已中断。')
         return null
     }
     const releaseBranches = await getReleaseBranches(rootPath, groupName)
@@ -352,7 +267,9 @@ async function askStartReleaseName (rootPath, groupName) {
     const fullReleaseName = await vscode.window.showInputBox({
         ignoreFocusOut: true,
         placeHolder: 'Please input release name',
-        prompt: `最新相关 tag：${latestReleaseTag.tagName}，建议 release 版本：${suggestedVersion}。请输入 release 版本。`,
+        prompt: latestReleaseTag
+            ? `最新相关 tag：${latestReleaseTag.tagName}，建议 release 版本：${suggestedVersion}。请输入 release 版本。`
+            : `默认建议 release 版本：${suggestedVersion}。请输入 release 版本。`,
         value: `${branchPrefix}${suggestedVersion}`,
         validateInput: function (text) {
             const value = (text || '').trim()

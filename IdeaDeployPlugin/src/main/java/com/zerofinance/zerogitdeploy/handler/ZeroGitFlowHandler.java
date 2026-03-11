@@ -17,7 +17,6 @@ import com.intellij.openapi.ui.InputValidator;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.util.NlsSafe;
 import com.intellij.openapi.util.Pair;
-import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowManager;
@@ -320,16 +319,18 @@ public class ZeroGitFlowHandler {
             List<String> releases = listReleaseBranches(rPath, groupName);
             List<String> hotfixes = listHotfixBranches(rPath, groupName);
             HotfixBaseTagInfo latestTag = getLatestRemoteHotfixBaseTag(rPath, groupName);
-            if (latestTag == null) {
-                throw new DeployPluginException("未找到符合 release/" + groupName + "/X.Y.Z-YYYYMMDDHHmm 或 hotfix/" + groupName + "/X.Y.Z-YYYYMMDDHHmm 规则的远程 tag，Start New Release 已中断。");
-            }
             List<String> remoteReleases = listReleaseBranches(rPath, groupName, false);
             List<String> remoteHotfixes = listHotfixBranches(rPath, groupName, false);
-            String maxVersion = getMaxSemverVersion(latestTag.version, remoteReleases, remoteHotfixes);
-            String suggested = findNextAvailableVersion(nextPatch(maxVersion), remoteReleases, remoteHotfixes);
+            String maxVersion = getMaxSemverVersion(latestTag == null ? null : latestTag.version, remoteReleases, remoteHotfixes);
+            String suggested = "1.0.0";
+            if (!remoteReleases.isEmpty() || !remoteHotfixes.isEmpty() || latestTag != null) {
+                suggested = findNextAvailableVersion(nextPatch(maxVersion), remoteReleases, remoteHotfixes);
+            }
             String prefix = "release/" + groupName + "/";
             String value = Messages.showInputDialog(
-                    "请输入 Release 分支（SemVer）\n最新相关 Tag：" + latestTag.tagName,
+                    latestTag == null
+                            ? "请输入 Release 分支（SemVer）\n默认建议版本：1.0.0"
+                            : "请输入 Release 分支（SemVer）\n最新相关 Tag：" + latestTag.tagName,
                     "ZeroGit: Start New Release",
                     Messages.getInformationIcon(),
                     prefix + suggested,
@@ -909,31 +910,6 @@ public class ZeroGitFlowHandler {
             }
         }
         return latest;
-    }
-
-    private List<String> listTags(String rootPath) throws Exception {
-        ExecuteResult result = execGitArgs(rootPath, "ls-remote", "--tags", "--refs", "origin");
-        List<String> versions = new ArrayList<>();
-        for (String line : splitLines(result.getResult())) {
-            String tag = StringUtil.substringAfterLast(line, "/");
-            tag = StringUtils.removeStart(tag, "v");
-            if (SEMVER_PATTERN.matcher(tag).matches()) {
-                versions.add(tag);
-            }
-        }
-        return versions;
-    }
-
-    private String suggestNextVersion(List<String> releases, List<String> hotfixes, List<String> tags) {
-        List<String> versions = new ArrayList<>();
-        versions.addAll(extractVersions(releases));
-        versions.addAll(extractVersions(hotfixes));
-        versions.addAll(tags);
-        if (versions.isEmpty()) {
-            return "1.0.0";
-        }
-        versions.sort(this::compareSemver);
-        return nextPatch(versions.get(versions.size() - 1));
     }
 
     private String findNextAvailableVersion(String baseVersion, List<String> releases, List<String> hotfixes) {
