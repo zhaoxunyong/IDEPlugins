@@ -57,3 +57,4 @@ refactor: 重构用户认证逻辑
 2. 分析变更内容
 3. 判断最合适的 type 和 scope
 4. 生成符合规范的 commit message（用中文）
+5. 始终不要自动git commit
