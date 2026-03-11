@@ -2,9 +2,10 @@
 
 groupName=$1
 hotfixName=$2
+baseTag=$3
 
-if [ -z "$groupName" ] || [ -z "$hotfixName" ]; then
-  echo "Usage: $0 <groupName> <hotfixName>"
+if [ -z "$groupName" ] || [ -z "$hotfixName" ] || [ -z "$baseTag" ]; then
+  echo "Usage: $0 <groupName> <hotfixName> <baseTag>"
   exit 1
 fi
 
@@ -22,6 +23,11 @@ branch_exists() {
     || git show-ref --verify --quiet "refs/remotes/origin/$branchName"
 }
 
+remote_tag_exists() {
+  local tagName=$1
+  git ls-remote --tags --refs origin "refs/tags/$tagName" | grep -q .
+}
+
 if [[ "$hotfixName" != "$hotfixPrefix"* ]]; then
   echo "Hotfix branch name must start with: $hotfixPrefix"
   exit 1
@@ -33,6 +39,12 @@ if ! [[ "$hotfixVersion" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
 fi
 
 git fetch origin --prune >/dev/null 2>&1
+git fetch origin --tags --prune >/dev/null 2>&1
+
+if ! remote_tag_exists "$baseTag"; then
+  echo "Remote tag does not exist: $baseTag"
+  exit 1
+fi
 
 if branch_exists "$hotfixName"; then
   echo "Branch already exists (local or remote): $hotfixName"
@@ -46,11 +58,10 @@ fi
 
 echo "group name is: $groupName"
 echo "hotfix name is: $hotfixName"
-echo "checkout branch: main"
+echo "base tag is: $baseTag"
+echo "checkout tag: $baseTag"
 
-git checkout "main"
-git pull origin "main"
-git checkout -b "$hotfixName"
+git switch -c "$hotfixName" "$baseTag"
 git push --set-upstream origin "$hotfixName"
 
 echo "hotfix branch created: $hotfixName"

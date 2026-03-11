@@ -183,7 +183,19 @@ async function askStartFeatureName (groupName) {
 }
 
 async function getSuggestedReleaseVersion (rootPath, groupName) {
-    return getSuggestedReleaseOrHotfixVersion(rootPath, groupName, 'release')
+    const latestTag = await getLatestRemoteReleaseOrHotfixTagContext(rootPath, groupName)
+    if (!latestTag) {
+        return null
+    }
+    const remoteVersions = await getRemoteReleaseHotfixVersions(rootPath, groupName)
+    const maxVersion = getMaxSemverVersion([latestTag.version, ...remoteVersions])
+    if (!maxVersion) {
+        return null
+    }
+    return findNextAvailableVersion(
+        incrementSemverPatch(maxVersion),
+        new Set(remoteVersions)
+    )
 }
 
 async function getLatestRemoteReleaseVersion (rootPath, groupName) {
@@ -199,10 +211,6 @@ async function getLatestRemoteReleaseVersion (rootPath, groupName) {
         }
     }
     return null
-}
-
-async function getSuggestedHotfixVersion (rootPath, groupName) {
-    return getSuggestedReleaseOrHotfixVersion(rootPath, groupName, 'hotfix')
 }
 
 async function getSuggestedReleaseOrHotfixVersion (rootPath, groupName, branchType) {
@@ -236,6 +244,57 @@ async function getLatestRemoteHotfixVersion (rootPath, groupName) {
         }
     }
     return null
+}
+
+async function getLatestRemoteReleaseOrHotfixTagContext (rootPath, groupName) {
+    const escapedGroupName = String(groupName || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const remoteTagRule = new RegExp(`^(release|hotfix)/${escapedGroupName}/(\\d+\\.\\d+\\.\\d+)-(\\d{12})$`)
+    const cmd = `${buildCdCommand(rootPath)} && git ls-remote --tags --refs origin`
+    const { stdout } = await exec(cmd, { maxBuffer: 1024 * 1024 * 10 })
+    const tags = []
+    stdout.split(/\r?\n/).forEach(line => {
+        const raw = (line || '').trim()
+        if (!raw) {
+            return
+        }
+        const segments = raw.split(/\s+/)
+        const refName = segments.length > 1 ? segments[1] : ''
+        if (!refName.startsWith('refs/tags/')) {
+            return
+        }
+        const tagName = refName.slice('refs/tags/'.length).trim()
+        const matched = tagName.match(remoteTagRule)
+        if (!matched) {
+            return
+        }
+        tags.push({
+            tagName,
+            version: matched[2],
+            timestamp: matched[3]
+        })
+    })
+
+    if (tags.length === 0) {
+        return null
+    }
+
+    tags.sort((left, right) => {
+        const versionDiff = compareSemverVersionDesc(left.version, right.version)
+        if (versionDiff !== 0) {
+            return versionDiff
+        }
+        return right.timestamp.localeCompare(left.timestamp)
+    })
+    return tags[0]
+}
+
+async function getRemoteReleaseHotfixVersions (rootPath, groupName) {
+    const remoteHotfixBranches = await getHotfixBranches(rootPath, groupName, { includeLocal: false })
+    const remoteReleaseBranches = await getReleaseBranches(rootPath, groupName, { includeLocal: false })
+    return [
+        ...extractBranchVersions(remoteHotfixBranches, `hotfix/${groupName}/`),
+        ...extractBranchVersions(remoteReleaseBranches, `release/${groupName}/`)
+    ]
 }
 
 async function getLatestRemoteTagVersion (rootPath) {
@@ -276,7 +335,16 @@ async function askStartReleaseName (rootPath, groupName) {
     const branchPrefix = `release/${groupName}/`
     const conflictPrefix = `hotfix/${groupName}/`
     const semverRule = /^\d+\.\d+\.\d+$/
+    const latestReleaseTag = await getLatestRemoteReleaseOrHotfixTagContext(rootPath, groupName)
+    if (!latestReleaseTag) {
+        vscode.window.showErrorMessage(`未找到符合 release/${groupName}/X.Y.Z-YYYYMMDDHHmm 或 hotfix/${groupName}/X.Y.Z-YYYYMMDDHHmm 规则的远程 tag，Start Release 已中断。`)
+        return null
+    }
     const suggestedVersion = await getSuggestedReleaseVersion(rootPath, groupName)
+    if (!suggestedVersion) {
+        vscode.window.showErrorMessage(`最新相关 tag ${latestReleaseTag.tagName} 无法解析出有效版本，Start Release 已中断。`)
+        return null
+    }
     const releaseBranches = await getReleaseBranches(rootPath, groupName)
     const hotfixBranches = await getHotfixBranches(rootPath, groupName)
     const releaseVersions = new Set(extractBranchVersions(releaseBranches, branchPrefix))
@@ -284,7 +352,7 @@ async function askStartReleaseName (rootPath, groupName) {
     const fullReleaseName = await vscode.window.showInputBox({
         ignoreFocusOut: true,
         placeHolder: 'Please input release name',
-        prompt: 'Please input release version after prefix (e.g. 1.0.0).',
+        prompt: `最新相关 tag：${latestReleaseTag.tagName}，建议 release 版本：${suggestedVersion}。请输入 release 版本。`,
         value: `${branchPrefix}${suggestedVersion}`,
         validateInput: function (text) {
             const value = (text || '').trim()
@@ -325,7 +393,22 @@ async function askStartHotfixName (rootPath, groupName) {
     const branchPrefix = `hotfix/${groupName}/`
     const conflictPrefix = `release/${groupName}/`
     const semverRule = /^\d+\.\d+\.\d+$/
-    const suggestedVersion = await getSuggestedHotfixVersion(rootPath, groupName)
+    const latestHotfixTag = await getLatestRemoteReleaseOrHotfixTagContext(rootPath, groupName)
+    if (!latestHotfixTag) {
+        vscode.window.showErrorMessage(`未找到符合 release/${groupName}/X.Y.Z-YYYYMMDDHHmm 或 hotfix/${groupName}/X.Y.Z-YYYYMMDDHHmm 规则的远程 tag，Start Hotfix 已中断。`)
+        return null
+    }
+    const remoteVersions = await getRemoteReleaseHotfixVersions(rootPath, groupName)
+    const maxVersion = getMaxSemverVersion([latestHotfixTag.version, ...remoteVersions])
+    let suggestedVersion = incrementSemverPatch(maxVersion)
+    if (!suggestedVersion) {
+        vscode.window.showErrorMessage(`最新生产 tag ${latestHotfixTag.tagName} 无法解析出有效版本，Start Hotfix 已中断。`)
+        return null
+    }
+    suggestedVersion = findNextAvailableVersion(
+        suggestedVersion,
+        new Set(remoteVersions)
+    )
     const hotfixBranches = await getHotfixBranches(rootPath, groupName)
     const releaseBranches = await getReleaseBranches(rootPath, groupName)
     const hotfixVersions = new Set(extractBranchVersions(hotfixBranches, branchPrefix))
@@ -333,7 +416,7 @@ async function askStartHotfixName (rootPath, groupName) {
     const fullHotfixName = await vscode.window.showInputBox({
         ignoreFocusOut: true,
         placeHolder: 'Please input hotfix name',
-        prompt: 'Please input hotfix version after prefix (e.g. 1.0.0).',
+        prompt: `最新生产 tag：${latestHotfixTag.tagName}，建议 hotfix 版本：${suggestedVersion}。请输入 hotfix 版本。`,
         value: `${branchPrefix}${suggestedVersion}`,
         validateInput: function (text) {
             const value = (text || '').trim()
@@ -367,7 +450,10 @@ async function askStartHotfixName (rootPath, groupName) {
         vscode.window.showErrorMessage('Please input valid hotfix name after the prefix, task aborted.')
         return null
     }
-    return `${branchPrefix}${hotfixVersion}`
+    return {
+        hotfixName: `${branchPrefix}${hotfixVersion}`,
+        baseTag: latestHotfixTag.tagName
+    }
 }
 
 async function confirmFinishFeature (groupName) {
@@ -382,8 +468,12 @@ async function confirmOpsReleaseDone () {
     return showModalYesNoDialog('运维是否已完成上线？')
 }
 
-async function confirmMaintainerPermission () {
-    return showModalYesNoDialog('只有Maintainer角色才有权限操作，请确认你对该项目是否有Maintainer权限？')
+async function confirmFinishReleaseUsageNotice () {
+    return showModalYesNoDialog('只有Maintainer角色才有权限操作，请确认你对该项目是否有Maintainer权限？\n\n此功能仅限于解决CICD自动化merge代码时出现冲突的场景。解决完冲突后，再到项目的Pipeline里面重新执行对应的job即可。')
+}
+
+async function confirmFinishHotfixUsageNotice () {
+    return showModalYesNoDialog('只有Maintainer角色才有权限操作，请确认你对该项目是否有Maintainer权限？\n\n此功能仅限于解决CICD自动化merge代码时出现冲突的场景。解决完冲突后，再到项目的Pipeline里面重新执行对应的job即可。')
 }
 
 async function showModalConfirmDialog (message) {
@@ -397,6 +487,10 @@ async function showModalYesNoDialog (message) {
     const noAction = { title: 'No', isCloseAffordance: true }
     const selectedAction = await vscode.window.showWarningMessage(message, { modal: true }, yesAction, noAction)
     return !!selectedAction && selectedAction.title === yesAction.title
+}
+
+async function confirmGeneratedHotfix (hotfixName, baseTag) {
+    return showModalYesNoDialog(`即将基于生产 tag ${baseTag} 创建新的 hotfix：\n${hotfixName}\n\n请确认新生成的 hotfix 是否正确？`)
 }
 
 async function confirmRunScript (commandId, rootPath, scriptPath, scriptArgs) {
@@ -531,6 +625,31 @@ function parseSemverVersion (versionText) {
         return null
     }
     return matched.slice(1).map(item => parseInt(item, 10))
+}
+
+function incrementSemverPatch (versionText) {
+    const versionParts = parseSemverVersion(versionText)
+    if (!versionParts) {
+        return null
+    }
+    return `${versionParts[0]}.${versionParts[1]}.${versionParts[2] + 1}`
+}
+
+function findNextAvailableVersion (baseVersion, existingVersions) {
+    let candidate = baseVersion
+    while (candidate && existingVersions.has(candidate)) {
+        candidate = incrementSemverPatch(candidate)
+    }
+    return candidate
+}
+
+function getMaxSemverVersion (versions) {
+    const candidates = Array.isArray(versions) ? versions.filter(version => !!parseSemverVersion(version)) : []
+    if (candidates.length === 0) {
+        return null
+    }
+    candidates.sort((left, right) => compareSemverVersionDesc(left, right))
+    return candidates[0]
 }
 
 function compareSemverVersionDesc (leftVersion, rightVersion) {
@@ -1229,12 +1348,21 @@ async function executeGitFlowCommand (commandId, resourceUri) {
             return { executed: false, groupName }
         }
     }
-    if (commandId === 'extension.FinishRelease' || commandId === 'extension.FinishHotfix') {
-        const hasMaintainer = await confirmMaintainerPermission()
-        if (!hasMaintainer) {
-            debugLog('finish release/hotfix aborted: user has no Maintainer permission')
+    if (commandId === 'extension.FinishRelease') {
+        const acknowledgedUsageNotice = await confirmFinishReleaseUsageNotice()
+        if (!acknowledgedUsageNotice) {
+            debugLog('finish release aborted by usage notice confirmation')
             return { executed: false, groupName }
         }
+    }
+    if (commandId === 'extension.FinishHotfix') {
+        const acknowledgedUsageNotice = await confirmFinishHotfixUsageNotice()
+        if (!acknowledgedUsageNotice) {
+            debugLog('finish hotfix aborted by usage notice confirmation')
+            return { executed: false, groupName }
+        }
+    }
+    if (commandId === 'extension.FinishRelease' || commandId === 'extension.FinishHotfix') {
         const confirmed = await confirmOpsReleaseDone()
         if (!confirmed) {
             debugLog('finish release/hotfix aborted by deployment confirmation')
@@ -1302,18 +1430,23 @@ async function executeGitFlowCommand (commandId, resourceUri) {
         scriptArgs.push(releaseName)
     }
     if (commandId === 'extension.StartNewHotfix') {
-        const confirmMessage = '请确认上线后是否有及时合并代码到 main/develop/release/hotfix 分支？如果未合并，main 可能不是最新的生产环境代码。'
+        const confirmMessage = '请确认上线后是否有及时合并代码到 main/develop/release/hotfix 分支？hotfix会基于最新的生产环境tag来创建。'
         const continueAction = { title: '已确认，继续' }
         const cancelAction = { title: '取消', isCloseAffordance: true }
         const chosen = await vscode.window.showWarningMessage(confirmMessage, { modal: true }, continueAction, cancelAction)
         if (!chosen || chosen.title !== continueAction.title) {
             return { executed: false, groupName }
         }
-        const hotfixName = await askStartHotfixName(rootPath, groupName)
-        if (!hotfixName) {
+        const hotfixInfo = await askStartHotfixName(rootPath, groupName)
+        if (!hotfixInfo) {
             return { executed: false, groupName }
         }
-        scriptArgs.push(hotfixName)
+        const confirmedHotfix = await confirmGeneratedHotfix(hotfixInfo.hotfixName, hotfixInfo.baseTag)
+        if (!confirmedHotfix) {
+            return { executed: false, groupName }
+        }
+        scriptArgs.push(hotfixInfo.hotfixName)
+        scriptArgs.push(hotfixInfo.baseTag)
     }
     if (commandId === 'extension.MavenChange') {
         const mavenRootPath = getMavenProjectRootPath(rootPath, selectedPath)

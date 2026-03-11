@@ -132,7 +132,9 @@
 - **脚本**：`FinishRelease.sh`
 - **流程概要**：
   1. 校验 `groupName`。
-  2. **确认 1**：「只有 Maintainer 才有权限，请确认你有 Maintainer 权限？」→ 否则中止。
+  2. **确认 1**：合并提示「只有 Maintainer 才有权限，请确认你对该项目是否有 Maintainer 权限？
+
+此功能仅限于解决CICD自动化merge代码时出现冲突的场景。解决完冲突后，再到项目的Pipeline里面重新执行对应的job即可。」→ 否则中止。
   3. **确认 2**：「运维是否已完成上线？」→ 否则中止。
   4. 选择工作区 → `gitCheck` → 解析脚本。
   5. 从远程（及本地）release 分支列表选择要结束的分支（按版本降序）。
@@ -157,7 +159,7 @@
 
 - **命令 ID**：`extension.FinishHotfix`
 - **脚本**：`FinishRelease.sh`
-- **流程概要**：与 Finish Release 类似：Maintainer 确认、运维上线确认 → 选择工作区 → `gitCheck` → 选择要结束的 hotfix 分支 → 确认执行 → **同步执行**脚本 → 解析剩余分支并可选提示。参数为 `[selectedHotfixBranch]`，脚本根据分支前缀自动识别为 hotfix。失败时提示「FinishHotfix 失败，请通过日志查看具体原因」。
+- **流程概要**：与 Finish Release 类似：先弹出合并提示（Maintainer 权限确认 + 仅限处理 CICD 自动化 merge 冲突、处理后到 Pipeline 重跑对应 job），再确认运维已上线 → 选择工作区 → `gitCheck` → 选择要结束的 hotfix 分支 → 确认执行 → **同步执行**脚本 → 解析剩余分支并可选提示。参数为 `[selectedHotfixBranch]`，脚本根据分支前缀自动识别为 hotfix。失败时提示「FinishHotfix 失败，请通过日志查看具体原因」。
 
 ---
 
