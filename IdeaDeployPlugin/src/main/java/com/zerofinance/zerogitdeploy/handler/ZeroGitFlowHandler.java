@@ -304,8 +304,7 @@ public class ZeroGitFlowHandler {
         String rootPath = getRootPath();
         CommandUtils.clearZeroGitScriptCache();
         String script = CommandUtils.processZeroGitScript(rootPath, "GenCommitMessage.sh");
-        String model = ZeroGitDeploySetting.getCommitMessageModel();
-        confirmAndRunInTerminal("Generate Commit Message", rootPath, script, Lists.newArrayList(model));
+        confirmAndRunInTerminal("Generate Commit Message", rootPath, script, Lists.newArrayList());
     }
 
     public void startNewRelease() throws Exception {

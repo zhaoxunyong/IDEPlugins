@@ -26,7 +26,6 @@ public class ZeroGitDeploySetting implements Configurable {
     private JButton button1;
     private JCheckBox needDebugCheckBox;
     private JTextField scriptURLField;
-    private JTextField commitModelField;
     private JComboBox<String> groupNameComboBox;
     private JCheckBox checkGitVersionCheckBox;
 
@@ -36,13 +35,10 @@ public class ZeroGitDeploySetting implements Configurable {
     private static final String DEBUG_KEY = "gitDeployPluginDebugKey";
     private static final String GROUP_NAME_KEY = "gitDeployPluginGroupNameKey";
     private static final String CHECK_GIT_VERSION_KEY = "gitDeployPluginCheckGitVersionKey";
-    private static final String COMMIT_MODEL_KEY = "gitDeployPluginCommitModelKey";
-    private static final String DEFAULT_COMMIT_MODEL = "new-api/GLM-5";
 
     public ZeroGitDeploySetting() {
         textField.setText(getGitHome());
         scriptURLField.setText(getScriptURL());
-        commitModelField.setText(getCommitMessageModel());
         needDebugCheckBox.setSelected(isDebug());
         groupNameComboBox.setSelectedItem(getGroupName());
         checkGitVersionCheckBox.setSelected(isCheckGitVersion());
@@ -81,7 +77,6 @@ public class ZeroGitDeploySetting implements Configurable {
         return !StringUtils.equals(textField.getText(),PropertiesComponent.getInstance().getValue(GIT_HOME_KEY))
                 || !StringUtils.equals(String.valueOf(scriptURLField.getText()),PropertiesComponent.getInstance().getValue(SCRIPT_URL_KEY))
                 || !StringUtils.equals(String.valueOf(needDebugCheckBox.isSelected()),PropertiesComponent.getInstance().getValue(DEBUG_KEY))
-                || !StringUtils.equals(String.valueOf(commitModelField.getText()), PropertiesComponent.getInstance().getValue(COMMIT_MODEL_KEY))
                 || !StringUtils.equals(String.valueOf(groupNameComboBox.getSelectedItem()), PropertiesComponent.getInstance().getValue(GROUP_NAME_KEY))
                 || !StringUtils.equals(String.valueOf(checkGitVersionCheckBox.isSelected()), PropertiesComponent.getInstance().getValue(CHECK_GIT_VERSION_KEY));
     }
@@ -91,8 +86,6 @@ public class ZeroGitDeploySetting implements Configurable {
         PropertiesComponent.getInstance().setValue(GIT_HOME_KEY, textField.getText());
         PropertiesComponent.getInstance().setValue(SCRIPT_URL_KEY, scriptURLField.getText());
         PropertiesComponent.getInstance().setValue(DEBUG_KEY, String.valueOf(needDebugCheckBox.isSelected()));
-        String commitModel = StringUtils.trimToEmpty(commitModelField.getText());
-        PropertiesComponent.getInstance().setValue(COMMIT_MODEL_KEY, StringUtils.isBlank(commitModel) ? DEFAULT_COMMIT_MODEL : commitModel);
         PropertiesComponent.getInstance().setValue(GROUP_NAME_KEY, String.valueOf(groupNameComboBox.getSelectedItem()));
         PropertiesComponent.getInstance().setValue(CHECK_GIT_VERSION_KEY, String.valueOf(checkGitVersionCheckBox.isSelected()));
     }
@@ -132,13 +125,5 @@ public class ZeroGitDeploySetting implements Configurable {
             return false;
         }
         return Boolean.parseBoolean(PropertiesComponent.getInstance().getValue(CHECK_GIT_VERSION_KEY));
-    }
-
-    public static String getCommitMessageModel() {
-        String model = PropertiesComponent.getInstance().getValue(COMMIT_MODEL_KEY);
-        if (StringUtils.isBlank(model)) {
-            return DEFAULT_COMMIT_MODEL;
-        }
-        return StringUtils.trim(model);
     }
 }

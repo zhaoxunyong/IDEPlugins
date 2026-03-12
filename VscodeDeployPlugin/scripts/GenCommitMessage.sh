@@ -1,13 +1,14 @@
 #!/bin/bash
 
-export PATH="/usr/local/bin:/usr/bin:~/.opencode/bin:$PATH"
+#export PATH="/usr/local/bin:/usr/bin:~/.codex/bin:$PATH"
+export PATH="/usr/local/bin:/usr/bin:~/AppData/Roaming/npm/:$PATH"
 
-modelName="${1:-new-api/GLM-5}"
+modelName="${1:-gpt-5.4}"
 
 git config pull.rebase false
 
-if ! command -v opencode >/dev/null 2>&1; then
-  echo "未检测到 opencode 命令，请先安装并确保在 PATH 中可用"
+if ! command -v codex >/dev/null 2>&1; then
+  echo "未检测到 codex 命令，请先安装并确保在 PATH 中可用"
   exit 1
 fi
 
@@ -65,4 +66,4 @@ subject（必须）：
 EOF
 )
 
-opencode run -m "$modelName" "$prompt"
+codex exec -m "$modelName" "$prompt"
