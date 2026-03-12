@@ -2,15 +2,20 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "AI Generate Commit Message (OpenCode)",
+      "label": "AI Generate Commit Message",
       "type": "shell",
-      "command": "opencode",
+      "command": "codex",
       "args": [
-        "run",
+        "exec",
         "-m",
-        "alibaba-cn/glm-5",
+        "gpt-5.4",
         "你是一个专业的 Git Commit 助手，必须严格遵守以下 commit message 规范：\n\n格式：\n<type>: <subject>\n\n变更内容：\n1. README.md - 删除空行\n2. deploy.sh - 合并代码行，优化格式\n\ntype（必须）只允许以下值：\n- feat：新功能\n- fix：修复 bug（产生 diff 并自动修复）\n- docs：文档变更\n- style：代码风格调整（不影响运行）\n- refactor：代码重构\n- perf：性能优化\n- test：增加或修改测试\n- chore：构建/工具/辅助变动\n- revert：回滚\n- merge：合并代码\n- sync：同步主线或分支的 bug\n\nsubject（必须）：\n- 尽可能详细描述。总体不超过 200 个字符\n- 用中文（更清晰）\n- 结尾**不要**加句号或其他标点\n\n变更内容（必须）：\n- 以实际的为准，尽量简短描述。不超过 20 个字符\n- 用中文（更清晰）\n- 结尾**不要**加句号或其他标点\n\n示例：\n```\nfix: 用户查询缺少 username 属性\n\n变更内容：\n1. README.md - 删除空行\n2. deploy.sh - 合并代码行，优化格式\n---\nfeat: 添加用户分页查询接口\n\n变更内容：\n1. README.md - 删除空行\n2. deploy.sh - 合并代码行，优化格式\nstyle(ui): 统一按钮组件样式\n---\nrefactor: 重构用户认证逻辑\n\n变更内容：\n1. README.md - 删除空行\n2. deploy.sh - 合并代码行，优化格式\n```\n\n当前任务：\n1. 执行 `git diff --cached` 查看已暂存的变更（如果没有暂存，提醒用户先 git add）\n2. 分析变更内容\n3. 判断最合适的 type 和 scope\n4. 生成符合规范的 commit message（用中文）\n5. 始终不要自动git commit"
       ],
+      "options": {
+        "env": {
+          "PATH": "${env:HOME}/.nvm/versions/node/v22.22.0/bin:${env:PATH}"
+        }
+      },
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
