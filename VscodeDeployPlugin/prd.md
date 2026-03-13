@@ -295,7 +295,7 @@
 | FinishFeature.sh | 删除本地 feature 分支（前提：已在 GitLab MR 并 merge） |
 | RebaseFeature.sh | 对当前 feature 分支做 rebase（通常基于 develop-<group>） |
 | StartNewRelease.sh | 创建 release 分支 |
-| FinishRelease.sh | release/hotfix → master、打 tag、删分支、master 合并回 develop 及未完成 release/hotfix（由分支前缀区分模式） |
+| FinishRelease.sh | release/hotfix → main、打 tag、删分支、main 合并回 develop 及未完成 release/hotfix（由分支前缀区分模式） |
 | StartNewHotfix.sh | 创建 hotfix 分支 |
 
 以上脚本**直接复用**，不得修改 `scripts/` 目录内任何脚本代码；具体实现以仓库内 `scripts/` 及远程 `zerofinanceGit.gitScriptsUrlPreference` 为准，PRD 仅描述插件侧行为与约定。

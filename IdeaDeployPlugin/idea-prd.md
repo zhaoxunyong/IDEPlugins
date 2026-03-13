@@ -300,7 +300,7 @@
 | FinishFeature.sh   | 删除本地 feature 分支（前提：已在 GitLab MR 并 merge） |
 | RebaseFeature.sh   | 对当前 feature 分支做 rebase |
 | StartNewRelease.sh | 创建 release 分支 |
-| FinishRelease.sh   | release/hotfix → master、打 tag、删分支、master 合并回 develop 及未完成 release/hotfix（由分支前缀 release/ 或 hotfix/ 区分模式） |
+| FinishRelease.sh   | release/hotfix → main、打 tag、删分支、main 合并回 develop 及未完成 release/hotfix（由分支前缀 release/ 或 hotfix/ 区分模式） |
 | StartNewHotfix.sh  | 创建 hotfix 分支 |
 
 以上脚本**直接复用** VscodeDeployPlugin 的 `scripts/` 目录，不修改任何脚本代码。

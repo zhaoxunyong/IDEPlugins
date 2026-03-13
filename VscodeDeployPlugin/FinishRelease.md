@@ -25,7 +25,7 @@
 ### 2. 关键内部约定
 
 - **develop 分支**
-  - 脚本自动从远程获取所有以 `develop-` 开头的分支作为合并 master 的目标，无需传参。
+  - 脚本自动从远程获取所有以 `develop-` 开头的分支作为合并 main 的目标，无需传参。
 
 - **release 分支**
   - 从入参 `releaseBranch` 解析：`release/<groupName>/<version>`，例如 `release/core/1.2.3`。
