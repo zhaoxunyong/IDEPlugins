@@ -53,6 +53,17 @@ function normalizePath (path) {
     return path.replace(/\\/gm, '/')
 }
 
+/** 将 Git Bash 返回的 /x/ 或 /X/ 风格路径转为 Windows 盘符路径，便于与 fsPath 比较。 */
+function toWindowsDrivePath (p) {
+    if (process.platform !== 'win32' || !p || typeof p !== 'string') return p
+    const trimmed = p.trim()
+    const m = /^\/([a-zA-Z])\/(.*)$/.exec(trimmed)
+    if (m) {
+        return m[1].toUpperCase() + ':/' + m[2]
+    }
+    return trimmed
+}
+
 function buildCdCommand (targetPath) {
     const normalizedPath = normalizePath(targetPath)
     if (process.platform === 'win32') {
@@ -633,17 +644,31 @@ function getMavenRootsUnder (gitRootPath) {
  * @param {string} pathContained - 当前选中的路径（工作区目录或文件所在目录）
  * @returns {string|null} 最外层的 Maven 项目根路径，未找到返回 null
  */
+function pathContains (parentPath, childPath, caseInsensitive) {
+    const sep = '/'
+    const parentWithSep = parentPath.endsWith(sep) ? parentPath : parentPath + sep
+    if (!caseInsensitive) {
+        return childPath === parentPath || childPath.startsWith(parentWithSep)
+    }
+    const p = parentWithSep.toLowerCase()
+    const c = childPath.toLowerCase()
+    return c === parentPath.toLowerCase() || c.startsWith(p)
+}
+
 function getMavenProjectRootPath (gitRootPath, pathContained) {
     const roots = getMavenRootsUnder(gitRootPath)
     const normalizedContained = normalizePath(path.resolve(pathContained))
     const normalizedGitRoot = normalizePath(path.resolve(gitRootPath))
+    const caseInsensitive = process.platform === 'win32'
     let bestRoot = null
     let bestPathLength = Number.MAX_SAFE_INTEGER
     const sep = '/'
     for (const root of roots) {
         const normalizedRoot = normalizePath(path.resolve(root))
         const underThisRoot = normalizedContained === normalizedRoot ||
-            normalizedContained.startsWith(normalizedRoot + sep)
+            (caseInsensitive
+                ? pathContains(normalizedRoot, normalizedContained, true)
+                : normalizedContained.startsWith(normalizedRoot + sep))
         if (underThisRoot && normalizedRoot.length < bestPathLength) {
             bestRoot = normalizedRoot
             bestPathLength = normalizedRoot.length
@@ -1219,7 +1244,8 @@ async function resolveGitRootPath (candidatePath) {
         if (!topLevel) {
             return null
         }
-        return normalizePath(topLevel.trim())
+        const normalized = normalizePath(topLevel.trim())
+        return toWindowsDrivePath(normalized)
     } catch (err) {
         debugLog('resolve git root failed', err && err.message ? err.message : String(err))
         return null
