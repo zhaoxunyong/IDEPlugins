@@ -619,16 +619,24 @@ function collectMavenRootsUnder (dirPath, result) {
     }
 }
 
+/** 返回 git 根下所有含有效 pom.xml 的 Maven 项目根目录列表。 */
+function getMavenRootsUnder (gitRootPath) {
+    const roots = []
+    collectMavenRootsUnder(gitRootPath, roots)
+    return roots
+}
+
 /**
  * 从 git 根往下找包含 pathContained 的 Maven 项目根，返回路径最短的（最外层）。
+ * 若选中路径即为 git 根且根下无 pom.xml、仅子目录有 Maven 项目，则返回 null，由调用方根据 getMavenRootsUnder 做回退（单选或多选）。
  * @param {string} gitRootPath - git 根目录
  * @param {string} pathContained - 当前选中的路径（工作区目录或文件所在目录）
  * @returns {string|null} 最外层的 Maven 项目根路径，未找到返回 null
  */
 function getMavenProjectRootPath (gitRootPath, pathContained) {
-    const roots = []
-    collectMavenRootsUnder(gitRootPath, roots)
+    const roots = getMavenRootsUnder(gitRootPath)
     const normalizedContained = normalizePath(path.resolve(pathContained))
+    const normalizedGitRoot = normalizePath(path.resolve(gitRootPath))
     let bestRoot = null
     let bestPathLength = Number.MAX_SAFE_INTEGER
     const sep = '/'
@@ -1313,7 +1321,7 @@ async function executeGitFlowCommand (commandId, resourceUri) {
     }
     debugLog('workspace git root', rootPath)
 
-    if (commandId !== 'extension.GenerateCommitMessage' && commandId !== 'extension.MavenChange') {
+    if (commandId !== 'extension.GenerateCommitMessage' && commandId !== 'extension.MavenChange' && commandId !== 'extension.RebaseFeature') {
         await gitCheck(rootPath)
     }
     const scriptPath = await resolveScriptPath(rootPath, scriptName)
@@ -1361,7 +1369,32 @@ async function executeGitFlowCommand (commandId, resourceUri) {
         scriptArgs.push(hotfixInfo.baseTag)
     }
     if (commandId === 'extension.MavenChange') {
-        const mavenRootPath = getMavenProjectRootPath(rootPath, selectedPath)
+        let mavenRootPath = getMavenProjectRootPath(rootPath, selectedPath)
+        if (!mavenRootPath) {
+            const normalizedSelected = normalizePath(path.resolve(selectedPath))
+            const normalizedGitRoot = normalizePath(path.resolve(rootPath))
+            if (normalizedSelected === normalizedGitRoot) {
+                const allRoots = getMavenRootsUnder(rootPath)
+                if (allRoots.length === 1) {
+                    mavenRootPath = allRoots[0]
+                } else if (allRoots.length > 1) {
+                    const picks = allRoots.map(r => ({
+                        label: path.basename(r),
+                        description: r,
+                        value: r
+                    }))
+                    const chosen = await vscode.window.showQuickPick(picks, {
+                        ignoreFocusOut: true,
+                        title: '选择要执行 Maven Change 的项目',
+                        placeHolder: '当前为仓库根且存在多个 Maven 子项目，请选择其一'
+                    })
+                    if (!chosen) {
+                        return { executed: false, groupName }
+                    }
+                    mavenRootPath = chosen.value
+                }
+            }
+        }
         if (!mavenRootPath) {
             vscode.window.showErrorMessage(`在当前选择目录及其上级目录中未找到有效的 Maven 项目（缺少可用 pom.xml）。请先选择子项目目录后重试。`)
             return { executed: false, groupName }

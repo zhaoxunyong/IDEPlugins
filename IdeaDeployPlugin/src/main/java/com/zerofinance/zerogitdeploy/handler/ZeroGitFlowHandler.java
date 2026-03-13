@@ -242,7 +242,7 @@ public class ZeroGitFlowHandler {
         debugLog("command triggered", "Rebase Feature");
         String groupName = requireGroupName();
         String rootPath = getRootPath();
-        runWithGitCheckInBackground(rootPath, "RebaseFeature.sh", (rPath, script) -> {
+        runWithScriptInBackground(rootPath, "RebaseFeature.sh", (rPath, script) -> {
             String currentBranch = getCurrentBranch(rPath);
             String requiredPrefix = "feature/" + groupName + "/";
             if (!currentBranch.startsWith(requiredPrefix)) {
