@@ -38,8 +38,8 @@ if ! [[ "$hotfixVersion" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   exit 1
 fi
 
-git fetch origin --prune >/dev/null 2>&1
-git fetch origin --tags --prune >/dev/null 2>&1
+git fetch origin --prune
+git fetch origin --tags --prune
 
 if ! remote_tag_exists "$baseTag"; then
   echo "Remote tag does not exist: $baseTag"

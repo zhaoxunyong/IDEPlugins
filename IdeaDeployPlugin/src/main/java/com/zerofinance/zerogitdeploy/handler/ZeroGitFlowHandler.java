@@ -318,14 +318,18 @@ public class ZeroGitFlowHandler {
             List<String> releases = listReleaseBranches(rPath, groupName);
             List<String> hotfixes = listHotfixBranches(rPath, groupName);
             HotfixBaseTagInfo latestTag = getLatestRemoteHotfixBaseTag(rPath, groupName);
-            List<String> remoteReleases = listReleaseBranches(rPath, groupName, false);
-            List<String> remoteHotfixes = listHotfixBranches(rPath, groupName, false);
-            String maxVersion = getMaxSemverVersion(latestTag == null ? null : latestTag.version, remoteReleases, remoteHotfixes);
+            // 为了满足“按最后三位数字递增”的需求：maxVersion 取全局（跨所有 group），
+            // 但 findNextAvailableVersion 只需要避开当前 group 内已存在的 release/hotfix 版本。
+            List<String> remoteReleasesInGroup = listReleaseBranches(rPath, groupName, false);
+            List<String> remoteHotfixesInGroup = listHotfixBranches(rPath, groupName, false);
+            List<String> remoteReleasesAll = listAllReleaseBranches(rPath, false);
+            List<String> remoteHotfixesAll = listAllHotfixBranches(rPath, false);
+            String maxVersion = getMaxSemverVersion(latestTag == null ? null : latestTag.version, remoteReleasesAll, remoteHotfixesAll);
             String suggested = "1.0.0";
-            if (!remoteReleases.isEmpty() || !remoteHotfixes.isEmpty() || latestTag != null) {
+            if (!remoteReleasesAll.isEmpty() || !remoteHotfixesAll.isEmpty() || latestTag != null) {
                 // 新版本号规则：累计中间段（minor），而不是尾数（patch）
                 // 例如：1.0.1 -> 1.1.0
-                suggested = findNextAvailableVersion(nextMinor(maxVersion), remoteReleases, remoteHotfixes);
+                suggested = findNextAvailableVersion(nextMinor(maxVersion), remoteReleasesInGroup, remoteHotfixesInGroup);
             }
             String prefix = "release/" + groupName + "/";
             String value = Messages.showInputDialog(
@@ -354,7 +358,6 @@ public class ZeroGitFlowHandler {
 
     public void finishRelease() throws Exception {
         debugLog("command triggered", "Finish Release");
-        String groupName = requireGroupName();
         if (!acknowledgeFinishUsageNotice("ZeroGit: Finish Release")) {
             return;
         }
@@ -363,9 +366,9 @@ public class ZeroGitFlowHandler {
         }
         String rootPath = getRootPath();
         runWithGitCheckInBackground(rootPath, "FinishRelease.sh", (rPath, script) -> {
-            List<String> releases = listReleaseBranches(rPath, groupName);
+            List<String> releases = listAllReleaseBranches(rPath, true);
             if (releases.isEmpty()) {
-                throw new DeployPluginException("No remote release branch found for group \"" + groupName + "\"");
+                throw new DeployPluginException("No release branch found.");
             }
             String selected = chooseBranch("请选择要结束的 release 分支", "ZeroGit: Finish Release", releases);
             if (StringUtils.isBlank(selected)) {
@@ -390,11 +393,13 @@ public class ZeroGitFlowHandler {
             if (latestTag == null) {
                 throw new DeployPluginException("未找到符合 release/" + groupName + "/X.Y.Z-YYYYMMDDHHmm 或 hotfix/" + groupName + "/X.Y.Z-YYYYMMDDHHmm 规则的远程 tag，Start New Hotfix 已中断。");
             }
-            List<String> remoteReleases = listReleaseBranches(rPath, groupName, false);
-            List<String> remoteHotfixes = listHotfixBranches(rPath, groupName, false);
-            String maxVersion = getMaxSemverVersion(latestTag.version, remoteReleases, remoteHotfixes);
+            List<String> remoteReleasesInGroup = listReleaseBranches(rPath, groupName, false);
+            List<String> remoteHotfixesInGroup = listHotfixBranches(rPath, groupName, false);
+            List<String> remoteReleasesAll = listAllReleaseBranches(rPath, false);
+            List<String> remoteHotfixesAll = listAllHotfixBranches(rPath, false);
+            String maxVersion = getMaxSemverVersion(latestTag.version, remoteReleasesAll, remoteHotfixesAll);
             // 新版本号规则：累计中间段（minor），而不是尾数（patch）
-            String suggested = findNextAvailableVersion(nextMinor(maxVersion), remoteReleases, remoteHotfixes);
+            String suggested = findNextAvailableVersion(nextMinor(maxVersion), remoteReleasesInGroup, remoteHotfixesInGroup);
             String prefix = "hotfix/" + groupName + "/";
             String value = Messages.showInputDialog(
                     "请输入 Hotfix 分支（SemVer）\n最新生产 Tag：" + latestTag.tagName,
@@ -423,7 +428,6 @@ public class ZeroGitFlowHandler {
 
     public void finishHotfix() throws Exception {
         debugLog("command triggered", "Finish Hotfix");
-        String groupName = requireGroupName();
         if (!acknowledgeFinishUsageNotice("ZeroGit: Finish Hotfix")) {
             return;
         }
@@ -432,9 +436,9 @@ public class ZeroGitFlowHandler {
         }
         String rootPath = getRootPath();
         runWithGitCheckInBackground(rootPath, "FinishRelease.sh", (rPath, script) -> {
-            List<String> hotfixes = listHotfixBranches(rPath, groupName);
+            List<String> hotfixes = listAllHotfixBranches(rPath, true);
             if (hotfixes.isEmpty()) {
-                throw new DeployPluginException("No remote hotfix branch found for group \"" + groupName + "\"");
+                throw new DeployPluginException("No hotfix branch found.");
             }
             String selected = chooseBranch("请选择要结束的 hotfix 分支", "ZeroGit: Finish Hotfix", hotfixes);
             if (StringUtils.isBlank(selected)) {
@@ -446,13 +450,41 @@ public class ZeroGitFlowHandler {
     }
 
     private String requireGroupName() {
-        String group = ZeroGitDeploySetting.getGroupName();
-        if ("a".equals(group) || "b".equals(group)) {
-            return group;
+        // 不直接依赖全局配置值，而是每次在需要 group 的场景下弹出下拉选择。
+        String configured = ZeroGitDeploySetting.getGroupName();
+        String placeholderLabel = "Please select a group before running any task";
+        String groupALabel = "Group A";
+        String groupBLabel = "Group B";
+
+        // keep dropdown data source consistent with settings validation
+        List<String> labels = Arrays.asList(placeholderLabel, groupALabel, groupBLabel);
+        String defaultLabel;
+        if ("a".equals(configured)) {
+            defaultLabel = groupALabel;
+        } else if ("b".equals(configured)) {
+            defaultLabel = groupBLabel;
+        } else {
+            defaultLabel = placeholderLabel;
         }
-        Messages.showWarningDialog("请先配置 groupName 为 a 或 b。", "ZeroGit");
-        ShowSettingsUtil.getInstance().showSettingsDialog(project, ZeroGitDeploySetting.class);
-        throw new DeployPluginException("请先配置 groupName 为 a 或 b。");
+
+        String selected = Messages.showEditableChooseDialog(
+                placeholderLabel,
+                "ZeroGit",
+                null,
+                labels.toArray(new String[0]),
+                defaultLabel,
+                null
+        );
+
+        if (StringUtils.isBlank(selected) || placeholderLabel.equals(selected)) {
+            throw new DeployPluginException("Please select group \"a\" or \"b\" before running tasks.");
+        }
+        if (groupALabel.equals(selected)) return "a";
+        if (groupBLabel.equals(selected)) return "b";
+        // 允许用户手动输入 a/b（因为是 editable dialog）
+        if ("a".equals(selected) || "b".equals(selected)) return selected;
+
+        throw new DeployPluginException("Invalid group selection: " + selected);
     }
 
     private void requireGitHomeOnWindows() {
@@ -868,6 +900,19 @@ public class ZeroGitFlowHandler {
         return sortBySemverDesc(uniqueNormalizedBranches(splitLines(result.getResult()), "origin/"));
     }
 
+    private List<String> listAllReleaseBranches(String rootPath, boolean includeLocal) throws Exception {
+        execGitArgs(rootPath, "fetch", "origin", "--prune");
+        List<String> args = new ArrayList<>();
+        args.add("for-each-ref");
+        args.add("--format=%(refname:short)");
+        if (includeLocal) {
+            args.add("refs/heads/release/*/*");
+        }
+        args.add("refs/remotes/origin/release/*/*");
+        ExecuteResult result = execGitArgs(rootPath, args.toArray(new String[0]));
+        return sortBySemverDesc(uniqueNormalizedBranches(splitLines(result.getResult()), "origin/"));
+    }
+
     private List<String> listHotfixBranches(String rootPath, String groupName) throws Exception {
         return listHotfixBranches(rootPath, groupName, true);
     }
@@ -885,9 +930,28 @@ public class ZeroGitFlowHandler {
         return sortBySemverDesc(uniqueNormalizedBranches(splitLines(result.getResult()), "origin/"));
     }
 
+    private List<String> listAllHotfixBranches(String rootPath, boolean includeLocal) throws Exception {
+        execGitArgs(rootPath, "fetch", "origin", "--prune");
+        List<String> args = new ArrayList<>();
+        args.add("for-each-ref");
+        args.add("--format=%(refname:short)");
+        if (includeLocal) {
+            args.add("refs/heads/hotfix/*/*");
+        }
+        args.add("refs/remotes/origin/hotfix/*/*");
+        ExecuteResult result = execGitArgs(rootPath, args.toArray(new String[0]));
+        return sortBySemverDesc(uniqueNormalizedBranches(splitLines(result.getResult()), "origin/"));
+    }
+
     private @Nullable HotfixBaseTagInfo getLatestRemoteHotfixBaseTag(String rootPath, String groupName) throws Exception {
         ExecuteResult result = execGitArgs(rootPath, "ls-remote", "--tags", "--refs", "origin");
-        Pattern tagPattern = Pattern.compile("^(release|hotfix)/" + Pattern.quote(groupName) + "/(\\d+\\.\\d+\\.\\d+)-(\\d{12})$");
+        // 兼容两种 tag 形态：
+        // 1) vX.Y.Z（由 FinishRelease.sh / FinishHotfix 创建）
+        // 2) release|hotfix/<group>/X.Y.Z-YYYYMMDDHHmm（历史/扩展形态）
+        // 兼容 git ls-remote 对注释 tag 的 peeled 条目：vX.Y.Z^{}
+        Pattern semverOnlyTagPattern = Pattern.compile("^v?(\\d+\\.\\d+\\.\\d+)(\\^\\{\\})?$");
+        // 为了满足“按最后三位数字递增”的需求：历史 tag 也按全局最大版本取，不限制 groupName
+        Pattern tagPattern = Pattern.compile("^(release|hotfix)/[^/]+/(\\d+\\.\\d+\\.\\d+)-(\\d{12})(\\^\\{\\})?$");
         HotfixBaseTagInfo latest = null;
         for (String line : splitLines(result.getResult())) {
             String[] parts = line.split("\\s+");
@@ -899,10 +963,23 @@ public class ZeroGitFlowHandler {
                 continue;
             }
             String tagName = StringUtils.removeStart(refName, "refs/tags/");
-            Matcher matcher = tagPattern.matcher(tagName);
-            if (!matcher.matches()) {
+            // vX.Y.Z
+            Matcher semverOnlyMatcher = semverOnlyTagPattern.matcher(tagName);
+            if (semverOnlyMatcher.matches()) {
+                String version = semverOnlyMatcher.group(1);
+                String timestamp = "";
+                if (latest == null
+                        || compareSemver(version, latest.version) > 0
+                        || (compareSemver(version, latest.version) == 0 && timestamp.compareTo(latest.timestamp) > 0)) {
+                    latest = new HotfixBaseTagInfo(tagName, version, timestamp);
+                }
                 continue;
             }
+
+            // release|hotfix/<group>/X.Y.Z-YYYYMMDDHHmm
+            Matcher matcher = tagPattern.matcher(tagName);
+            if (!matcher.matches()) continue;
+
             String version = matcher.group(2);
             String timestamp = matcher.group(3);
             if (latest == null

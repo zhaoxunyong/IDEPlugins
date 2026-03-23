@@ -132,27 +132,64 @@ function getRootUrl () {
     return rootUrl.replace(/\/+$/, '')
 }
 
-function getValidGroups () {
-    const pkg = require(path.join(__dirname, '..', 'package.json'))
-    const groupEnum = (pkg && pkg.contributes && pkg.contributes.configuration && pkg.contributes.configuration.properties && pkg.contributes.configuration.properties[CONFIG_GROUP_NAME] && pkg.contributes.configuration.properties[CONFIG_GROUP_NAME].enum) || []
-    return groupEnum.filter(g => g !== '')
-}
-
 async function ensureGroupNameConfigured () {
-    const groupName = vscode.workspace.getConfiguration().get(CONFIG_GROUP_NAME)
-    const validGroups = getValidGroups()
-    if (validGroups.includes(groupName)) {
-        return groupName
+    const pkg = require(path.join(__dirname, '..', 'package.json'))
+    const configProp = pkg
+        && pkg.contributes
+        && pkg.contributes.configuration
+        && pkg.contributes.configuration.properties
+        && pkg.contributes.configuration.properties[CONFIG_GROUP_NAME]
+
+    const enumValues = (configProp && configProp.enum) || []
+    const enumDescriptions = (configProp && configProp.enumDescriptions) || []
+    const options = enumValues
+        .map((value, index) => {
+            const description = enumDescriptions[index]
+            return {
+                label: description || String(value),
+                value: String(value)
+            }
+        })
+        .filter(Boolean)
+
+    if (options.length === 0) {
+        vscode.window.showErrorMessage('No valid groups found in extension configuration.')
+        return null
     }
 
-    const openSettingsAction = 'Open Settings'
-    const groupList = validGroups.join(' or ')
-    const message = `Please configure "zerofinanceGit.groupName" to ${groupList} before running tasks.`
-    const selectedAction = await vscode.window.showErrorMessage(message, openSettingsAction)
-    if (selectedAction === openSettingsAction) {
-        await vscode.commands.executeCommand('workbench.action.openSettings', CONFIG_GROUP_NAME)
+    const emptyIndex = enumValues.findIndex(v => v === '')
+    const placeHolder = emptyIndex >= 0 && enumDescriptions[emptyIndex]
+        ? String(enumDescriptions[emptyIndex])
+        : 'Please select a group before running any task'
+
+    const configuredGroupName = vscode.workspace.getConfiguration().get(CONFIG_GROUP_NAME)
+    const defaultValue = options.find(o => o.value === String(configuredGroupName))
+        ? String(configuredGroupName)
+        : null
+
+    // VSCode 的 showQuickPick 在老版本里不一定支持 activeItems/默认高亮；
+    // 这里通过把默认值放到第一项来模拟“默认选中”效果。
+    const orderedOptions = defaultValue !== null
+        ? [options.find(o => o.value === defaultValue), ...options.filter(o => o.value !== defaultValue)]
+        : options
+
+    const selected = await vscode.window.showQuickPick(orderedOptions, {
+        ignoreFocusOut: true,
+        canPickMany: false,
+        placeHolder
+    })
+
+    if (!selected) {
+        vscode.window.showErrorMessage('Please select a group, task aborted.')
+        return null
     }
-    return null
+
+    if (!selected.value) {
+        vscode.window.showErrorMessage('Please select a valid group (e.g. "a" or "b"), task aborted.')
+        return null
+    }
+
+    return selected.value
 }
 
 async function askStartFeatureName (groupName) {
@@ -194,8 +231,9 @@ async function askStartFeatureName (groupName) {
 
 async function getSuggestedReleaseVersion (rootPath, groupName) {
     const latestTag = await getLatestRemoteReleaseOrHotfixTagContext(rootPath, groupName)
-    const remoteVersions = await getRemoteReleaseHotfixVersions(rootPath, groupName)
-    const maxVersion = getMaxSemverVersion([latestTag ? latestTag.version : null, ...remoteVersions])
+    const remoteVersionsInGroup = await getRemoteReleaseHotfixVersions(rootPath, groupName)
+    const remoteVersionsAllGroups = await getAllRemoteReleaseHotfixVersions(rootPath)
+    const maxVersion = getMaxSemverVersion([latestTag ? latestTag.version : null, ...remoteVersionsAllGroups])
     if (!maxVersion) {
         return '1.0.0'
     }
@@ -207,13 +245,17 @@ async function getSuggestedReleaseVersion (rootPath, groupName) {
     }
     return findNextAvailableVersion(
         nextVersion,
-        new Set(remoteVersions)
+        new Set(remoteVersionsInGroup)
     )
 }
 
 async function getLatestRemoteReleaseOrHotfixTagContext (rootPath, groupName) {
-    const escapedGroupName = String(groupName || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    const remoteTagRule = new RegExp(`^(release|hotfix)/${escapedGroupName}/(\\d+\\.\\d+\\.\\d+)-(\\d{12})$`)
+    // 兼容两种 tag 形态：
+    // 1) vX.Y.Z（由脚本 FinishRelease.sh / FinishHotfix 创建）
+    // 2) release|hotfix/<group>/X.Y.Z-YYYYMMDDHHmm（历史/扩展形态）
+    const semverOnlyTagRule = /^v?(\d+\.\d+\.\d+)(\^\{\})?$/
+    // 为了满足“按最后三位数字递增”的需求：历史 tag 不限制 groupName，取全局最大版本
+    const remoteTagRule = /^(release|hotfix)\/[^/]+\/(\d+\.\d+\.\d+)-(\d{12})(\^\{\})?$/
     const cmd = `${buildCdCommand(rootPath)} && git ls-remote --tags --refs origin`
     const { stdout } = await exec(cmd, { maxBuffer: 1024 * 1024 * 10 })
     const tags = []
@@ -228,10 +270,21 @@ async function getLatestRemoteReleaseOrHotfixTagContext (rootPath, groupName) {
             return
         }
         const tagName = refName.slice('refs/tags/'.length).trim()
-        const matched = tagName.match(remoteTagRule)
-        if (!matched) {
+        // vX.Y.Z
+        const semverMatched = tagName.match(semverOnlyTagRule)
+        if (semverMatched) {
+            tags.push({
+                tagName,
+                version: semverMatched[1],
+                timestamp: null
+            })
             return
         }
+
+        // release|hotfix/<group>/X.Y.Z-YYYYMMDDHHmm
+        const matched = tagName.match(remoteTagRule)
+        if (!matched) return
+
         tags.push({
             tagName,
             version: matched[2],
@@ -248,7 +301,10 @@ async function getLatestRemoteReleaseOrHotfixTagContext (rootPath, groupName) {
         if (versionDiff !== 0) {
             return versionDiff
         }
-        return right.timestamp.localeCompare(left.timestamp)
+        // timestamp 可能为空；为空时按字符串比较即可（'' < 任意数字时间戳）
+        const leftTs = left.timestamp || ''
+        const rightTs = right.timestamp || ''
+        return rightTs.localeCompare(leftTs)
     })
     return tags[0]
 }
@@ -259,6 +315,23 @@ async function getRemoteReleaseHotfixVersions (rootPath, groupName) {
     return [
         ...extractBranchVersions(remoteHotfixBranches, `hotfix/${groupName}/`),
         ...extractBranchVersions(remoteReleaseBranches, `release/${groupName}/`)
+    ]
+}
+
+function extractSemverVersionsFromBranches (branches) {
+    return (branches || [])
+        .map(branch => String(branch || '').trim())
+        .filter(Boolean)
+        .map(branch => branch.slice(branch.lastIndexOf('/') + 1))
+        .filter(version => !!parseSemverVersion(version))
+}
+
+async function getAllRemoteReleaseHotfixVersions (rootPath) {
+    const allReleaseBranches = await getAllReleaseBranches(rootPath, { includeLocal: false })
+    const allHotfixBranches = await getAllHotfixBranches(rootPath, { includeLocal: false })
+    return [
+        ...extractSemverVersionsFromBranches(allReleaseBranches),
+        ...extractSemverVersionsFromBranches(allHotfixBranches)
     ]
 }
 
@@ -327,8 +400,9 @@ async function askStartHotfixName (rootPath, groupName) {
         vscode.window.showErrorMessage(`未找到符合 release/${groupName}/X.Y.Z-YYYYMMDDHHmm 或 hotfix/${groupName}/X.Y.Z-YYYYMMDDHHmm 规则的远程 tag，Start Hotfix 已中断。`)
         return null
     }
-    const remoteVersions = await getRemoteReleaseHotfixVersions(rootPath, groupName)
-    const maxVersion = getMaxSemverVersion([latestHotfixTag.version, ...remoteVersions])
+    const remoteVersionsInGroup = await getRemoteReleaseHotfixVersions(rootPath, groupName)
+    const remoteVersionsAllGroups = await getAllRemoteReleaseHotfixVersions(rootPath)
+    const maxVersion = getMaxSemverVersion([latestHotfixTag.version, ...remoteVersionsAllGroups])
     // 新版本号规则：累计中间段（minor），而不是尾数（patch）
     let suggestedVersion = incrementSemverMinor(maxVersion)
     if (!suggestedVersion) {
@@ -337,7 +411,7 @@ async function askStartHotfixName (rootPath, groupName) {
     }
     suggestedVersion = findNextAvailableVersion(
         suggestedVersion,
-        new Set(remoteVersions)
+        new Set(remoteVersionsInGroup)
     )
     const hotfixBranches = await getHotfixBranches(rootPath, groupName)
     const releaseBranches = await getReleaseBranches(rootPath, groupName)
@@ -463,6 +537,58 @@ async function getReleaseBranches (rootPath, groupName, options = {}) {
     })
     const branches = Array.from(branchSet)
     branches.sort((left, right) => compareReleaseBranchVersionDesc(left, right, releasePrefix))
+    return branches
+}
+
+async function getAllReleaseBranches (rootPath, options = {}) {
+    const { includeLocal = true } = options
+    const refs = includeLocal
+        ? 'refs/heads/release/*/* refs/remotes/origin/release/*/*'
+        : 'refs/remotes/origin/release/*/*'
+    const cmd = `${buildCdCommand(rootPath)} && git fetch origin --prune && git for-each-ref --sort=-committerdate --format="%(refname:short)" ${refs}`
+    const { stdout } = await exec(cmd, { maxBuffer: 1024 * 1024 * 10 })
+    const branchSet = new Set()
+    stdout.split(/\r?\n/).forEach(line => {
+        const raw = (line || '').trim()
+        if (!raw) return
+        const normalized = raw.startsWith('origin/') ? raw.slice('origin/'.length) : raw
+        // release/<groupName>/<version>
+        const m = normalized.match(/^release\/[^/]+\/(\d+\.\d+\.\d+)$/)
+        if (!m) return
+        branchSet.add(normalized)
+    })
+    const branches = Array.from(branchSet)
+    branches.sort((left, right) => {
+        const leftVersion = left.slice(left.lastIndexOf('/') + 1)
+        const rightVersion = right.slice(right.lastIndexOf('/') + 1)
+        return compareSemverVersionDesc(leftVersion, rightVersion)
+    })
+    return branches
+}
+
+async function getAllHotfixBranches (rootPath, options = {}) {
+    const { includeLocal = true } = options
+    const refs = includeLocal
+        ? 'refs/heads/hotfix/*/* refs/remotes/origin/hotfix/*/*'
+        : 'refs/remotes/origin/hotfix/*/*'
+    const cmd = `${buildCdCommand(rootPath)} && git fetch origin --prune && git for-each-ref --sort=-committerdate --format="%(refname:short)" ${refs}`
+    const { stdout } = await exec(cmd, { maxBuffer: 1024 * 1024 * 10 })
+    const branchSet = new Set()
+    stdout.split(/\r?\n/).forEach(line => {
+        const raw = (line || '').trim()
+        if (!raw) return
+        const normalized = raw.startsWith('origin/') ? raw.slice('origin/'.length) : raw
+        // hotfix/<groupName>/<version>
+        const m = normalized.match(/^hotfix\/[^/]+\/(\d+\.\d+\.\d+)$/)
+        if (!m) return
+        branchSet.add(normalized)
+    })
+    const branches = Array.from(branchSet)
+    branches.sort((left, right) => {
+        const leftVersion = left.slice(left.lastIndexOf('/') + 1)
+        const rightVersion = right.slice(right.lastIndexOf('/') + 1)
+        return compareSemverVersionDesc(leftVersion, rightVersion)
+    })
     return branches
 }
 
@@ -664,7 +790,6 @@ function pathContains (parentPath, childPath, caseInsensitive) {
 function getMavenProjectRootPath (gitRootPath, pathContained) {
     const roots = getMavenRootsUnder(gitRootPath)
     const normalizedContained = normalizePath(path.resolve(pathContained))
-    const normalizedGitRoot = normalizePath(path.resolve(gitRootPath))
     const caseInsensitive = process.platform === 'win32'
     let bestRoot = null
     let bestPathLength = Number.MAX_SAFE_INTEGER
@@ -822,10 +947,11 @@ async function askMavenChangeVersion (rootPath, changeType) {
     return normalizedVersion
 }
 
-async function askFinishReleaseBranch (rootPath, groupName) {
-    const releaseBranches = await getReleaseBranches(rootPath, groupName)
+async function askFinishReleaseBranchAll (rootPath) {
+    // 保持原逻辑：允许本地/远端 release 分支一起出现在下拉里（去重后按版本排序）
+    const releaseBranches = await getAllReleaseBranches(rootPath)
     if (releaseBranches.length === 0) {
-        vscode.window.showErrorMessage(`No remote release branch found for group "${groupName}".`)
+        vscode.window.showErrorMessage('No release branch found.')
         return null
     }
     const selectedBranch = await vscode.window.showQuickPick(releaseBranches, {
@@ -841,10 +967,10 @@ async function askFinishReleaseBranch (rootPath, groupName) {
     return selectedBranch
 }
 
-async function askFinishHotfixBranch (rootPath, groupName) {
-    const hotfixBranches = await getHotfixBranches(rootPath, groupName)
+async function askFinishHotfixBranchAll (rootPath) {
+    const hotfixBranches = await getAllHotfixBranches(rootPath)
     if (hotfixBranches.length === 0) {
-        vscode.window.showErrorMessage(`No remote hotfix branch found for group "${groupName}".`)
+        vscode.window.showErrorMessage('No hotfix branch found.')
         return null
     }
     const selectedBranch = await vscode.window.showQuickPick(hotfixBranches, {
@@ -1132,7 +1258,7 @@ function activate (context) {
                     debugLog('command triggered', { commandId, resourceUri: resourceUri ? resourceUri.fsPath : null })
                     const executionResult = await executeGitFlowCommand(commandId, resourceUri)
                     if (executionResult.executed) {
-                        vscode.window.showInformationMessage(getCommandSuccessMessage(commandId, executionResult.groupName))
+                        vscode.window.showInformationMessage(getCommandSuccessMessage(commandId))
                     }
                 } catch (err) {
                     const msg = err && err.message ? err.message : String(err)
@@ -1155,7 +1281,7 @@ function activate (context) {
     }))
 }
 
-function getCommandSuccessMessage (commandId, groupName) {
+function getCommandSuccessMessage (commandId) {
     const commandName = commandId.replace(COMMAND_PREFIX, '')
     return `${commandName} executed done, please check the logs in terminal.`
 }
@@ -1276,7 +1402,8 @@ async function executeGitFlowCommand (commandId, resourceUri) {
         throw new Error(`Unsupported command: ${commandId}`)
     }
     debugLog('resolve command script', { commandId, scriptName })
-    const commandRequiresGroup = commandId !== 'extension.GenerateCommitMessage'
+    // FinishRelease/FinishHotfix 自己会从分支名解析 groupName，不需要先选 group。
+    const commandRequiresGroup = commandId !== 'extension.GenerateCommitMessage' && commandId !== 'extension.FinishRelease' && commandId !== 'extension.FinishHotfix'
     const groupName = commandRequiresGroup ? await ensureGroupNameConfigured() : null
     if (commandRequiresGroup && !groupName) {
         return { executed: false, groupName: null }
@@ -1453,7 +1580,7 @@ async function executeGitFlowCommand (commandId, resourceUri) {
         return { executed: true, groupName }
     }
     if (commandId === 'extension.FinishRelease') {
-        const selectedReleaseBranch = await askFinishReleaseBranch(rootPath, groupName)
+        const selectedReleaseBranch = await askFinishReleaseBranchAll(rootPath)
         if (!selectedReleaseBranch) {
             return { executed: false, groupName }
         }
@@ -1468,7 +1595,7 @@ async function executeGitFlowCommand (commandId, resourceUri) {
         return { executed: true, groupName }
     }
     if (commandId === 'extension.FinishHotfix') {
-        const selectedHotfixBranch = await askFinishHotfixBranch(rootPath, groupName)
+        const selectedHotfixBranch = await askFinishHotfixBranchAll(rootPath)
         if (!selectedHotfixBranch) {
             return { executed: false, groupName }
         }
