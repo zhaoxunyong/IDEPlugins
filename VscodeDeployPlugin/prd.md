@@ -86,7 +86,7 @@
   5. 解析脚本路径（本地优先，否则从配置 URL 下载）。
   6. 确认执行对话框（命令名、工作目录、脚本名、参数）。
   7. 在终端执行：`<bash> <script> <groupName> <fullFeatureName>`。
-- **脚本行为**：`git checkout develop-<group>` → `git pull` → `git checkout -b <featureName>` → `git push --set-upstream origin <featureName>`。
+- **脚本行为**：`git checkout develop-<group>` → `git pull` → `git checkout -b <featureName>`（仅创建本地分支，不自动 push）。
 - **参数**：`[groupName, fullFeatureName]`。
 
 ### 4.2 ZeroGit: Finish Feature
@@ -291,7 +291,7 @@
 | 脚本名 | 用途 |
 |--------|------|
 | gitCheck.sh | 工作区干净、当前分支、upstream、与远程同步、可选 Git 版本检查 |
-| StartNewFeature.sh | 从 develop-<group> 拉取并创建 feature 分支并 push |
+| StartNewFeature.sh | 从 develop-<group> 拉取并创建 feature 分支（不自动 push） |
 | FinishFeature.sh | 删除本地 feature 分支（前提：已在 GitLab MR 并 merge） |
 | RebaseFeature.sh | 对当前 feature 分支做 rebase（通常基于 develop-<group>） |
 | StartNewRelease.sh | 创建 release 分支 |
