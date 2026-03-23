@@ -199,7 +199,9 @@ async function getSuggestedReleaseVersion (rootPath, groupName) {
     if (!maxVersion) {
         return '1.0.0'
     }
-    const nextVersion = incrementSemverPatch(maxVersion)
+    // 新版本号规则：累计中间段（minor），而不是尾数（patch）
+    // 例如：1.0.1 -> 1.1.0
+    const nextVersion = incrementSemverMinor(maxVersion)
     if (!nextVersion) {
         return '1.0.0'
     }
@@ -327,7 +329,8 @@ async function askStartHotfixName (rootPath, groupName) {
     }
     const remoteVersions = await getRemoteReleaseHotfixVersions(rootPath, groupName)
     const maxVersion = getMaxSemverVersion([latestHotfixTag.version, ...remoteVersions])
-    let suggestedVersion = incrementSemverPatch(maxVersion)
+    // 新版本号规则：累计中间段（minor），而不是尾数（patch）
+    let suggestedVersion = incrementSemverMinor(maxVersion)
     if (!suggestedVersion) {
         vscode.window.showErrorMessage(`最新生产 tag ${latestHotfixTag.tagName} 无法解析出有效版本，Start Hotfix 已中断。`)
         return null
@@ -554,18 +557,21 @@ function parseSemverVersion (versionText) {
     return matched.slice(1).map(item => parseInt(item, 10))
 }
 
-function incrementSemverPatch (versionText) {
+function incrementSemverMinor (versionText) {
     const versionParts = parseSemverVersion(versionText)
     if (!versionParts) {
         return null
     }
-    return `${versionParts[0]}.${versionParts[1]}.${versionParts[2] + 1}`
+    const major = versionParts[0]
+    const minor = versionParts[1]
+    // minor 累计，patch 重置为 0
+    return `${major}.${minor + 1}.0`
 }
 
 function findNextAvailableVersion (baseVersion, existingVersions) {
     let candidate = baseVersion
     while (candidate && existingVersions.has(candidate)) {
-        candidate = incrementSemverPatch(candidate)
+        candidate = incrementSemverMinor(candidate)
     }
     return candidate
 }

@@ -323,7 +323,9 @@ public class ZeroGitFlowHandler {
             String maxVersion = getMaxSemverVersion(latestTag == null ? null : latestTag.version, remoteReleases, remoteHotfixes);
             String suggested = "1.0.0";
             if (!remoteReleases.isEmpty() || !remoteHotfixes.isEmpty() || latestTag != null) {
-                suggested = findNextAvailableVersion(nextPatch(maxVersion), remoteReleases, remoteHotfixes);
+                // 新版本号规则：累计中间段（minor），而不是尾数（patch）
+                // 例如：1.0.1 -> 1.1.0
+                suggested = findNextAvailableVersion(nextMinor(maxVersion), remoteReleases, remoteHotfixes);
             }
             String prefix = "release/" + groupName + "/";
             String value = Messages.showInputDialog(
@@ -391,7 +393,8 @@ public class ZeroGitFlowHandler {
             List<String> remoteReleases = listReleaseBranches(rPath, groupName, false);
             List<String> remoteHotfixes = listHotfixBranches(rPath, groupName, false);
             String maxVersion = getMaxSemverVersion(latestTag.version, remoteReleases, remoteHotfixes);
-            String suggested = findNextAvailableVersion(nextPatch(maxVersion), remoteReleases, remoteHotfixes);
+            // 新版本号规则：累计中间段（minor），而不是尾数（patch）
+            String suggested = findNextAvailableVersion(nextMinor(maxVersion), remoteReleases, remoteHotfixes);
             String prefix = "hotfix/" + groupName + "/";
             String value = Messages.showInputDialog(
                     "请输入 Hotfix 分支（SemVer）\n最新生产 Tag：" + latestTag.tagName,
@@ -917,7 +920,7 @@ public class ZeroGitFlowHandler {
         existingVersions.addAll(extractVersions(hotfixes));
         String candidate = baseVersion;
         while (existingVersions.contains(candidate)) {
-            candidate = nextPatch(candidate);
+            candidate = nextMinor(candidate);
         }
         return candidate;
     }
@@ -1059,15 +1062,15 @@ public class ZeroGitFlowHandler {
         return 0;
     }
 
-    private String nextPatch(String semver) {
+    private String nextMinor(String semver) {
         Matcher matcher = SEMVER_PATTERN.matcher(semver);
         if (!matcher.matches()) {
             return "1.0.0";
         }
         int major = Integer.parseInt(matcher.group(1));
         int minor = Integer.parseInt(matcher.group(2));
-        int patch = Integer.parseInt(matcher.group(3)) + 1;
-        return major + "." + minor + "." + patch;
+        // minor 累计，patch 重置为 0
+        return major + "." + (minor + 1) + "." + 0;
     }
 
     private int extractFeatureOrder(String branch) {

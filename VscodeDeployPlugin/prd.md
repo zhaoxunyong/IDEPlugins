@@ -121,7 +121,7 @@
   2. **确认对话框**：「是否已执行 Finish Feature 操作？」→ 否则中止。
   3. 选择工作区 → `gitCheck` → 解析脚本。
   4. 输入 release 版本（带 `release/<group>/` 前缀）：
-     - 建议版本：取「远程最新 release 版本、最新 hotfix 版本、最新 tag 版本」中最大者，patch+1；若无则 `1.0.0`。
+    - 建议版本：取「远程最新 release 版本、最新 hotfix 版本、最新 tag 版本」中最大者，minor+1 且 patch=0；若无则 `1.0.0`。
      - 校验：SemVer `X.Y.Z`；不与已有 release 重名；不与已有 hotfix 版本冲突。
   5. 确认执行后在终端执行。
 - **参数**：`[groupName, fullReleaseName]`。
@@ -222,7 +222,7 @@
 
 ### 7.2 建议版本计算（Release/Hotfix）
 
-取以下三者最大值，再 patch+1：
+取以下三者最大值，再 minor+1 且 patch=0：
 
 - 远程最新 `release/<group>/X.Y.Z`
 - 远程最新 `hotfix/<group>/X.Y.Z`
