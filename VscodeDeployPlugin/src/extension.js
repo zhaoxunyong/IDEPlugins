@@ -345,16 +345,36 @@ async function askStartReleaseName (rootPath, groupName) {
         vscode.window.showErrorMessage('无法生成有效的 release 版本，Start Release 已中断。')
         return null
     }
+
     const releaseBranches = await getReleaseBranches(rootPath, groupName)
     const hotfixBranches = await getHotfixBranches(rootPath, groupName)
     const releaseVersions = new Set(extractBranchVersions(releaseBranches, branchPrefix))
     const hotfixVersions = new Set(extractBranchVersions(hotfixBranches, conflictPrefix))
+
+    // 用于 prompt 展示：只看远程、release/hotfix 不限制 groupName
+    const remoteReleaseBranches = await getAllReleaseBranches(rootPath, { includeLocal: false })
+    const remoteHotfixBranches = await getAllHotfixBranches(rootPath, { includeLocal: false })
+    const latestReleaseVersion = remoteReleaseBranches.length > 0
+        ? remoteReleaseBranches[0].slice(remoteReleaseBranches[0].lastIndexOf('/') + 1)
+        : null
+    const latestHotfixVersion = remoteHotfixBranches.length > 0
+        ? remoteHotfixBranches[0].slice(remoteHotfixBranches[0].lastIndexOf('/') + 1)
+        : null
+    const latestTagText = latestReleaseTag ? `${latestReleaseTag.tagName}` : '无'
+    const latestReleaseText = latestReleaseVersion || '无'
+    const latestHotfixText = latestHotfixVersion || '无'
+
+    const prompt = [
+        `最新的tag：${latestTagText}   `,
+        `最新的release：${latestReleaseText}   `,
+        `最新的hotfix：${latestHotfixText}   `,
+        `建议 release 版本：${suggestedVersion}。请输入 release 版本。`
+    ].join('')
+
     const fullReleaseName = await vscode.window.showInputBox({
         ignoreFocusOut: true,
         placeHolder: 'Please input release name',
-        prompt: latestReleaseTag
-            ? `最新相关 tag：${latestReleaseTag.tagName}，建议 release 版本：${suggestedVersion}。请输入 release 版本。`
-            : `默认建议 release 版本：${suggestedVersion}。请输入 release 版本。`,
+        prompt,
         value: `${branchPrefix}${suggestedVersion}`,
         validateInput: function (text) {
             const value = (text || '').trim()
@@ -417,10 +437,31 @@ async function askStartHotfixName (rootPath, groupName) {
     const releaseBranches = await getReleaseBranches(rootPath, groupName)
     const hotfixVersions = new Set(extractBranchVersions(hotfixBranches, branchPrefix))
     const releaseVersions = new Set(extractBranchVersions(releaseBranches, conflictPrefix))
+
+    // 用于 prompt 展示：只看远程、release/hotfix 不限制 groupName
+    const remoteReleaseBranches = await getAllReleaseBranches(rootPath, { includeLocal: false })
+    const remoteHotfixBranches = await getAllHotfixBranches(rootPath, { includeLocal: false })
+    const latestReleaseVersion = remoteReleaseBranches.length > 0
+        ? remoteReleaseBranches[0].slice(remoteReleaseBranches[0].lastIndexOf('/') + 1)
+        : null
+    const latestHotfixVersion = remoteHotfixBranches.length > 0
+        ? remoteHotfixBranches[0].slice(remoteHotfixBranches[0].lastIndexOf('/') + 1)
+        : null
+    const latestTagText = latestHotfixTag ? `${latestHotfixTag.tagName}` : '无'
+    const latestReleaseText = latestReleaseVersion || '无'
+    const latestHotfixText = latestHotfixVersion || '无'
+
+    const prompt = [
+        `1. 最新的tag：${latestTagText}`,
+        `2. 最新的release：${latestReleaseText}`,
+        `3. 最新的hotfix：${latestHotfixText}`,
+        `建议 hotfix 版本：${suggestedVersion}。请输入 hotfix 版本。`
+    ].join('\n')
+
     const fullHotfixName = await vscode.window.showInputBox({
         ignoreFocusOut: true,
         placeHolder: 'Please input hotfix name',
-        prompt: `最新生产 tag：${latestHotfixTag.tagName}，建议 hotfix 版本：${suggestedVersion}。请输入 hotfix 版本。`,
+        prompt,
         value: `${branchPrefix}${suggestedVersion}`,
         validateInput: function (text) {
             const value = (text || '').trim()

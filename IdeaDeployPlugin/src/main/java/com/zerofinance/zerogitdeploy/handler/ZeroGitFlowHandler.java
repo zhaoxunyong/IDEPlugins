@@ -332,10 +332,15 @@ public class ZeroGitFlowHandler {
                 suggested = findNextAvailableVersion(nextMinor(maxVersion), remoteReleasesInGroup, remoteHotfixesInGroup);
             }
             String prefix = "release/" + groupName + "/";
+            String latestTagText = latestTag == null ? "无" : latestTag.tagName;
+            String latestReleaseVersion = remoteReleasesAll.isEmpty() ? "无" : extractVersion(remoteReleasesAll.get(0));
+            String latestHotfixVersion = remoteHotfixesAll.isEmpty() ? "无" : extractVersion(remoteHotfixesAll.get(0));
             String value = Messages.showInputDialog(
-                    latestTag == null
-                            ? "请输入 Release 分支（SemVer）\n默认建议版本：1.0.0"
-                            : "请输入 Release 分支（SemVer）\n最新相关 Tag：" + latestTag.tagName,
+                    "请输入 Release 分支（SemVer）\n"
+                            + "1. 最新的 tag：" + latestTagText + "\n"
+                            + "2. 最新的 release：" + latestReleaseVersion + "\n"
+                            + "3. 最新的 hotfix：" + latestHotfixVersion + "\n"
+                            + "建议 release 版本：" + suggested + "。请输入 release 版本。",
                     "ZeroGit: Start New Release",
                     Messages.getInformationIcon(),
                     prefix + suggested,
@@ -401,8 +406,14 @@ public class ZeroGitFlowHandler {
             // 新版本号规则：累计中间段（minor），而不是尾数（patch）
             String suggested = findNextAvailableVersion(nextMinor(maxVersion), remoteReleasesInGroup, remoteHotfixesInGroup);
             String prefix = "hotfix/" + groupName + "/";
+            String latestReleaseVersion = remoteReleasesAll.isEmpty() ? "无" : extractVersion(remoteReleasesAll.get(0));
+            String latestHotfixVersion = remoteHotfixesAll.isEmpty() ? "无" : extractVersion(remoteHotfixesAll.get(0));
             String value = Messages.showInputDialog(
-                    "请输入 Hotfix 分支（SemVer）\n最新生产 Tag：" + latestTag.tagName,
+                    "请输入 Hotfix 分支（SemVer）\n"
+                            + "1. 最新的 tag：" + latestTag.tagName + "\n"
+                            + "2. 最新的 release：" + latestReleaseVersion + "\n"
+                            + "3. 最新的 hotfix：" + latestHotfixVersion + "\n"
+                            + "建议 hotfix 版本：" + suggested + "。请输入 hotfix 版本。",
                     "ZeroGit: Start New Hotfix",
                     Messages.getInformationIcon(),
                     prefix + suggested,
