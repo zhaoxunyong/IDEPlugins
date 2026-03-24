@@ -1425,6 +1425,22 @@ async function resolveGitRootPath (candidatePath) {
     }
 }
 
+/** 与 GenCommitMessage.sh 一致：git diff --cached --quiet 退出 0 表示无暂存差异，1 表示有。 */
+async function gitRepoHasStagedChanges (rootPath) {
+    const normalizedPath = normalizePath(rootPath)
+    const cmd = `${buildCdCommand(normalizedPath)} && git diff --cached --quiet`
+    try {
+        await exec(cmd, { maxBuffer: 1024 * 1024 })
+        return false
+    } catch (err) {
+        const code = err && err.code
+        if (code === 1) {
+            return true
+        }
+        throw err
+    }
+}
+
 async function pickWorkspaceFolder () {
     const workspaceFolders = vscode.workspace.workspaceFolders || []
     if (workspaceFolders.length === 0) {
@@ -1520,6 +1536,20 @@ async function executeGitFlowCommand (commandId, resourceUri) {
         return { executed: false, groupName }
     }
     debugLog('workspace git root', rootPath)
+
+    if (commandId === 'extension.GenerateCommitMessage') {
+        try {
+            const hasStaged = await gitRepoHasStagedChanges(rootPath)
+            if (!hasStaged) {
+                vscode.window.showWarningMessage('请先执行 git add 后再生成 Commit Message')
+                return { executed: false, groupName }
+            }
+        } catch (err) {
+            const msg = buildExecErrorMessage(err)
+            await showErrorWithCopy(msg, buildErrorDetails(err))
+            return { executed: false, groupName }
+        }
+    }
 
     if (commandId !== 'extension.GenerateCommitMessage' && commandId !== 'extension.MavenChange' && commandId !== 'extension.RebaseFeature') {
         await gitCheck(rootPath)

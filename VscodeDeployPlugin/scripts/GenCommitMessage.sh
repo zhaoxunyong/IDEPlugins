@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #export PATH="/usr/local/bin:/usr/bin:~/.codex/bin:$PATH"
-export PATH="/usr/local/bin:/usr/bin:~/AppData/Roaming/npm/:$PATH"
+export PATH="/usr/local/bin:/usr/bin:~/AppData/Roaming/npm:~/.nvm/versions/node/v22.22.0/bin:$PATH"
 
 modelName="${1:-gpt-5.4}"
 
@@ -61,7 +61,7 @@ subject（必须）：
 1. 执行 git diff --cached 查看已暂存的变更（如果没有暂存，提醒用户先 git add）
 2. 分析变更内容
 3. 判断最合适的 type 和 scope
-4. 生成符合规范的 commit message（用中文）
+4. 生成符合规范的 commit message，必须带上“变更内容”（用中文）
 5. 始终不要自动git commit
 EOF
 )

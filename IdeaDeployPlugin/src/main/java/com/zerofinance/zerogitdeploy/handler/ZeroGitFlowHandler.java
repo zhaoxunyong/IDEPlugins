@@ -303,6 +303,10 @@ public class ZeroGitFlowHandler {
         debugLog("command triggered", "Generate Commit Message");
         String rootPath = getRootPath();
         CommandUtils.clearZeroGitScriptCache();
+        if (!gitRepoHasStagedChanges(rootPath)) {
+            Messages.showWarningDialog(project, "请先执行 git add 后再生成 Commit Message", "ZeroGit: Generate Commit Message");
+            return;
+        }
         String script = CommandUtils.processZeroGitScript(rootPath, "GenCommitMessage.sh");
         confirmAndRunInTerminal("Generate Commit Message", rootPath, script, Lists.newArrayList());
     }
@@ -1080,6 +1084,20 @@ public class ZeroGitFlowHandler {
                     StringUtils.defaultString(result.getResult(), "(no output)"));
         }
         return result;
+    }
+
+    /** 与 GenCommitMessage.sh 一致：exit 0 表示无暂存差异，exit 1 表示有暂存差异。 */
+    private boolean gitRepoHasStagedChanges(String rootPath) throws Exception {
+        ExecuteResult result = DeployCmdExecuter.execDirect(rootPath, "git", Arrays.asList("diff", "--cached", "--quiet"));
+        int code = result.getCode();
+        if (code == 0) {
+            return false;
+        }
+        if (code == 1) {
+            return true;
+        }
+        throw new DeployPluginException("Git 命令执行失败，command=git diff --cached --quiet，exitCode=" + code + "，详情：" +
+                StringUtils.defaultString(result.getResult(), "(no output)"));
     }
 
     private String getCurrentBranch(String rootPath) throws Exception {
