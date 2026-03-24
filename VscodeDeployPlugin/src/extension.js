@@ -27,6 +27,7 @@ const gitCheckPath = tmpdir + '/' + gitCheckFile
 
 const gitFlowScriptByCommand = {
     'extension.GenerateCommitMessage': 'GenCommitMessage.sh',
+    'extension.AiCodeReview': 'AiCodeReview.sh',
     'extension.StartNewFeature': 'StartNewFeature.sh',
     'extension.FinishFeature': 'FinishFeature.sh',
     'extension.RebaseFeature': 'RebaseFeature.sh',
@@ -1460,7 +1461,7 @@ async function executeGitFlowCommand (commandId, resourceUri) {
     }
     debugLog('resolve command script', { commandId, scriptName })
     // FinishRelease/FinishHotfix 自己会从分支名解析 groupName，不需要先选 group。
-    const commandRequiresGroup = commandId !== 'extension.GenerateCommitMessage' && commandId !== 'extension.FinishRelease' && commandId !== 'extension.FinishHotfix'
+    const commandRequiresGroup = commandId !== 'extension.GenerateCommitMessage' && commandId !== 'extension.AiCodeReview' && commandId !== 'extension.FinishRelease' && commandId !== 'extension.FinishHotfix'
     const groupName = commandRequiresGroup ? await ensureGroupNameConfigured() : null
     if (commandRequiresGroup && !groupName) {
         return { executed: false, groupName: null }
@@ -1537,11 +1538,14 @@ async function executeGitFlowCommand (commandId, resourceUri) {
     }
     debugLog('workspace git root', rootPath)
 
-    if (commandId === 'extension.GenerateCommitMessage') {
+    if (commandId === 'extension.GenerateCommitMessage' || commandId === 'extension.AiCodeReview') {
         try {
             const hasStaged = await gitRepoHasStagedChanges(rootPath)
             if (!hasStaged) {
-                vscode.window.showWarningMessage('请先执行 git add 后再生成 Commit Message')
+                const tip = commandId === 'extension.AiCodeReview'
+                    ? '请先执行 git add 后再运行 AI Code Review'
+                    : '请先执行 git add 后再生成 Commit Message'
+                vscode.window.showWarningMessage(tip)
                 return { executed: false, groupName }
             }
         } catch (err) {
@@ -1551,7 +1555,7 @@ async function executeGitFlowCommand (commandId, resourceUri) {
         }
     }
 
-    if (commandId !== 'extension.GenerateCommitMessage' && commandId !== 'extension.MavenChange' && commandId !== 'extension.RebaseFeature') {
+    if (commandId !== 'extension.GenerateCommitMessage' && commandId !== 'extension.AiCodeReview' && commandId !== 'extension.MavenChange' && commandId !== 'extension.RebaseFeature') {
         await gitCheck(rootPath)
     }
     const scriptPath = await resolveScriptPath(rootPath, scriptName)

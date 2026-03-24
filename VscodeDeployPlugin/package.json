@@ -21,6 +21,7 @@
         "onCommand:extension.StartNewHotfix",
         "onCommand:extension.FinishHotfix",
         "onCommand:extension.GenerateCommitMessage",
+        "onCommand:extension.AiCodeReview",
         "onCommand:extension.GitFlowGuideline"
     ],
     "main": "./src/extension.js",
@@ -104,6 +105,10 @@
                 "title": "Generate Commit Message"
             },
             {
+                "command": "extension.AiCodeReview",
+                "title": "AI Code Review"
+            },
+            {
                 "command": "extension.GitFlowGuideline",
                 "title": "GitFlow Guideline"
             }
@@ -131,6 +136,10 @@
             "zerogit.menu": [
                 {
                     "command": "extension.GenerateCommitMessage",
+                    "group": "0_commit"
+                },
+                {
+                    "command": "extension.AiCodeReview",
                     "group": "0_commit"
                 },
                 {

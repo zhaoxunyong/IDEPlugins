@@ -19,6 +19,7 @@
     <b>features:</b>
     <ul>
         <li>0. Generate Commit Message</li>
+        <li>0a. AI Code Review (staged changes, requires code-review-expert skill)</li>
         <li>1. Maven Change</li>
         <li>2. Start New Feature</li>
         <li>3. Finish Feature</li>
@@ -72,6 +73,7 @@
         <group id="ZeroMainAction" text="ZeroGit" description="A git deploy plugin tool">
             <add-to-group group-id="MainMenu"  anchor="after" relative-to-action="ToolsMenu" />
             <action id="GenerateCommitMessageMainMenu" class="com.zerofinance.zerogitdeploy.action.GenerateCommitMessageAction" icon="AllIcons.Actions.EditSource" text="Generate Commit Message" description="ZeroGit Generate Commit Message" />
+            <action id="AiCodeReviewMainMenu" class="com.zerofinance.zerogitdeploy.action.AiCodeReviewAction" icon="AllIcons.Actions.Inspect" text="AI Code Review" description="ZeroGit AI Code Review (staged)" />
             <group id="ZeroMainMavenSubMenu" text="Maven" popup="true" icon="/icons/mavenMenu.svg">
                 <action id="MavenChangeMainMenu" class="com.zerofinance.zerogitdeploy.action.MavenChangeAction" icon="AllIcons.Nodes.PpLib" text="Maven Change" description="ZeroGit Maven Change" />
             </group>
@@ -98,6 +100,7 @@
             <add-to-group group-id="ProjectViewPopupMenu" anchor="after" relative-to-action="WeighingNewGroup" />
             <add-to-group group-id="EditorPopupMenu" anchor="last" />
             <action id="GenerateCommitMessagePopupMenu" class="com.zerofinance.zerogitdeploy.action.GenerateCommitMessageAction" icon="AllIcons.Actions.EditSource" text="Generate Commit Message" description="ZeroGit Generate Commit Message" />
+            <action id="AiCodeReviewPopupMenu" class="com.zerofinance.zerogitdeploy.action.AiCodeReviewAction" icon="AllIcons.Actions.Inspect" text="AI Code Review" description="ZeroGit AI Code Review (staged)" />
             <group id="ZeroPopupMavenSubMenu" text="Maven" popup="true" icon="/icons/mavenMenu.svg">
                 <action id="MavenChangePopupMenu" class="com.zerofinance.zerogitdeploy.action.MavenChangeAction" icon="AllIcons.Nodes.PpLib" text="Maven Change" description="ZeroGit Maven Change" />
             </group>
@@ -123,6 +126,7 @@
             <!-- icon can see: https://intellij-icons.jetbrains.design/ -->
             <action class="com.zerofinance.zerogitdeploy.action.ZeroToolbarLabelAction" id="ZeroToolbarLabelAction" />
             <action id="GenerateCommitMessageToolbar" class="com.zerofinance.zerogitdeploy.action.GenerateCommitMessageAction" icon="AllIcons.Actions.EditSource" text="Generate Commit Message" description="ZeroGit Generate Commit Message" />
+            <action id="AiCodeReviewToolbar" class="com.zerofinance.zerogitdeploy.action.AiCodeReviewAction" icon="AllIcons.Actions.Inspect" text="AI Code Review" description="ZeroGit AI Code Review (staged)" />
             <action id="MavenChangeToolbar" class="com.zerofinance.zerogitdeploy.action.MavenChangeAction" icon="AllIcons.Nodes.PpLib" text="Maven Change" description="ZeroGit Maven Change" />
             <action id="StartNewFeatureToolbar" class="com.zerofinance.zerogitdeploy.action.StartNewFeatureAction" icon="AllIcons.Vcs.Branch" text="Start New Feature" description="ZeroGit Start New Feature" />
             <action id="FinishFeatureToolbar" class="com.zerofinance.zerogitdeploy.action.FinishFeatureAction" icon="AllIcons.Vcs.Branch" text="Finish Feature" description="ZeroGit Finish Feature" />

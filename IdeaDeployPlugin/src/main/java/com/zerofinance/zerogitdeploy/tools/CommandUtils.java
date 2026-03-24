@@ -23,6 +23,7 @@ public final class CommandUtils {
             "RebaseFeature.sh",
             "MavenChange.sh",
             "GenCommitMessage.sh",
+            "AiCodeReview.sh",
             "StartNewRelease.sh",
             "FinishRelease.sh",
             "StartNewHotfix.sh"

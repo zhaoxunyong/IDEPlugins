@@ -311,6 +311,18 @@ public class ZeroGitFlowHandler {
         confirmAndRunInTerminal("Generate Commit Message", rootPath, script, Lists.newArrayList());
     }
 
+    public void aiCodeReview() throws Exception {
+        debugLog("command triggered", "AI Code Review");
+        String rootPath = getRootPath();
+        CommandUtils.clearZeroGitScriptCache();
+        if (!gitRepoHasStagedChanges(rootPath)) {
+            Messages.showWarningDialog(project, "请先执行 git add 后再运行 AI Code Review", "ZeroGit: AI Code Review");
+            return;
+        }
+        String script = CommandUtils.processZeroGitScript(rootPath, "AiCodeReview.sh");
+        confirmAndRunInTerminal("AI Code Review", rootPath, script, Lists.newArrayList());
+    }
+
     public void startNewRelease() throws Exception {
         debugLog("command triggered", "Start New Release");
         String groupName = requireGroupName();
