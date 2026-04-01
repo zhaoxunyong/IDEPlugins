@@ -70,9 +70,14 @@ else
   exit 1
 fi
 
-DIFF=$(git diff --cached)
+# diff 写入临时文件，再通过 stdin 传给 codex，避免超长 argv（ARG_MAX）与 bash 巨型变量
+DIFF_FILE=$(mktemp)
+trap 'rm -f "$DIFF_FILE"' EXIT
 
-prompt=$(cat <<EOF
+git --no-pager diff --cached > "$DIFF_FILE"
+
+{
+  cat <<'EOF'
 使用code-review-expert skills，对下面「Code diff」中的已暂存变更进行 code review，用中文回复：
 - 仅根据「Code diff」中的内容进行 review，不要执行 git 命令、不要使用 git history 或工作区其它未暂存变更；只分析本次暂存区 diff。
 - 如果发现 P0/P1 级别的严重问题 → 输出 FAIL 并说明原因。否则输出 PASS
@@ -80,10 +85,7 @@ prompt=$(cat <<EOF
 - 始终不要自动 git commit
 
 Code diff:
-${DIFF}
-
-Answer in Chinese.
 EOF
-)
-
-codex exec -m "$modelName" "$prompt"
+  cat "$DIFF_FILE"
+  printf '\nAnswer in Chinese.\n'
+} | codex exec -m "$modelName" -
