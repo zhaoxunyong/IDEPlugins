@@ -80,7 +80,8 @@ git --no-pager diff --cached > "$DIFF_FILE"
   cat <<'EOF'
 使用code-review-expert skills，对下面「Code diff」中的已暂存变更进行 code review，用中文回复：
 - 仅根据「Code diff」中的内容进行 review，不要执行 git 命令、不要使用 git history 或工作区其它未暂存变更；只分析本次暂存区 diff。
-- 如果发现 P0/P1 级别的严重问题 → 输出 FAIL 并说明原因。否则输出 PASS
+- 如果发现P0级别的严重问题 → 输出 FAIL 并说明原因。否则输出 PASS
+- 如果发现P1级别的严重问题 → 输出 PASS 并说明原因。但要提醒用户重点关注P1级别的问题是否需要修复，并建议用户在MR Commit标注P1级别的问题是否需要解决
 - 先写结论（PASS 或 FAIL），再详细说明
 - 始终不要自动 git commit
 
