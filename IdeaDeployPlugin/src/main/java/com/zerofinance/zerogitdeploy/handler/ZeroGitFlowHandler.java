@@ -332,6 +332,9 @@ public class ZeroGitFlowHandler {
         }
         String rootPath = getRootPath();
         runWithGitCheckInBackground(rootPath, "StartNewRelease.sh", (rPath, script) -> {
+            if (!confirmPomSnapshotIfPresent(rPath)) {
+                return;
+            }
             gitFetchOriginPrune(rPath);
             HotfixBaseTagInfo latestTag = getLatestRemoteHotfixBaseTag(rPath, groupName);
             // 为了满足“按最后三位数字递增”的需求：maxVersion 取全局（跨所有 group），
@@ -410,6 +413,9 @@ public class ZeroGitFlowHandler {
         }
         String rootPath = getRootPath();
         runWithGitCheckInBackground(rootPath, "StartNewHotfix.sh", (rPath, script) -> {
+            if (!confirmPomSnapshotIfPresent(rPath)) {
+                return;
+            }
             gitFetchOriginPrune(rPath);
             HotfixBaseTagInfo latestTag = getLatestRemoteHotfixBaseTag(rPath, groupName);
             if (latestTag == null) {
@@ -1106,6 +1112,34 @@ public class ZeroGitFlowHandler {
 
     private boolean yes(String message, String title) {
         return Messages.showYesNoDialog(message, title, Messages.getQuestionIcon()) == Messages.YES;
+    }
+
+    private static boolean pomXmlContainsSnapshot(String rootPath) {
+        File pom = new File(rootPath, "pom.xml");
+        if (!pom.isFile()) {
+            return false;
+        }
+        try {
+            String content = new String(Files.readAllBytes(pom.toPath()), StandardCharsets.UTF_8);
+            return content.contains("-SNAPSHOT");
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    /** Start New Release / Hotfix：仓库根存在 pom.xml 且含 -SNAPSHOT 时需用户确认，取消则中断。 */
+    private boolean confirmPomSnapshotIfPresent(String rootPath) {
+        if (!pomXmlContainsSnapshot(rootPath)) {
+            return true;
+        }
+        int result = Messages.showDialog(
+                project,
+                "pom.xml中有SNAPSHOT版本依赖，请确认。",
+                TITLE,
+                new String[]{"已确认，继续", "取消"},
+                0,
+                Messages.getWarningIcon());
+        return result == 0;
     }
 
     private InputValidator nonEmptyValidator() {

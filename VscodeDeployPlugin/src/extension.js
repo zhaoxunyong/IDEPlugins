@@ -549,6 +549,30 @@ async function confirmFinishHotfixUsageNotice () {
     return showModalYesNoDialog('只有Maintainer角色才有权限操作，请确认你对该项目是否有Maintainer权限？\n\n此功能仅限于解决CICD自动化merge代码时出现冲突的场景。解决完冲突后，再到项目的Pipeline里面重新执行对应的job即可。')
 }
 
+function pomXmlContainsSnapshot (rootPath) {
+    const pomPath = path.join(rootPath, 'pom.xml')
+    try {
+        if (!fs.existsSync(pomPath) || !fs.statSync(pomPath).isFile()) {
+            return false
+        }
+        return fs.readFileSync(pomPath, 'utf8').includes('-SNAPSHOT')
+    } catch (_) {
+        return false
+    }
+}
+
+/** StartNewRelease / StartNewHotfix：仓库根存在 pom.xml 且含 -SNAPSHOT 时需用户确认，取消则中断。 */
+async function confirmPomSnapshotIfPresent (rootPath) {
+    if (!pomXmlContainsSnapshot(rootPath)) {
+        return true
+    }
+    const message = 'pom.xml中有SNAPSHOT版本依赖，请确认。'
+    const continueAction = { title: '已确认，继续' }
+    const cancelAction = { title: '取消', isCloseAffordance: true }
+    const chosen = await vscode.window.showWarningMessage(message, { modal: true }, continueAction, cancelAction)
+    return !!chosen && chosen.title === continueAction.title
+}
+
 async function showModalConfirmDialog (message) {
     const confirmAction = 'OK'
     const selectedAction = await vscode.window.showWarningMessage(message, { modal: true }, confirmAction)
@@ -1619,6 +1643,11 @@ async function executeGitFlowCommand (commandId, resourceUri) {
         scriptArgs.push(currentBranch)
     }
     if (commandId === 'extension.StartNewRelease') {
+        const snapshotOk = await confirmPomSnapshotIfPresent(rootPath)
+        if (!snapshotOk) {
+            debugLog('start release aborted: pom SNAPSHOT not confirmed')
+            return { executed: false, groupName }
+        }
         const releaseName = await askStartReleaseName(rootPath, groupName)
         if (!releaseName) {
             return { executed: false, groupName }
@@ -1631,6 +1660,11 @@ async function executeGitFlowCommand (commandId, resourceUri) {
         const cancelAction = { title: '取消', isCloseAffordance: true }
         const chosen = await vscode.window.showWarningMessage(confirmMessage, { modal: true }, continueAction, cancelAction)
         if (!chosen || chosen.title !== continueAction.title) {
+            return { executed: false, groupName }
+        }
+        const snapshotOk = await confirmPomSnapshotIfPresent(rootPath)
+        if (!snapshotOk) {
+            debugLog('start hotfix aborted: pom SNAPSHOT not confirmed')
             return { executed: false, groupName }
         }
         const hotfixInfo = await askStartHotfixName(rootPath, groupName)
