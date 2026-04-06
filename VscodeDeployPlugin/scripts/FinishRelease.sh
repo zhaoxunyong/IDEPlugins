@@ -91,21 +91,29 @@ run_git() {
   shift
 
   echo ">>> $desc"
-  local output
-  if ! output=$("$@" 2>&1); then
+  local stdout_file stderr_file ec
+  stdout_file=$(mktemp)
+  stderr_file=$(mktemp)
+  ec=0
+  "$@" >"$stdout_file" 2>"$stderr_file" || ec=$?
+
+  if [ "$ec" -ne 0 ]; then
     echo "ERROR: $desc failed."
-    if [ -n "$output" ]; then
-      echo "$output"
+    if [ -s "$stderr_file" ]; then
+      cat "$stderr_file"
     fi
     echo "Please resolve the conflict/problem and rerun Finish ${MODE^}."
     if [ "$CURRENT_STEP" -ne 0 ]; then
       STEP_STATUS[$CURRENT_STEP]="FAILED"
     fi
+    rm -f "$stdout_file" "$stderr_file"
     exit 1
   fi
-  if [ -n "$output" ]; then
-    echo "$output"
+  if [ -s "$stderr_file" ]; then
+    cat "$stderr_file"
   fi
+  rm -f "$stdout_file" "$stderr_file"
+  # 标准输出 (1>) 不回显；仅回显标准错误 (2>)，便于飞书等场景减少冗长输出。
 }
 
 # 收集需在第 6 步统一 push 的分支（main + 各 develop/release/hotfix）
