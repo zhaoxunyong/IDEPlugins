@@ -1,4 +1,16 @@
 #!/bin/bash
+
+# 当前工作目录（$PWD）下若存在 Pre_<本脚本文件名> 则执行，否则跳过
+_VSDEP_PRE="$PWD/Pre_$(basename "${BASH_SOURCE[0]:-$0}")"
+if [ -f "$_VSDEP_PRE" ]; then
+  if [ -x "$_VSDEP_PRE" ]; then
+    "$_VSDEP_PRE" "$@" || exit $?
+  else
+    bash "$_VSDEP_PRE" "$@" || exit $?
+  fi
+fi
+unset _VSDEP_PRE
+
 # 本地对已暂存变更做 AI code review（不发送飞书、不操作 git commit）。
 # 用法：./AiCodeReview.sh [模型名]   默认模型与 GenCommitMessage.sh 一致：gpt-5.4
 
@@ -90,3 +102,17 @@ EOF
   cat "$DIFF_FILE"
   printf '\nAnswer in Chinese.\n'
 } | codex exec -m "$modelName" -
+_VSDEP_MAIN_EXIT=${PIPESTATUS[1]}
+
+# 当前工作目录（$PWD）下若存在 Post_<本脚本文件名> 则执行，否则跳过
+_VSDEP_POST="$PWD/Post_$(basename "${BASH_SOURCE[0]:-$0}")"
+if [ -f "$_VSDEP_POST" ]; then
+  if [ -x "$_VSDEP_POST" ]; then
+    "$_VSDEP_POST" "$@"
+  else
+    bash "$_VSDEP_POST" "$@"
+  fi
+fi
+unset _VSDEP_POST
+
+exit "$_VSDEP_MAIN_EXIT"

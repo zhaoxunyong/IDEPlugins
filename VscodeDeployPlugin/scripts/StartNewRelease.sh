@@ -1,5 +1,16 @@
 #!/bin/bash
 
+# 当前工作目录（$PWD）下若存在 Pre_<本脚本文件名> 则执行，否则跳过
+_VSDEP_PRE="$PWD/Pre_$(basename "${BASH_SOURCE[0]:-$0}")"
+if [ -f "$_VSDEP_PRE" ]; then
+  if [ -x "$_VSDEP_PRE" ]; then
+    "$_VSDEP_PRE" "$@" || exit $?
+  else
+    bash "$_VSDEP_PRE" "$@" || exit $?
+  fi
+fi
+unset _VSDEP_PRE
+
 groupName=$1
 releaseName=$2
 
@@ -80,3 +91,14 @@ fi
 git push --set-upstream origin "$releaseName"
 
 echo "release branch created: $releaseName"
+
+# 当前工作目录（$PWD）下若存在 Post_<本脚本文件名> 则执行，否则跳过
+_VSDEP_POST="$PWD/Post_$(basename "${BASH_SOURCE[0]:-$0}")"
+if [ -f "$_VSDEP_POST" ]; then
+  if [ -x "$_VSDEP_POST" ]; then
+    "$_VSDEP_POST" "$@"
+  else
+    bash "$_VSDEP_POST" "$@"
+  fi
+fi
+unset _VSDEP_POST

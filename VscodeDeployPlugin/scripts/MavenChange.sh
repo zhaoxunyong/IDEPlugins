@@ -1,5 +1,16 @@
 #!/bin/bash
 
+# 当前工作目录（$PWD）下若存在 Pre_<本脚本文件名> 则执行，否则跳过
+_VSDEP_PRE="$PWD/Pre_$(basename "${BASH_SOURCE[0]:-$0}")"
+if [ -f "$_VSDEP_PRE" ]; then
+  if [ -x "$_VSDEP_PRE" ]; then
+    "$_VSDEP_PRE" "$@" || exit $?
+  else
+    bash "$_VSDEP_PRE" "$@" || exit $?
+  fi
+fi
+unset _VSDEP_PRE
+
 groupName=$1
 mvnVersion=$2
 NEXUS_BASE_URL="http://nexus.zerofinance.net"
@@ -101,6 +112,8 @@ mvn versions:set -DnewVersion="${mvnVersion}"
 setResult=$?
 set -e
 
+_VSDEP_MAIN_EXIT=1
+
 if [ "$setResult" -eq 0 ]; then
   echo "mvn versions:set succeeded, committing versions..."
   mvn versions:commit
@@ -111,20 +124,35 @@ if [ "$setResult" -eq 0 ]; then
   set -e
   if [ "$deployResult" -eq 0 ]; then
     echo "MavenChange done."
-    exit 0
+    _VSDEP_MAIN_EXIT=0
+  else
+    echo "mvn deploy failed, please check logs and resolve manually."
   fi
-  echo "mvn deploy failed, please check logs and resolve manually."
-  exit 1
+else
+  echo "mvn versions:set failed, reverting versions..."
+  set +e
+  mvn versions:revert
+  revertResult=$?
+  set -e
+
+  if [ "$revertResult" -ne 0 ]; then
+    echo "mvn versions:revert also failed. Please resolve manually."
+  fi
 fi
 
-echo "mvn versions:set failed, reverting versions..."
-set +e
-mvn versions:revert
-revertResult=$?
-set -e
-
-if [ "$revertResult" -ne 0 ]; then
-  echo "mvn versions:revert also failed. Please resolve manually."
+# 当前工作目录（$PWD）下若存在 Post_<本脚本文件名> 则执行，否则跳过（仅主流程成功时）
+if [ "$_VSDEP_MAIN_EXIT" -eq 0 ]; then
+  _VSDEP_POST="$PWD/Post_$(basename "${BASH_SOURCE[0]:-$0}")"
+  if [ -f "$_VSDEP_POST" ]; then
+    if [ -x "$_VSDEP_POST" ]; then
+      "$_VSDEP_POST" "$@"
+    else
+      bash "$_VSDEP_POST" "$@"
+    fi
+  fi
+  unset _VSDEP_POST
 fi
 
-exit 1
+_VSDEP_EXIT_CODE=$_VSDEP_MAIN_EXIT
+unset _VSDEP_MAIN_EXIT
+exit "$_VSDEP_EXIT_CODE"

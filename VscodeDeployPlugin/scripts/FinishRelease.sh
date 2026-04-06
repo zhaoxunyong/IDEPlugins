@@ -1,5 +1,16 @@
 #!/bin/bash
 
+# 当前工作目录（$PWD）下若存在 Pre_<本脚本文件名> 则执行，否则跳过
+_VSDEP_PRE="$PWD/Pre_$(basename "${BASH_SOURCE[0]:-$0}")"
+if [ -f "$_VSDEP_PRE" ]; then
+  if [ -x "$_VSDEP_PRE" ]; then
+    "$_VSDEP_PRE" "$@" || exit $?
+  else
+    bash "$_VSDEP_PRE" "$@" || exit $?
+  fi
+fi
+unset _VSDEP_PRE
+
 # 用法: FinishRelease.sh <branch>
 # 根据分支名前缀自动区分 release / hotfix：release/ 或 hotfix/ 开头。
 # 示例: FinishRelease.sh release/groupA/1.0.0
@@ -261,3 +272,14 @@ fi
 STEP_STATUS[7]="DONE"
 
 echo "REMAINING_RELEASES: ${remainingVersions[*]}"
+
+# 当前工作目录（$PWD）下若存在 Post_<本脚本文件名> 则执行，否则跳过
+_VSDEP_POST="$PWD/Post_$(basename "${BASH_SOURCE[0]:-$0}")"
+if [ -f "$_VSDEP_POST" ]; then
+  if [ -x "$_VSDEP_POST" ]; then
+    "$_VSDEP_POST" "$@"
+  else
+    bash "$_VSDEP_POST" "$@"
+  fi
+fi
+unset _VSDEP_POST
