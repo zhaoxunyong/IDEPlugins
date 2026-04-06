@@ -73,6 +73,12 @@ function buildCdCommand (targetPath) {
     return `cd "${normalizedPath}"`
 }
 
+/** 单次 fetch，供 Start Release/Hotfix 等流程复用，避免每个分支查询都执行一遍 fetch。 */
+async function gitFetchOriginPrune (rootPath) {
+    const cmd = `${buildCdCommand(rootPath)} && git fetch origin --prune`
+    await exec(cmd, { maxBuffer: 1024 * 1024 * 10 })
+}
+
 /** When debug is on, bash -x writes trace lines (starting with "+ ") to stderr; strip those and return the rest. */
 function getRealStderr (stderr) {
     const debug = vscode.workspace.getConfiguration().get(CONFIG_DEBUG)
@@ -230,10 +236,13 @@ async function askStartFeatureName (groupName) {
     return `${branchPrefix}${featureName}`
 }
 
-async function getSuggestedReleaseVersion (rootPath, groupName) {
-    const latestTag = await getLatestRemoteReleaseOrHotfixTagContext(rootPath, groupName)
-    const remoteVersionsInGroup = await getRemoteReleaseHotfixVersions(rootPath, groupName)
-    const remoteVersionsAllGroups = await getAllRemoteReleaseHotfixVersions(rootPath)
+async function getSuggestedReleaseVersion (rootPath, groupName, options = {}) {
+    const { skipFetch = false, latestTagContext } = options
+    const latestTag = latestTagContext !== undefined
+        ? latestTagContext
+        : await getLatestRemoteReleaseOrHotfixTagContext(rootPath, groupName)
+    const remoteVersionsInGroup = await getRemoteReleaseHotfixVersions(rootPath, groupName, { skipFetch })
+    const remoteVersionsAllGroups = await getAllRemoteReleaseHotfixVersions(rootPath, { skipFetch })
     const maxVersion = getMaxSemverVersion([latestTag ? latestTag.version : null, ...remoteVersionsAllGroups])
     if (!maxVersion) {
         return '1.0.0'
@@ -310,9 +319,13 @@ async function getLatestRemoteReleaseOrHotfixTagContext (rootPath, groupName) {
     return tags[0]
 }
 
-async function getRemoteReleaseHotfixVersions (rootPath, groupName) {
-    const remoteHotfixBranches = await getHotfixBranches(rootPath, groupName, { includeLocal: false })
-    const remoteReleaseBranches = await getReleaseBranches(rootPath, groupName, { includeLocal: false })
+async function getRemoteReleaseHotfixVersions (rootPath, groupName, options = {}) {
+    const { skipFetch = false } = options
+    const branchOpts = { includeLocal: false, skipFetch }
+    const [remoteHotfixBranches, remoteReleaseBranches] = await Promise.all([
+        getHotfixBranches(rootPath, groupName, branchOpts),
+        getReleaseBranches(rootPath, groupName, branchOpts)
+    ])
     return [
         ...extractBranchVersions(remoteHotfixBranches, `hotfix/${groupName}/`),
         ...extractBranchVersions(remoteReleaseBranches, `release/${groupName}/`)
@@ -327,9 +340,13 @@ function extractSemverVersionsFromBranches (branches) {
         .filter(version => !!parseSemverVersion(version))
 }
 
-async function getAllRemoteReleaseHotfixVersions (rootPath) {
-    const allReleaseBranches = await getAllReleaseBranches(rootPath, { includeLocal: false })
-    const allHotfixBranches = await getAllHotfixBranches(rootPath, { includeLocal: false })
+async function getAllRemoteReleaseHotfixVersions (rootPath, options = {}) {
+    const { skipFetch = false } = options
+    const branchOpts = { includeLocal: false, skipFetch }
+    const [allReleaseBranches, allHotfixBranches] = await Promise.all([
+        getAllReleaseBranches(rootPath, branchOpts),
+        getAllHotfixBranches(rootPath, branchOpts)
+    ])
     return [
         ...extractSemverVersionsFromBranches(allReleaseBranches),
         ...extractSemverVersionsFromBranches(allHotfixBranches)
@@ -340,21 +357,27 @@ async function askStartReleaseName (rootPath, groupName) {
     const branchPrefix = `release/${groupName}/`
     const conflictPrefix = `hotfix/${groupName}/`
     const semverRule = /^\d+\.\d+\.\d+$/
+    await gitFetchOriginPrune(rootPath)
     const latestReleaseTag = await getLatestRemoteReleaseOrHotfixTagContext(rootPath, groupName)
-    const suggestedVersion = await getSuggestedReleaseVersion(rootPath, groupName)
+    const suggestedVersion = await getSuggestedReleaseVersion(rootPath, groupName, {
+        skipFetch: true,
+        latestTagContext: latestReleaseTag
+    })
     if (!suggestedVersion) {
         vscode.window.showErrorMessage('无法生成有效的 release 版本，Start Release 已中断。')
         return null
     }
 
-    const releaseBranches = await getReleaseBranches(rootPath, groupName)
-    const hotfixBranches = await getHotfixBranches(rootPath, groupName)
+    const releaseBranches = await getReleaseBranches(rootPath, groupName, { skipFetch: true })
+    const hotfixBranches = await getHotfixBranches(rootPath, groupName, { skipFetch: true })
     const releaseVersions = new Set(extractBranchVersions(releaseBranches, branchPrefix))
     const hotfixVersions = new Set(extractBranchVersions(hotfixBranches, conflictPrefix))
 
     // 用于 prompt 展示：只看远程、release/hotfix 不限制 groupName
-    const remoteReleaseBranches = await getAllReleaseBranches(rootPath, { includeLocal: false })
-    const remoteHotfixBranches = await getAllHotfixBranches(rootPath, { includeLocal: false })
+    const [remoteReleaseBranches, remoteHotfixBranches] = await Promise.all([
+        getAllReleaseBranches(rootPath, { includeLocal: false, skipFetch: true }),
+        getAllHotfixBranches(rootPath, { includeLocal: false, skipFetch: true })
+    ])
     const latestReleaseVersion = remoteReleaseBranches.length > 0
         ? remoteReleaseBranches[0].slice(remoteReleaseBranches[0].lastIndexOf('/') + 1)
         : null
@@ -416,32 +439,36 @@ async function askStartHotfixName (rootPath, groupName) {
     const branchPrefix = `hotfix/${groupName}/`
     const conflictPrefix = `release/${groupName}/`
     const semverRule = /^\d+\.\d+\.\d+$/
+    await gitFetchOriginPrune(rootPath)
     const latestHotfixTag = await getLatestRemoteReleaseOrHotfixTagContext(rootPath, groupName)
     if (!latestHotfixTag) {
         vscode.window.showErrorMessage(`未找到符合 release/${groupName}/X.Y.Z-YYYYMMDDHHmm 或 hotfix/${groupName}/X.Y.Z-YYYYMMDDHHmm 规则的远程 tag，Start Hotfix 已中断。`)
         return null
     }
-    const remoteVersionsInGroup = await getRemoteReleaseHotfixVersions(rootPath, groupName)
-    const remoteVersionsAllGroups = await getAllRemoteReleaseHotfixVersions(rootPath)
+    const remoteVersionsInGroup = await getRemoteReleaseHotfixVersions(rootPath, groupName, { skipFetch: true })
+    const remoteVersionsAllGroups = await getAllRemoteReleaseHotfixVersions(rootPath, { skipFetch: true })
     const maxVersion = getMaxSemverVersion([latestHotfixTag.version, ...remoteVersionsAllGroups])
-    // 新版本号规则：累计中间段（minor），而不是尾数（patch）
-    let suggestedVersion = incrementSemverMinor(maxVersion)
+    // hotfix：递增尾号（patch），与 release 的 minor 递增区分
+    let suggestedVersion = incrementSemverPatch(maxVersion)
     if (!suggestedVersion) {
         vscode.window.showErrorMessage(`最新生产 tag ${latestHotfixTag.tagName} 无法解析出有效版本，Start Hotfix 已中断。`)
         return null
     }
     suggestedVersion = findNextAvailableVersion(
         suggestedVersion,
-        new Set(remoteVersionsInGroup)
+        new Set(remoteVersionsInGroup),
+        incrementSemverPatch
     )
-    const hotfixBranches = await getHotfixBranches(rootPath, groupName)
-    const releaseBranches = await getReleaseBranches(rootPath, groupName)
+    const hotfixBranches = await getHotfixBranches(rootPath, groupName, { skipFetch: true })
+    const releaseBranches = await getReleaseBranches(rootPath, groupName, { skipFetch: true })
     const hotfixVersions = new Set(extractBranchVersions(hotfixBranches, branchPrefix))
     const releaseVersions = new Set(extractBranchVersions(releaseBranches, conflictPrefix))
 
     // 用于 prompt 展示：只看远程、release/hotfix 不限制 groupName
-    const remoteReleaseBranches = await getAllReleaseBranches(rootPath, { includeLocal: false })
-    const remoteHotfixBranches = await getAllHotfixBranches(rootPath, { includeLocal: false })
+    const [remoteReleaseBranches, remoteHotfixBranches] = await Promise.all([
+        getAllReleaseBranches(rootPath, { includeLocal: false, skipFetch: true }),
+        getAllHotfixBranches(rootPath, { includeLocal: false, skipFetch: true })
+    ])
     const latestReleaseVersion = remoteReleaseBranches.length > 0
         ? remoteReleaseBranches[0].slice(remoteReleaseBranches[0].lastIndexOf('/') + 1)
         : null
@@ -559,12 +586,13 @@ async function confirmRunScript (commandId, rootPath, scriptPath, scriptArgs) {
 }
 
 async function getReleaseBranches (rootPath, groupName, options = {}) {
-    const { includeLocal = true } = options
+    const { includeLocal = true, skipFetch = false } = options
     const releasePrefix = `release/${groupName}/`
     const refs = includeLocal
         ? `refs/heads/${releasePrefix}* refs/remotes/origin/${releasePrefix}*`
         : `refs/remotes/origin/${releasePrefix}*`
-    const cmd = `${buildCdCommand(rootPath)} && git fetch origin --prune && git for-each-ref --sort=-committerdate --format="%(refname:short)" ${refs}`
+    const fetchPrefix = skipFetch ? '' : 'git fetch origin --prune && '
+    const cmd = `${buildCdCommand(rootPath)} && ${fetchPrefix}git for-each-ref --sort=-committerdate --format="%(refname:short)" ${refs}`
     const { stdout } = await exec(cmd, { maxBuffer: 1024 * 1024 * 10 })
     const branchSet = new Set()
     stdout.split(/\r?\n/).forEach(line => {
@@ -583,11 +611,12 @@ async function getReleaseBranches (rootPath, groupName, options = {}) {
 }
 
 async function getAllReleaseBranches (rootPath, options = {}) {
-    const { includeLocal = true } = options
+    const { includeLocal = true, skipFetch = false } = options
     const refs = includeLocal
         ? 'refs/heads/release/*/* refs/remotes/origin/release/*/*'
         : 'refs/remotes/origin/release/*/*'
-    const cmd = `${buildCdCommand(rootPath)} && git fetch origin --prune && git for-each-ref --sort=-committerdate --format="%(refname:short)" ${refs}`
+    const fetchPrefix = skipFetch ? '' : 'git fetch origin --prune && '
+    const cmd = `${buildCdCommand(rootPath)} && ${fetchPrefix}git for-each-ref --sort=-committerdate --format="%(refname:short)" ${refs}`
     const { stdout } = await exec(cmd, { maxBuffer: 1024 * 1024 * 10 })
     const branchSet = new Set()
     stdout.split(/\r?\n/).forEach(line => {
@@ -609,11 +638,12 @@ async function getAllReleaseBranches (rootPath, options = {}) {
 }
 
 async function getAllHotfixBranches (rootPath, options = {}) {
-    const { includeLocal = true } = options
+    const { includeLocal = true, skipFetch = false } = options
     const refs = includeLocal
         ? 'refs/heads/hotfix/*/* refs/remotes/origin/hotfix/*/*'
         : 'refs/remotes/origin/hotfix/*/*'
-    const cmd = `${buildCdCommand(rootPath)} && git fetch origin --prune && git for-each-ref --sort=-committerdate --format="%(refname:short)" ${refs}`
+    const fetchPrefix = skipFetch ? '' : 'git fetch origin --prune && '
+    const cmd = `${buildCdCommand(rootPath)} && ${fetchPrefix}git for-each-ref --sort=-committerdate --format="%(refname:short)" ${refs}`
     const { stdout } = await exec(cmd, { maxBuffer: 1024 * 1024 * 10 })
     const branchSet = new Set()
     stdout.split(/\r?\n/).forEach(line => {
@@ -635,12 +665,13 @@ async function getAllHotfixBranches (rootPath, options = {}) {
 }
 
 async function getHotfixBranches (rootPath, groupName, options = {}) {
-    const { includeLocal = true } = options
+    const { includeLocal = true, skipFetch = false } = options
     const hotfixPrefix = `hotfix/${groupName}/`
     const refs = includeLocal
         ? `refs/heads/${hotfixPrefix}* refs/remotes/origin/${hotfixPrefix}*`
         : `refs/remotes/origin/${hotfixPrefix}*`
-    const cmd = `${buildCdCommand(rootPath)} && git fetch origin --prune && git for-each-ref --sort=-committerdate --format="%(refname:short)" ${refs}`
+    const fetchPrefix = skipFetch ? '' : 'git fetch origin --prune && '
+    const cmd = `${buildCdCommand(rootPath)} && ${fetchPrefix}git for-each-ref --sort=-committerdate --format="%(refname:short)" ${refs}`
     const { stdout } = await exec(cmd, { maxBuffer: 1024 * 1024 * 10 })
     const branchSet = new Set()
     stdout.split(/\r?\n/).forEach(line => {
@@ -736,10 +767,21 @@ function incrementSemverMinor (versionText) {
     return `${major}.${minor + 1}.0`
 }
 
-function findNextAvailableVersion (baseVersion, existingVersions) {
+function incrementSemverPatch (versionText) {
+    const versionParts = parseSemverVersion(versionText)
+    if (!versionParts) {
+        return null
+    }
+    const major = versionParts[0]
+    const minor = versionParts[1]
+    const patch = versionParts[2]
+    return `${major}.${minor}.${patch + 1}`
+}
+
+function findNextAvailableVersion (baseVersion, existingVersions, incrementFn = incrementSemverMinor) {
     let candidate = baseVersion
     while (candidate && existingVersions.has(candidate)) {
-        candidate = incrementSemverMinor(candidate)
+        candidate = incrementFn(candidate)
     }
     return candidate
 }

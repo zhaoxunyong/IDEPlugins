@@ -48,6 +48,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -331,15 +332,16 @@ public class ZeroGitFlowHandler {
         }
         String rootPath = getRootPath();
         runWithGitCheckInBackground(rootPath, "StartNewRelease.sh", (rPath, script) -> {
-            List<String> releases = listReleaseBranches(rPath, groupName);
-            List<String> hotfixes = listHotfixBranches(rPath, groupName);
+            gitFetchOriginPrune(rPath);
             HotfixBaseTagInfo latestTag = getLatestRemoteHotfixBaseTag(rPath, groupName);
             // 为了满足“按最后三位数字递增”的需求：maxVersion 取全局（跨所有 group），
             // 但 findNextAvailableVersion 只需要避开当前 group 内已存在的 release/hotfix 版本。
-            List<String> remoteReleasesInGroup = listReleaseBranches(rPath, groupName, false);
-            List<String> remoteHotfixesInGroup = listHotfixBranches(rPath, groupName, false);
-            List<String> remoteReleasesAll = listAllReleaseBranches(rPath, false);
-            List<String> remoteHotfixesAll = listAllHotfixBranches(rPath, false);
+            List<String> releases = listReleaseBranches(rPath, groupName, true, true);
+            List<String> hotfixes = listHotfixBranches(rPath, groupName, true, true);
+            List<String> remoteReleasesInGroup = listReleaseBranches(rPath, groupName, false, true);
+            List<String> remoteHotfixesInGroup = listHotfixBranches(rPath, groupName, false, true);
+            List<String> remoteReleasesAll = listAllReleaseBranches(rPath, false, true);
+            List<String> remoteHotfixesAll = listAllHotfixBranches(rPath, false, true);
             String maxVersion = getMaxSemverVersion(latestTag == null ? null : latestTag.version, remoteReleasesAll, remoteHotfixesAll);
             String suggested = "1.0.0";
             if (!remoteReleasesAll.isEmpty() || !remoteHotfixesAll.isEmpty() || latestTag != null) {
@@ -408,19 +410,20 @@ public class ZeroGitFlowHandler {
         }
         String rootPath = getRootPath();
         runWithGitCheckInBackground(rootPath, "StartNewHotfix.sh", (rPath, script) -> {
-            List<String> releases = listReleaseBranches(rPath, groupName);
-            List<String> hotfixes = listHotfixBranches(rPath, groupName);
+            gitFetchOriginPrune(rPath);
             HotfixBaseTagInfo latestTag = getLatestRemoteHotfixBaseTag(rPath, groupName);
             if (latestTag == null) {
                 throw new DeployPluginException("未找到符合 release/" + groupName + "/X.Y.Z-YYYYMMDDHHmm 或 hotfix/" + groupName + "/X.Y.Z-YYYYMMDDHHmm 规则的远程 tag，Start New Hotfix 已中断。");
             }
-            List<String> remoteReleasesInGroup = listReleaseBranches(rPath, groupName, false);
-            List<String> remoteHotfixesInGroup = listHotfixBranches(rPath, groupName, false);
-            List<String> remoteReleasesAll = listAllReleaseBranches(rPath, false);
-            List<String> remoteHotfixesAll = listAllHotfixBranches(rPath, false);
+            List<String> releases = listReleaseBranches(rPath, groupName, true, true);
+            List<String> hotfixes = listHotfixBranches(rPath, groupName, true, true);
+            List<String> remoteReleasesInGroup = listReleaseBranches(rPath, groupName, false, true);
+            List<String> remoteHotfixesInGroup = listHotfixBranches(rPath, groupName, false, true);
+            List<String> remoteReleasesAll = listAllReleaseBranches(rPath, false, true);
+            List<String> remoteHotfixesAll = listAllHotfixBranches(rPath, false, true);
             String maxVersion = getMaxSemverVersion(latestTag.version, remoteReleasesAll, remoteHotfixesAll);
-            // 新版本号规则：累计中间段（minor），而不是尾数（patch）
-            String suggested = findNextAvailableVersion(nextMinor(maxVersion), remoteReleasesInGroup, remoteHotfixesInGroup);
+            // hotfix：递增尾号（patch），与 release 的 minor 递增区分
+            String suggested = findNextAvailableVersion(nextPatch(maxVersion), remoteReleasesInGroup, remoteHotfixesInGroup, this::nextPatch);
             String prefix = "hotfix/" + groupName + "/";
             String latestReleaseVersion = remoteReleasesAll.isEmpty() ? "无" : extractVersion(remoteReleasesAll.get(0));
             String latestHotfixVersion = remoteHotfixesAll.isEmpty() ? "无" : extractVersion(remoteHotfixesAll.get(0));
@@ -910,12 +913,22 @@ public class ZeroGitFlowHandler {
         return branches;
     }
 
+    private void gitFetchOriginPrune(String rootPath) throws Exception {
+        execGitArgs(rootPath, "fetch", "origin", "--prune");
+    }
+
     private List<String> listReleaseBranches(String rootPath, String groupName) throws Exception {
-        return listReleaseBranches(rootPath, groupName, true);
+        return listReleaseBranches(rootPath, groupName, true, false);
     }
 
     private List<String> listReleaseBranches(String rootPath, String groupName, boolean includeLocal) throws Exception {
-        execGitArgs(rootPath, "fetch", "origin", "--prune");
+        return listReleaseBranches(rootPath, groupName, includeLocal, false);
+    }
+
+    private List<String> listReleaseBranches(String rootPath, String groupName, boolean includeLocal, boolean skipFetch) throws Exception {
+        if (!skipFetch) {
+            gitFetchOriginPrune(rootPath);
+        }
         List<String> args = new ArrayList<>();
         args.add("for-each-ref");
         args.add("--format=%(refname:short)");
@@ -928,7 +941,13 @@ public class ZeroGitFlowHandler {
     }
 
     private List<String> listAllReleaseBranches(String rootPath, boolean includeLocal) throws Exception {
-        execGitArgs(rootPath, "fetch", "origin", "--prune");
+        return listAllReleaseBranches(rootPath, includeLocal, false);
+    }
+
+    private List<String> listAllReleaseBranches(String rootPath, boolean includeLocal, boolean skipFetch) throws Exception {
+        if (!skipFetch) {
+            gitFetchOriginPrune(rootPath);
+        }
         List<String> args = new ArrayList<>();
         args.add("for-each-ref");
         args.add("--format=%(refname:short)");
@@ -941,11 +960,17 @@ public class ZeroGitFlowHandler {
     }
 
     private List<String> listHotfixBranches(String rootPath, String groupName) throws Exception {
-        return listHotfixBranches(rootPath, groupName, true);
+        return listHotfixBranches(rootPath, groupName, true, false);
     }
 
     private List<String> listHotfixBranches(String rootPath, String groupName, boolean includeLocal) throws Exception {
-        execGitArgs(rootPath, "fetch", "origin", "--prune");
+        return listHotfixBranches(rootPath, groupName, includeLocal, false);
+    }
+
+    private List<String> listHotfixBranches(String rootPath, String groupName, boolean includeLocal, boolean skipFetch) throws Exception {
+        if (!skipFetch) {
+            gitFetchOriginPrune(rootPath);
+        }
         List<String> args = new ArrayList<>();
         args.add("for-each-ref");
         args.add("--format=%(refname:short)");
@@ -958,7 +983,13 @@ public class ZeroGitFlowHandler {
     }
 
     private List<String> listAllHotfixBranches(String rootPath, boolean includeLocal) throws Exception {
-        execGitArgs(rootPath, "fetch", "origin", "--prune");
+        return listAllHotfixBranches(rootPath, includeLocal, false);
+    }
+
+    private List<String> listAllHotfixBranches(String rootPath, boolean includeLocal, boolean skipFetch) throws Exception {
+        if (!skipFetch) {
+            gitFetchOriginPrune(rootPath);
+        }
         List<String> args = new ArrayList<>();
         args.add("for-each-ref");
         args.add("--format=%(refname:short)");
@@ -1019,12 +1050,16 @@ public class ZeroGitFlowHandler {
     }
 
     private String findNextAvailableVersion(String baseVersion, List<String> releases, List<String> hotfixes) {
+        return findNextAvailableVersion(baseVersion, releases, hotfixes, this::nextMinor);
+    }
+
+    private String findNextAvailableVersion(String baseVersion, List<String> releases, List<String> hotfixes, UnaryOperator<String> bump) {
         List<String> existingVersions = new ArrayList<>();
         existingVersions.addAll(extractVersions(releases));
         existingVersions.addAll(extractVersions(hotfixes));
         String candidate = baseVersion;
         while (existingVersions.contains(candidate)) {
-            candidate = nextMinor(candidate);
+            candidate = bump.apply(candidate);
         }
         return candidate;
     }
@@ -1189,6 +1224,17 @@ public class ZeroGitFlowHandler {
         int minor = Integer.parseInt(matcher.group(2));
         // minor 累计，patch 重置为 0
         return major + "." + (minor + 1) + "." + 0;
+    }
+
+    private String nextPatch(String semver) {
+        Matcher matcher = SEMVER_PATTERN.matcher(semver);
+        if (!matcher.matches()) {
+            return "1.0.0";
+        }
+        int major = Integer.parseInt(matcher.group(1));
+        int minor = Integer.parseInt(matcher.group(2));
+        int patch = Integer.parseInt(matcher.group(3));
+        return major + "." + minor + "." + (patch + 1);
     }
 
     private int extractFeatureOrder(String branch) {
