@@ -57,6 +57,9 @@ else
   exit 1
 fi
 
+# 首字母大写展示名（${MODE^} 需 Bash 4+，macOS 默认 Bash 3.2 会 bad substitution）
+MODE_TITLE=$(printf '%s' "$MODE" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')
+
 if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   echo "Version must follow SemVer format, e.g. 1.0.0"
   exit 1
@@ -85,7 +88,7 @@ set_step() {
 
 print_summary() {
   echo
-  echo "Finish${MODE^} 执行结果："
+  echo "Finish${MODE_TITLE} 执行结果："
   for i in 1 2 3 4 5 6 7; do
     status="${STEP_STATUS[$i]}"
     [ -z "$status" ] && status="NOT_RUN"
@@ -113,7 +116,7 @@ run_git() {
     if [ -s "$stderr_file" ]; then
       cat "$stderr_file"
     fi
-    echo "Please resolve the conflict/problem and rerun Finish ${MODE^}."
+    echo "Please resolve the conflict/problem and rerun Finish ${MODE_TITLE}."
     if [ "$CURRENT_STEP" -ne 0 ]; then
       STEP_STATUS[$CURRENT_STEP]="FAILED"
     fi
@@ -156,7 +159,7 @@ echo "target branch: $targetBranch (detected mode: $MODE)"
 echo "develop branches (from remote develop-*): will be collected in step 1"
 
 echo
-echo "即将执行 Finish${MODE^} 流程："
+echo "即将执行 Finish${MODE_TITLE} 流程："
 for i in 1 2 3 4 5 6 7; do
   printf "%d. %s\n" "$i" "${STEP_DESC[$i]}"
 done
@@ -256,7 +259,7 @@ fi
 if git show-ref --verify --quiet "refs/tags/$tagName"; then
   run_git "Delete local stale tag $tagName" git tag -d "$tagName"
 fi
-run_git "Create ${MODE} tag $tagName" git tag -a "$tagName" -m "${MODE^} $version"
+run_git "Create ${MODE} tag $tagName" git tag -a "$tagName" -m "${MODE_TITLE} $version"
 run_git "Push tag $tagName" git push origin "$tagName"
 STEP_STATUS[6]="DONE"
 
