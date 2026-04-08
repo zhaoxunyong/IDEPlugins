@@ -166,7 +166,8 @@ done
 echo
 
 set_step 1
-run_git "Fetch remote branches" git fetch origin --prune
+# -q：成功时几乎无输出；失败时错误仍走 stderr，由 run_git 在出错时打印。
+run_git "Fetch remote branches" git fetch -q origin --prune
 STEP_STATUS[1]="DONE"
 
 # 1) Merge selected branch to main, then push.
@@ -181,7 +182,7 @@ STEP_STATUS[2]="DONE"
 
 # 2) Merge main to all develop-* branches (列表从 remote 获取).
 set_step 3
-run_git "Refresh remote branches" git fetch origin --prune
+run_git "Refresh remote branches" git fetch -q origin --prune
 developBranches=()
 while IFS= read -r b; do
   [ -n "$b" ] && developBranches+=("$b")
