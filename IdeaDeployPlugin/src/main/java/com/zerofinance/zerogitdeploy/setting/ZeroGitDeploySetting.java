@@ -52,12 +52,6 @@ public class ZeroGitDeploySetting implements Configurable {
         String storedNames = PropertiesComponent.getInstance().getValue(GROUP_NAMES_KEY);
         groupNamesField.setText(StringUtils.isBlank(storedNames) ? DEFAULT_GROUP_NAMES : storedNames.trim());
         refreshGroupNameComboFromField();
-        String savedGroup = PropertiesComponent.getInstance().getValue(GROUP_NAME_KEY);
-        if (StringUtils.isNotBlank(savedGroup) && getAllowedGroupTokensFromText(groupNamesField.getText()).contains(savedGroup)) {
-            groupNameComboBox.setSelectedItem(savedGroup);
-        } else {
-            groupNameComboBox.setSelectedItem("");
-        }
         checkGitVersionCheckBox.setSelected(isCheckGitVersion());
         button1.addActionListener(new ActionListener() {
             @Override
@@ -100,14 +94,22 @@ public class ZeroGitDeploySetting implements Configurable {
         Object previous = groupNameComboBox.getSelectedItem();
         List<String> tokens = getAllowedGroupTokensFromText(groupNamesField.getText());
         groupNameComboBox.removeAllItems();
-        groupNameComboBox.addItem("");
         for (String g : tokens) {
             groupNameComboBox.addItem(g);
         }
-        if (previous != null && StringUtils.isNotBlank(String.valueOf(previous)) && tokens.contains(String.valueOf(previous))) {
+        if (tokens.isEmpty()) {
+            return;
+        }
+        String prevStr = previous == null ? "" : String.valueOf(previous);
+        if (StringUtils.isNotBlank(prevStr) && tokens.contains(prevStr)) {
             groupNameComboBox.setSelectedItem(previous);
+            return;
+        }
+        String savedGroup = PropertiesComponent.getInstance().getValue(GROUP_NAME_KEY);
+        if (StringUtils.isNotBlank(savedGroup) && tokens.contains(savedGroup)) {
+            groupNameComboBox.setSelectedItem(savedGroup);
         } else {
-            groupNameComboBox.setSelectedItem("");
+            groupNameComboBox.setSelectedItem(tokens.get(0));
         }
     }
 
@@ -152,9 +154,10 @@ public class ZeroGitDeploySetting implements Configurable {
         if (tokens.isEmpty()) {
             throw new ConfigurationException("Group names cannot be empty. Use space-separated values, e.g. a b c.");
         }
-        String selected = String.valueOf(groupNameComboBox.getSelectedItem());
-        if (StringUtils.isNotBlank(selected) && !tokens.contains(selected)) {
-            throw new ConfigurationException("Selected group must be one of the names in the list.");
+        Object selectedObj = groupNameComboBox.getSelectedItem();
+        String selected = selectedObj == null ? "" : String.valueOf(selectedObj);
+        if (StringUtils.isBlank(selected) || !tokens.contains(selected)) {
+            throw new ConfigurationException("Group Default Name must be one of the names in Group Names.");
         }
         PropertiesComponent.getInstance().setValue(GIT_HOME_KEY, textField.getText());
         PropertiesComponent.getInstance().setValue(SCRIPT_URL_KEY, scriptURLField.getText());
@@ -195,14 +198,15 @@ public class ZeroGitDeploySetting implements Configurable {
     }
 
     public static String getGroupName() {
+        List<String> allowed = getAllowedGroupTokens();
+        if (allowed.isEmpty()) {
+            return "";
+        }
         String groupName = PropertiesComponent.getInstance().getValue(GROUP_NAME_KEY);
-        if (StringUtils.isBlank(groupName)) {
-            return "";
+        if (StringUtils.isNotBlank(groupName) && allowed.contains(groupName)) {
+            return groupName;
         }
-        if (!getAllowedGroupTokens().contains(groupName)) {
-            return "";
-        }
-        return groupName;
+        return allowed.get(0);
     }
 
     public static boolean isCheckGitVersion() {
