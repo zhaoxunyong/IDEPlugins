@@ -45,20 +45,15 @@
                     "default": false,
                     "description": "Enable debug logs in extension host console"
                 },
+                "zerofinanceGit.groupNames": {
+                    "type": "string",
+                    "default": "a b c",
+                    "description": "Space-separated list of allowed group identifiers (e.g. a b c). Quick pick options are built from this; add new groups here without changing extension code."
+                },
                 "zerofinanceGit.groupName": {
                     "type": "string",
                     "default": "",
-                    "enum": [
-                        "",
-                        "a",
-                        "b"
-                    ],
-                    "enumDescriptions": [
-                        "Please select a group before running any task",
-                        "Group A",
-                        "Group B"
-                    ],
-                    "description": "Required group name for running tasks. Must be a or b."
+                    "description": "Default group when running tasks (must be one token from zerofinanceGit.groupNames). Empty means no default; you still choose from the list each time."
                 },
                 "zerofinanceGit.gitBash": {
                     "type": "string",

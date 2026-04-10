@@ -17,6 +17,8 @@ const CONFIG_SCRIPT_URL = `${CONFIG_ROOT}.gitScriptsUrlPreference`
 const CONFIG_CHECK_GIT_VERSION = `${CONFIG_ROOT}.checkGitVersion`
 const CONFIG_DEBUG = `${CONFIG_ROOT}.debug`
 const CONFIG_GROUP_NAME = `${CONFIG_ROOT}.groupName`
+const CONFIG_GROUP_NAMES = `${CONFIG_ROOT}.groupNames`
+const DEFAULT_GROUP_NAMES_FALLBACK = 'a b c'
 const CONFIG_GIT_BASH = `${CONFIG_ROOT}.gitBash`
 const DEFAULT_SCRIPT_ROOT_URL = 'https://gitlab.zerofinance.net/dave.zhao/deployPlugin/-/raw/git-flow'
 const COMMAND_PREFIX = 'extension.'
@@ -139,40 +141,34 @@ function getRootUrl () {
     return rootUrl.replace(/\/+$/, '')
 }
 
+function parseConfiguredGroupNames (raw) {
+    const s = raw === undefined || raw === null ? '' : String(raw).trim()
+    if (!s) {
+        return []
+    }
+    return s.split(/\s+/).filter(Boolean)
+}
+
 async function ensureGroupNameConfigured () {
-    const pkg = require(path.join(__dirname, '..', 'package.json'))
-    const configProp = pkg
-        && pkg.contributes
-        && pkg.contributes.configuration
-        && pkg.contributes.configuration.properties
-        && pkg.contributes.configuration.properties[CONFIG_GROUP_NAME]
-
-    const enumValues = (configProp && configProp.enum) || []
-    const enumDescriptions = (configProp && configProp.enumDescriptions) || []
-    const options = enumValues
-        .map((value, index) => {
-            const description = enumDescriptions[index]
-            return {
-                label: description || String(value),
-                value: String(value)
-            }
-        })
-        .filter(Boolean)
-
-    if (options.length === 0) {
-        vscode.window.showErrorMessage('No valid groups found in extension configuration.')
+    const config = vscode.workspace.getConfiguration()
+    let groups = parseConfiguredGroupNames(config.get(CONFIG_GROUP_NAMES))
+    if (groups.length === 0) {
+        groups = parseConfiguredGroupNames(DEFAULT_GROUP_NAMES_FALLBACK)
+    }
+    if (groups.length === 0) {
+        vscode.window.showErrorMessage('No valid groups: set zerofinanceGit.groupNames to space-separated names (e.g. a b c).')
         return null
     }
 
-    const emptyIndex = enumValues.findIndex(v => v === '')
-    const placeHolder = emptyIndex >= 0 && enumDescriptions[emptyIndex]
-        ? String(enumDescriptions[emptyIndex])
-        : 'Please select a group before running any task'
+    const options = groups.map(value => ({
+        label: value,
+        value
+    }))
 
-    const configuredGroupName = vscode.workspace.getConfiguration().get(CONFIG_GROUP_NAME)
-    const defaultValue = options.find(o => o.value === String(configuredGroupName))
-        ? String(configuredGroupName)
-        : null
+    const configuredGroupName = String(config.get(CONFIG_GROUP_NAME) || '').trim()
+    const defaultValue = groups.includes(configuredGroupName) ? configuredGroupName : null
+
+    const placeHolder = '请选择分组（列表来自设置 zerofinanceGit.groupNames，空格分隔）'
 
     // VSCode 的 showQuickPick 在老版本里不一定支持 activeItems/默认高亮；
     // 这里通过把默认值放到第一项来模拟“默认选中”效果。
@@ -192,7 +188,7 @@ async function ensureGroupNameConfigured () {
     }
 
     if (!selected.value) {
-        vscode.window.showErrorMessage('Please select a valid group (e.g. "a" or "b"), task aborted.')
+        vscode.window.showErrorMessage('Please select a valid group from the list, task aborted.')
         return null
     }
 

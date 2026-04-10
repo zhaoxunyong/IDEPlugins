@@ -487,18 +487,18 @@ public class ZeroGitFlowHandler {
 
     private String requireGroupName() {
         // 不直接依赖全局配置值，而是每次在需要 group 的场景下弹出下拉选择。
+        List<String> groups = ZeroGitDeploySetting.getAllowedGroupTokens();
+        if (groups.isEmpty()) {
+            throw new DeployPluginException("请在 Settings → Git Deploy Settings 中配置分组列表（空格分隔），例如 a b c。");
+        }
         String configured = ZeroGitDeploySetting.getGroupName();
         String placeholderLabel = "Please select a group before running any task";
-        String groupALabel = "Group A";
-        String groupBLabel = "Group B";
-
-        // keep dropdown data source consistent with settings validation
-        List<String> labels = Arrays.asList(placeholderLabel, groupALabel, groupBLabel);
+        List<String> labels = new ArrayList<>();
+        labels.add(placeholderLabel);
+        labels.addAll(groups);
         String defaultLabel;
-        if ("a".equals(configured)) {
-            defaultLabel = groupALabel;
-        } else if ("b".equals(configured)) {
-            defaultLabel = groupBLabel;
+        if (StringUtils.isNotBlank(configured) && groups.contains(configured)) {
+            defaultLabel = configured;
         } else {
             defaultLabel = placeholderLabel;
         }
@@ -513,14 +513,13 @@ public class ZeroGitFlowHandler {
         );
 
         if (StringUtils.isBlank(selected) || placeholderLabel.equals(selected)) {
-            throw new DeployPluginException("Please select group \"a\" or \"b\" before running tasks.");
+            throw new DeployPluginException("执行前请先选择一个分组（列表来自设置中的空格分隔分组配置）。");
         }
-        if (groupALabel.equals(selected)) return "a";
-        if (groupBLabel.equals(selected)) return "b";
-        // 允许用户手动输入 a/b（因为是 editable dialog）
-        if ("a".equals(selected) || "b".equals(selected)) return selected;
+        if (groups.contains(selected)) {
+            return selected;
+        }
 
-        throw new DeployPluginException("Invalid group selection: " + selected);
+        throw new DeployPluginException("无效的分组: " + selected + "。请选择设置中已配置的分组标识。");
     }
 
     private void requireGitHomeOnWindows() {
