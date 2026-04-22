@@ -170,6 +170,17 @@ set_step 1
 run_git "Fetch remote branches" git fetch -q origin --prune
 STEP_STATUS[1]="DONE"
 
+tagName="v$version"
+SKIP_TO_CLEANUP=0
+if git ls-remote --tags --refs --exit-code origin "refs/tags/$tagName" >/dev/null 2>&1; then
+  echo "Remote tag $tagName already exists; It may just be deployed without any code changes, skipping the merge workflow."
+  for s in 2 3 4 5 6; do
+    STEP_STATUS[$s]="SKIP"
+  done
+  SKIP_TO_CLEANUP=1
+fi
+
+if [ "$SKIP_TO_CLEANUP" -eq 0 ]; then
 # 1) Merge selected branch to main, then push.
 set_step 2
 checkout_or_track_branch "$targetBranch"
@@ -251,7 +262,6 @@ for branch in "${PUSH_BRANCHES[@]}"; do
   [ -z "$branch" ] && continue
   run_git "Push $branch" git push origin "$branch"
 done
-tagName="v$version"
 if git ls-remote --tags --refs --exit-code origin "refs/tags/$tagName" >/dev/null 2>&1; then
   echo "Tag already exists on remote: $tagName"
   STEP_STATUS[6]="FAILED"
@@ -263,6 +273,8 @@ fi
 run_git "Create ${MODE} tag $tagName" git tag -a "$tagName" -m "${MODE_TITLE} $version"
 run_git "Push tag $tagName" git push origin "$tagName"
 STEP_STATUS[6]="DONE"
+
+fi
 
 # 6) Switch to main and delete finished branch (local and remote).
 set_step 7
