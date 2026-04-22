@@ -181,99 +181,98 @@ if git ls-remote --tags --refs --exit-code origin "refs/tags/$tagName" >/dev/nul
 fi
 
 if [ "$SKIP_TO_CLEANUP" -eq 0 ]; then
-# 1) Merge selected branch to main, then push.
-set_step 2
-checkout_or_track_branch "$targetBranch"
-[ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $targetBranch" git pull origin "$targetBranch"
-checkout_or_track_branch "main"
-[ "$NEED_PULL" -eq 1 ] && run_git "Pull latest main" git pull origin main
-run_git "Merge $targetBranch into main" git merge --no-ff "$targetBranch"
-# main 在第 6 步统一推送
-STEP_STATUS[2]="DONE"
+  # 1) Merge selected branch to main, then push.
+  set_step 2
+  checkout_or_track_branch "$targetBranch"
+  [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $targetBranch" git pull origin "$targetBranch"
+  checkout_or_track_branch "main"
+  [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest main" git pull origin main
+  run_git "Merge $targetBranch into main" git merge --no-ff "$targetBranch"
+  # main 在第 6 步统一推送
+  STEP_STATUS[2]="DONE"
 
-# 2) Merge main to all develop-* branches (列表从 remote 获取).
-set_step 3
-run_git "Refresh remote branches" git fetch -q origin --prune
-developBranches=()
-while IFS= read -r b; do
-  [ -n "$b" ] && developBranches+=("$b")
-done < <(git for-each-ref --format='%(refname:short)' 'refs/remotes/origin' | sed 's#^origin/##' | grep '^develop-' || true)
-for branch in "${developBranches[@]}"; do
-  [ -z "$branch" ] && continue
-  checkout_or_track_branch "$branch"
-  [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $branch" git pull origin "$branch"
-  run_git "Merge main into $branch" git merge --no-ff main
-  PUSH_BRANCHES+=("$branch")
-done
-if [ ${#developBranches[@]} -gt 0 ]; then
-  STEP_STATUS[3]="DONE"
-else
-  STEP_STATUS[3]="SKIPPED"
-fi
+  # 2) Merge main to all develop-* branches (列表从 remote 获取).
+  set_step 3
+  run_git "Refresh remote branches" git fetch -q origin --prune
+  developBranches=()
+  while IFS= read -r b; do
+    [ -n "$b" ] && developBranches+=("$b")
+  done < <(git for-each-ref --format='%(refname:short)' 'refs/remotes/origin' | sed 's#^origin/##' | grep '^develop-' || true)
+  for branch in "${developBranches[@]}"; do
+    [ -z "$branch" ] && continue
+    checkout_or_track_branch "$branch"
+    [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $branch" git pull origin "$branch"
+    run_git "Merge main into $branch" git merge --no-ff main
+    PUSH_BRANCHES+=("$branch")
+  done
+  if [ ${#developBranches[@]} -gt 0 ]; then
+    STEP_STATUS[3]="DONE"
+  else
+    STEP_STATUS[3]="SKIPPED"
+  fi
 
-# 3) Merge main to all ongoing release branches (列表从 remote 获取).
-#    release 模式下跳过当前正在 finish 的 release 分支。
-set_step 4
-mapfile -t releaseBranches < <(git for-each-ref --sort=-committerdate --format='%(refname:short)' 'refs/remotes/origin/release/' | sed 's#^origin/##')
-remainingVersions=()
-for branch in "${releaseBranches[@]}"; do
-  [ -z "$branch" ] && continue
-  [ "$MODE" = "release" ] && [ "$branch" = "$targetBranch" ] && continue
-  checkout_or_track_branch "$branch"
-  [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $branch" git pull origin "$branch"
-  run_git "Merge main into $branch" git merge --no-ff main
-  PUSH_BRANCHES+=("$branch")
-  remainingVersions+=("$branch")
-done
+  # 3) Merge main to all ongoing release branches (列表从 remote 获取).
+  #    release 模式下跳过当前正在 finish 的 release 分支。
+  set_step 4
+  mapfile -t releaseBranches < <(git for-each-ref --sort=-committerdate --format='%(refname:short)' 'refs/remotes/origin/release/' | sed 's#^origin/##')
+  remainingVersions=()
+  for branch in "${releaseBranches[@]}"; do
+    [ -z "$branch" ] && continue
+    [ "$MODE" = "release" ] && [ "$branch" = "$targetBranch" ] && continue
+    checkout_or_track_branch "$branch"
+    [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $branch" git pull origin "$branch"
+    run_git "Merge main into $branch" git merge --no-ff main
+    PUSH_BRANCHES+=("$branch")
+    remainingVersions+=("$branch")
+  done
 
-if [ ${#releaseBranches[@]} -gt 0 ]; then
-  echo "Remaining release branches: ${releaseBranches[*]}"
-fi
-if [ ${#releaseBranches[@]} -gt 0 ]; then
-  STEP_STATUS[4]="DONE"
-else
-  STEP_STATUS[4]="SKIPPED"
-fi
+  if [ ${#releaseBranches[@]} -gt 0 ]; then
+    echo "Remaining release branches: ${releaseBranches[*]}"
+  fi
+  if [ ${#releaseBranches[@]} -gt 0 ]; then
+    STEP_STATUS[4]="DONE"
+  else
+    STEP_STATUS[4]="SKIPPED"
+  fi
 
-# 4) Merge main to all ongoing hotfix branches (列表从 remote 获取).
-#    hotfix 模式下跳过当前正在 finish 的 hotfix 分支。
-set_step 5
-mapfile -t hotfixBranches < <(git for-each-ref --sort=-committerdate --format='%(refname:short)' 'refs/remotes/origin/hotfix/' | sed 's#^origin/##')
-for branch in "${hotfixBranches[@]}"; do
-  [ -z "$branch" ] && continue
-  [ "$MODE" = "hotfix" ] && [ "$branch" = "$targetBranch" ] && continue
-  checkout_or_track_branch "$branch"
-  [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $branch" git pull origin "$branch"
-  run_git "Merge main into $branch" git merge --no-ff main
-  PUSH_BRANCHES+=("$branch")
-  remainingVersions+=("$branch")
-done
-if [ ${#hotfixBranches[@]} -gt 0 ]; then
-  STEP_STATUS[5]="DONE"
-else
-  STEP_STATUS[5]="SKIPPED"
-fi
+  # 4) Merge main to all ongoing hotfix branches (列表从 remote 获取).
+  #    hotfix 模式下跳过当前正在 finish 的 hotfix 分支。
+  set_step 5
+  mapfile -t hotfixBranches < <(git for-each-ref --sort=-committerdate --format='%(refname:short)' 'refs/remotes/origin/hotfix/' | sed 's#^origin/##')
+  for branch in "${hotfixBranches[@]}"; do
+    [ -z "$branch" ] && continue
+    [ "$MODE" = "hotfix" ] && [ "$branch" = "$targetBranch" ] && continue
+    checkout_or_track_branch "$branch"
+    [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $branch" git pull origin "$branch"
+    run_git "Merge main into $branch" git merge --no-ff main
+    PUSH_BRANCHES+=("$branch")
+    remainingVersions+=("$branch")
+  done
+  if [ ${#hotfixBranches[@]} -gt 0 ]; then
+    STEP_STATUS[5]="DONE"
+  else
+    STEP_STATUS[5]="SKIPPED"
+  fi
 
-# 5) 第 6 步：统一推送所有分支与 tag 到远程。
-set_step 6
-checkout_or_track_branch "main"
-run_git "Push main" git push origin main
-for branch in "${PUSH_BRANCHES[@]}"; do
-  [ -z "$branch" ] && continue
-  run_git "Push $branch" git push origin "$branch"
-done
-if git ls-remote --tags --refs --exit-code origin "refs/tags/$tagName" >/dev/null 2>&1; then
-  echo "Tag already exists on remote: $tagName"
-  STEP_STATUS[6]="FAILED"
-  exit 1
-fi
-if git show-ref --verify --quiet "refs/tags/$tagName"; then
-  run_git "Delete local stale tag $tagName" git tag -d "$tagName"
-fi
-run_git "Create ${MODE} tag $tagName" git tag -a "$tagName" -m "${MODE_TITLE} $version"
-run_git "Push tag $tagName" git push origin "$tagName"
-STEP_STATUS[6]="DONE"
-
+  # 5) 第 6 步：统一推送所有分支与 tag 到远程。
+  set_step 6
+  checkout_or_track_branch "main"
+  run_git "Push main" git push origin main
+  for branch in "${PUSH_BRANCHES[@]}"; do
+    [ -z "$branch" ] && continue
+    run_git "Push $branch" git push origin "$branch"
+  done
+  if git ls-remote --tags --refs --exit-code origin "refs/tags/$tagName" >/dev/null 2>&1; then
+    echo "Tag already exists on remote: $tagName"
+    STEP_STATUS[6]="FAILED"
+    exit 1
+  fi
+  if git show-ref --verify --quiet "refs/tags/$tagName"; then
+    run_git "Delete local stale tag $tagName" git tag -d "$tagName"
+  fi
+  run_git "Create ${MODE} tag $tagName" git tag -a "$tagName" -m "${MODE_TITLE} $version"
+  run_git "Push tag $tagName" git push origin "$tagName"
+  STEP_STATUS[6]="DONE"
 fi
 
 # 6) Switch to main and delete finished branch (local and remote).
