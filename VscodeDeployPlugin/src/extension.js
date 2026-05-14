@@ -33,6 +33,7 @@ const gitFlowScriptByCommand = {
     'extension.StartNewFeature': 'StartNewFeature.sh',
     'extension.FinishFeature': 'FinishFeature.sh',
     'extension.RebaseFeature': 'RebaseFeature.sh',
+    'extension.GitMergeRequest': 'GitMergeRequest.sh',
     'extension.MavenChange': 'MavenChange.sh',
     'extension.StartNewRelease': 'StartNewRelease.sh',
     'extension.FinishRelease': 'FinishRelease.sh',
@@ -193,6 +194,18 @@ async function ensureGroupNameConfigured () {
     }
 
     return selected.value
+}
+
+async function askGitMrAssignee () {
+    const input = await vscode.window.showInputBox({
+        ignoreFocusOut: true,
+        placeHolder: 'GitLab 用户名（可留空，不指定 MR 指派人）',
+        prompt: '请输入 glab mr create 的 --assignee（GitLab 用户名）；取消则终止。'
+    })
+    if (input === undefined) {
+        return undefined
+    }
+    return String(input).trim()
 }
 
 async function askStartFeatureName (groupName) {
@@ -1530,6 +1543,14 @@ async function executeGitFlowCommand (commandId, resourceUri) {
     }
 
     const scriptArgs = commandRequiresGroup ? [groupName] : []
+    if (commandId === 'extension.GitMergeRequest') {
+        const assignee = await askGitMrAssignee()
+        if (assignee === undefined) {
+            debugLog('git merge request aborted: assignee input cancelled')
+            return { executed: false, groupName }
+        }
+        scriptArgs.push(assignee)
+    }
     if (commandId === 'extension.FinishFeature') {
         const confirmed = await confirmFinishFeature(groupName)
         if (!confirmed) {
