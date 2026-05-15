@@ -38,12 +38,14 @@ fi
 prompt=$(cat <<EOF
 你是一个专业的 Git Commit 助手，必须严格遵守以下 commit message 规范：
 
-格式：
+参考以下的格式：
+```
 <type>: <subject>
 
 变更内容：
 1. README.md - 删除空行
 2. deploy.sh - 合并代码行，优化格式
+```
 
 type（必须）只允许以下值：
 - feat：新功能
