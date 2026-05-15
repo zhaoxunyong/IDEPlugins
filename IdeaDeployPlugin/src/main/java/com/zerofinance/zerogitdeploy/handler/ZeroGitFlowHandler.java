@@ -258,14 +258,14 @@ public class ZeroGitFlowHandler {
      * 执行前走 gitCheck（与 VS Code 插件行为一致）。
      */
     public void gitMergeRequest() throws Exception {
-        debugLog("command triggered", "Git Merge Request");
+        debugLog("command triggered", "Merge Request");
         String groupName = requireGroupName();
         String rootPath = getRootPath();
         runWithGitCheckInBackground(rootPath, "GitMergeRequest.sh", (rPath, script) -> {
             String assignee = Messages.showInputDialog(
                     project,
                     "请输入 GitLab MR 指派人用户名（push option merge_request.assign）。可留空表示不指定指派人。",
-                    "ZeroGit: Git Merge Request",
+                    "ZeroGit: Merge Request",
                     Messages.getInformationIcon(),
                     "",
                     null
@@ -273,7 +273,7 @@ public class ZeroGitFlowHandler {
             if (assignee == null) {
                 return;
             }
-            confirmAndRunInTerminal("Git Merge Request", rPath, script, Lists.newArrayList(groupName, assignee.trim()));
+            confirmAndRunInTerminal("Merge Request", rPath, script, Lists.newArrayList(groupName, assignee.trim()));
         });
     }
 

@@ -24,7 +24,7 @@
         <li>2. Start New Feature</li>
         <li>3. Finish Feature</li>
         <li>4. Rebase Feature</li>
-        <li>4a. Git Merge Request (push options → develop-&lt;group&gt;)</li>
+        <li>4a. Merge Request (push options → develop-&lt;group&gt;)</li>
         <li>5. Start New Release</li>
         <li>6. Finish Release</li>
         <li>7. Start New Hotfix</li>
@@ -34,6 +34,7 @@
 
     <change-notes><![CDATA[
     <ul>
+        <li>2.0.1 : Fixed icon issues. </li>
         <li>2.0.0 : Refactored to ZeroGit-only flow with 7 commands and removed legacy release/newBranch/changeVersion/anyTool actions. </li>
         <li>1.0.11 : Fixed some issues. </li>
         <li>1.0.10 : Fixed some issues. </li>
@@ -74,7 +75,7 @@
         <group id="ZeroMainAction" text="ZeroGit" description="A git deploy plugin tool">
             <add-to-group group-id="MainMenu"  anchor="after" relative-to-action="ToolsMenu" />
             <action id="GenerateCommitMessageMainMenu" class="com.zerofinance.zerogitdeploy.action.GenerateCommitMessageAction" icon="AllIcons.Actions.EditSource" text="Generate Commit Message" description="ZeroGit Generate Commit Message" />
-            <action id="AiCodeReviewMainMenu" class="com.zerofinance.zerogitdeploy.action.AiCodeReviewAction" icon="AllIcons.Actions.Inspect" text="AI Code Review" description="ZeroGit AI Code Review (staged)" />
+            <action id="AiCodeReviewMainMenu" class="com.zerofinance.zerogitdeploy.action.AiCodeReviewAction" icon="AllIcons.General.InspectionsEye" text="AI Code Review" description="ZeroGit AI Code Review (staged)" />
             <group id="ZeroMainMavenSubMenu" text="Maven" popup="true" icon="/icons/mavenMenu.svg">
                 <action id="MavenChangeMainMenu" class="com.zerofinance.zerogitdeploy.action.MavenChangeAction" icon="AllIcons.Nodes.PpLib" text="Maven Change" description="ZeroGit Maven Change" />
             </group>
@@ -82,7 +83,7 @@
                 <action id="StartNewFeatureMainMenu" class="com.zerofinance.zerogitdeploy.action.StartNewFeatureAction" icon="AllIcons.Vcs.Branch" text="Start New Feature" description="ZeroGit Start New Feature" />
                 <action id="FinishFeatureMainMenu" class="com.zerofinance.zerogitdeploy.action.FinishFeatureAction" icon="AllIcons.Vcs.Branch" text="Finish Feature" description="ZeroGit Finish Feature" />
                 <action id="RebaseFeatureMainMenu" class="com.zerofinance.zerogitdeploy.action.RebaseFeatureAction" icon="AllIcons.Actions.MoveTo2" text="Rebase Feature" description="ZeroGit Rebase Feature" />
-                <action id="GitMergeRequestMainMenu" class="com.zerofinance.zerogitdeploy.action.GitMergeRequestAction" icon="AllIcons.Vcs.Merge" text="Git Merge Request" description="ZeroGit Git Merge Request (push options)" />
+                <action id="GitMergeRequestMainMenu" class="com.zerofinance.zerogitdeploy.action.GitMergeRequestAction" icon="AllIcons.Vcs.Merge" text="Merge Request" description="ZeroGit Merge Request (push options)" />
             </group>
             <group id="ZeroMainReleaseSubMenu" text="Release" popup="true" icon="/icons/releaseMenu.svg">
                 <action id="StartNewReleaseMainMenu" class="com.zerofinance.zerogitdeploy.action.StartNewReleaseAction" icon="AllIcons.Actions.Execute" text="Start New Release" description="ZeroGit Start New Release" />
@@ -102,7 +103,7 @@
             <add-to-group group-id="ProjectViewPopupMenu" anchor="after" relative-to-action="WeighingNewGroup" />
             <add-to-group group-id="EditorPopupMenu" anchor="last" />
             <action id="GenerateCommitMessagePopupMenu" class="com.zerofinance.zerogitdeploy.action.GenerateCommitMessageAction" icon="AllIcons.Actions.EditSource" text="Generate Commit Message" description="ZeroGit Generate Commit Message" />
-            <action id="AiCodeReviewPopupMenu" class="com.zerofinance.zerogitdeploy.action.AiCodeReviewAction" icon="AllIcons.Actions.Inspect" text="AI Code Review" description="ZeroGit AI Code Review (staged)" />
+            <action id="AiCodeReviewPopupMenu" class="com.zerofinance.zerogitdeploy.action.AiCodeReviewAction" icon="AllIcons.General.InspectionsEye" text="AI Code Review" description="ZeroGit AI Code Review (staged)" />
             <group id="ZeroPopupMavenSubMenu" text="Maven" popup="true" icon="/icons/mavenMenu.svg">
                 <action id="MavenChangePopupMenu" class="com.zerofinance.zerogitdeploy.action.MavenChangeAction" icon="AllIcons.Nodes.PpLib" text="Maven Change" description="ZeroGit Maven Change" />
             </group>
@@ -110,7 +111,7 @@
                 <action id="StartNewFeaturePopupMenu" class="com.zerofinance.zerogitdeploy.action.StartNewFeatureAction" icon="AllIcons.Vcs.Branch" text="Start New Feature" description="ZeroGit Start New Feature" />
                 <action id="FinishFeaturePopupMenu" class="com.zerofinance.zerogitdeploy.action.FinishFeatureAction" icon="AllIcons.Vcs.Branch" text="Finish Feature" description="ZeroGit Finish Feature" />
                 <action id="RebaseFeaturePopupMenu" class="com.zerofinance.zerogitdeploy.action.RebaseFeatureAction" icon="AllIcons.Actions.MoveTo2" text="Rebase Feature" description="ZeroGit Rebase Feature" />
-                <action id="GitMergeRequestPopupMenu" class="com.zerofinance.zerogitdeploy.action.GitMergeRequestAction" icon="AllIcons.Vcs.Merge" text="Git Merge Request" description="ZeroGit Git Merge Request (push options)" />
+                <action id="GitMergeRequestPopupMenu" class="com.zerofinance.zerogitdeploy.action.GitMergeRequestAction" icon="AllIcons.Vcs.Merge" text="Merge Request" description="ZeroGit Merge Request (push options)" />
             </group>
             <group id="ZeroPopupReleaseSubMenu" text="Release" popup="true" icon="/icons/releaseMenu.svg">
                 <action id="StartNewReleasePopupMenu" class="com.zerofinance.zerogitdeploy.action.StartNewReleaseAction" icon="AllIcons.Actions.Execute" text="Start New Release" description="ZeroGit Start New Release" />
@@ -129,12 +130,12 @@
             <!-- icon can see: https://intellij-icons.jetbrains.design/ -->
             <action class="com.zerofinance.zerogitdeploy.action.ZeroToolbarLabelAction" id="ZeroToolbarLabelAction" />
             <action id="GenerateCommitMessageToolbar" class="com.zerofinance.zerogitdeploy.action.GenerateCommitMessageAction" icon="AllIcons.Actions.EditSource" text="Generate Commit Message" description="ZeroGit Generate Commit Message" />
-            <action id="AiCodeReviewToolbar" class="com.zerofinance.zerogitdeploy.action.AiCodeReviewAction" icon="AllIcons.Actions.Inspect" text="AI Code Review" description="ZeroGit AI Code Review (staged)" />
+            <action id="AiCodeReviewToolbar" class="com.zerofinance.zerogitdeploy.action.AiCodeReviewAction" icon="AllIcons.General.InspectionsEye" text="AI Code Review" description="ZeroGit AI Code Review (staged)" />
             <action id="MavenChangeToolbar" class="com.zerofinance.zerogitdeploy.action.MavenChangeAction" icon="AllIcons.Nodes.PpLib" text="Maven Change" description="ZeroGit Maven Change" />
             <action id="StartNewFeatureToolbar" class="com.zerofinance.zerogitdeploy.action.StartNewFeatureAction" icon="AllIcons.Vcs.Branch" text="Start New Feature" description="ZeroGit Start New Feature" />
             <action id="FinishFeatureToolbar" class="com.zerofinance.zerogitdeploy.action.FinishFeatureAction" icon="AllIcons.Vcs.Branch" text="Finish Feature" description="ZeroGit Finish Feature" />
             <action id="RebaseFeatureToolbar" class="com.zerofinance.zerogitdeploy.action.RebaseFeatureAction" icon="AllIcons.Actions.MoveTo2" text="Rebase Feature" description="ZeroGit Rebase Feature" />
-            <action id="GitMergeRequestToolbar" class="com.zerofinance.zerogitdeploy.action.GitMergeRequestAction" icon="AllIcons.Vcs.Merge" text="Git Merge Request" description="ZeroGit Git Merge Request (push options)" />
+            <action id="GitMergeRequestToolbar" class="com.zerofinance.zerogitdeploy.action.GitMergeRequestAction" icon="AllIcons.Vcs.Merge" text="Merge Request" description="ZeroGit Merge Request (push options)" />
             <action id="StartNewReleaseToolbar" class="com.zerofinance.zerogitdeploy.action.StartNewReleaseAction" icon="AllIcons.Actions.Execute" text="Start New Release" description="ZeroGit Start New Release" />
             <action id="FinishReleaseToolbar" class="com.zerofinance.zerogitdeploy.action.FinishReleaseAction" icon="AllIcons.Actions.Commit" text="Finish Release" description="ZeroGit Finish Release" />
             <action id="StartNewHotfixToolbar" class="com.zerofinance.zerogitdeploy.action.StartNewHotfixAction" icon="AllIcons.Actions.Execute" text="Start New Hotfix" description="ZeroGit Start New Hotfix" />
