@@ -253,6 +253,30 @@ public class ZeroGitFlowHandler {
         });
     }
 
+    /**
+     * 使用 GitLab push options 创建 MR：目标分支默认 develop-{groupName}，需远端支持 merge_request.* 选项。
+     * 执行前走 gitCheck（与 VS Code 插件行为一致）。
+     */
+    public void gitMergeRequest() throws Exception {
+        debugLog("command triggered", "Merge Request");
+        String groupName = requireGroupName();
+        String rootPath = getRootPath();
+        runWithGitCheckInBackground(rootPath, "GitMergeRequest.sh", (rPath, script) -> {
+            String assignee = Messages.showInputDialog(
+                    project,
+                    "请输入 GitLab MR 指派人用户名（push option merge_request.assign）。可留空表示不指定指派人。",
+                    "ZeroGit: Merge Request",
+                    Messages.getInformationIcon(),
+                    "",
+                    null
+            );
+            if (assignee == null) {
+                return;
+            }
+            confirmAndRunInTerminal("Merge Request", rPath, script, Lists.newArrayList(groupName, assignee.trim()));
+        });
+    }
+
     public void mavenChange() throws Exception {
         debugLog("command triggered", "Maven Change");
         String groupName = requireGroupName();

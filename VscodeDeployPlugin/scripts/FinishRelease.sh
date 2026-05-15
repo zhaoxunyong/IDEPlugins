@@ -75,7 +75,7 @@ STEP_DESC[3]="将最新 main 合并回所有 develop 分支"
 STEP_DESC[4]="将最新 main 合并回所有未完成的 release 分支"
 STEP_DESC[5]="将最新 main 合并回所有未完成的 hotfix 分支"
 STEP_DESC[6]="推送所有分支与 tag 到远程（main、develop、release、hotfix、tag）"
-STEP_DESC[7]="切换到 main 分支，删除已完成的 $MODE 分支（本地和远程）"
+STEP_DESC[7]="切换到 main 分支，按规则清理已完成的 $MODE 分支（本地和远程）"
 
 for i in 1 2 3 4 5 6 7; do
   STEP_STATUS[$i]="NOT_RUN"
@@ -155,6 +155,25 @@ checkout_or_track_branch() {
   exit 1
 }
 
+get_origin_repo_name() {
+  local remote_url repo_name
+  remote_url=$(git remote get-url origin 2>/dev/null || true)
+  repo_name="${remote_url##*/}"
+  repo_name="${repo_name%.git}"
+  printf '%s\n' "$repo_name"
+}
+
+is_special_cleanup_repo() {
+  case "$1" in
+    rule-engine-server|employee|mobile-approval-react)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 echo "target branch: $targetBranch (detected mode: $MODE)"
 echo "develop branches (from remote develop-*): will be collected in step 1"
 
@@ -171,8 +190,11 @@ run_git "Fetch remote branches" git fetch -q origin --prune
 STEP_STATUS[1]="DONE"
 
 tagName="v$version"
+originRepoName="$(get_origin_repo_name)"
+INITIAL_REMOTE_TAG_EXISTS=0
 SKIP_TO_CLEANUP=0
 if git ls-remote --tags --refs --exit-code origin "refs/tags/$tagName" >/dev/null 2>&1; then
+  INITIAL_REMOTE_TAG_EXISTS=1
   echo "Remote tag $tagName already exists; It may just be deployed without any code changes, skipping the merge workflow."
   for s in 2 3 4 5 6; do
     STEP_STATUS[$s]="SKIP"
@@ -278,13 +300,23 @@ fi
 # 6) Switch to main and delete finished branch (local and remote).
 set_step 7
 checkout_or_track_branch "main"
-if git show-ref --verify --quiet "refs/heads/$targetBranch"; then
-  run_git "Delete local branch $targetBranch" git branch -d "$targetBranch"
+DELETE_FINISHED_BRANCH=1
+if is_special_cleanup_repo "$originRepoName" && [ "$INITIAL_REMOTE_TAG_EXISTS" -eq 0 ]; then
+  DELETE_FINISHED_BRANCH=0
 fi
-if git ls-remote --exit-code --heads origin "$targetBranch" >/dev/null 2>&1; then
-  run_git "Delete remote branch $targetBranch" git push origin --delete "$targetBranch"
+
+if [ "$DELETE_FINISHED_BRANCH" -eq 1 ]; then
+  if git show-ref --verify --quiet "refs/heads/$targetBranch"; then
+    run_git "Delete local branch $targetBranch" git branch -d "$targetBranch"
+  fi
+  if git ls-remote --exit-code --heads origin "$targetBranch" >/dev/null 2>&1; then
+    run_git "Delete remote branch $targetBranch" git push origin --delete "$targetBranch"
+  fi
+  STEP_STATUS[7]="DONE"
+else
+  echo "Keep finished branch $targetBranch for repo $originRepoName because remote tag $tagName did not exist before this run."
+  STEP_STATUS[7]="SKIPPED"
 fi
-STEP_STATUS[7]="DONE"
 
 echo "REMAINING_RELEASES: ${remainingVersions[*]}"
 

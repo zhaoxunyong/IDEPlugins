@@ -2,7 +2,7 @@
     "name": "zerofinance-git",
     "displayName": "zerofinance-git",
     "description": "zerofinance-git",
-    "version": "2.0.0",
+    "version": "2.0.1",
     "publisher": "zerofinance",
     "repository": "https://github.com/zhaoxunyong/vs-code-git-plugin",
     "engines": {
@@ -22,7 +22,8 @@
         "onCommand:extension.FinishHotfix",
         "onCommand:extension.GenerateCommitMessage",
         "onCommand:extension.AiCodeReview",
-        "onCommand:extension.GitFlowGuideline"
+        "onCommand:extension.GitFlowGuideline",
+        "onCommand:extension.GitMergeRequest"
     ],
     "main": "./src/extension.js",
     "contributes": {
@@ -106,6 +107,10 @@
             {
                 "command": "extension.GitFlowGuideline",
                 "title": "GitFlow Guideline"
+            },
+            {
+                "command": "extension.GitMergeRequest",
+                "title": "Merge Request"
             }
         ],
         "menus": {
@@ -176,6 +181,10 @@
                 {
                     "command": "extension.RebaseFeature",
                     "group": "2_rebase"
+                },
+                {
+                    "command": "extension.GitMergeRequest",
+                    "group": "3_mr"
                 }
             ],
             "zerogit.release.menu": [
