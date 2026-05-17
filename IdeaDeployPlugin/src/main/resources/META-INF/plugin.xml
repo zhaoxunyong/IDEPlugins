@@ -1,11 +1,11 @@
 <!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
 <idea-plugin>
     <!-- Unique identifier of the plugin. It should be FQN. It cannot be changed between the plugin versions. -->
-    <id>com.zerofinance.ZeroGitDeployToolkit</id>
+    <id>com.zerofinance.git</id>
 
     <!-- Public plugin name should be written in Title Case.
          Guidelines: https://plugins.jetbrains.com/docs/marketplace/plugin-overview-page.html#plugin-name -->
-    <name>Zero Git Deploy Toolkit</name>
+    <name>zerofinance-git</name>
 
     <!-- A displayed Vendor name or Organization ID displayed on the Plugins Page. -->
     <vendor email="dave.zhao@zerofinance.com" url="https://www.zerofinance.com">ZeroFinance</vendor>
@@ -34,6 +34,7 @@
 
     <change-notes><![CDATA[
     <ul>
+        <li>2.0.2 : Changed name to "zerofinance-git". </li>
         <li>2.0.1 : Fixed icon issues. </li>
         <li>2.0.0 : Refactored to ZeroGit-only flow with 7 commands and removed legacy release/newBranch/changeVersion/anyTool actions. </li>
         <li>1.0.11 : Fixed some issues. </li>
