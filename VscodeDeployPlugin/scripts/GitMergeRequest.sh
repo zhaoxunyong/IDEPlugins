@@ -46,7 +46,7 @@ if [[ -z "$target_branch" ]]; then
   target_branch="develop-${groupName}"
 fi
 
-commit_message="$(git log -1 --format=%B)"
+commit_message="$(git log --grep='$EMPTY_COMMIT_MESSAGE' --invert-grep -1 --format=%B)"
 
 if [[ -z "${commit_message//[$'\r\n\t ']}" ]]; then
   echo "Failed to get the latest commit message" >&2
