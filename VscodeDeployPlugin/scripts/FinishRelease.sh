@@ -236,7 +236,10 @@ if [ "$SKIP_TO_CLEANUP" -eq 0 ]; then
   # 3) Merge main to all ongoing release branches (列表从 remote 获取).
   #    release 模式下跳过当前正在 finish 的 release 分支。
   set_step 4
-  mapfile -t releaseBranches < <(git for-each-ref --sort=-committerdate --format='%(refname:short)' 'refs/remotes/origin/release/' | sed 's#^origin/##')
+  releaseBranches=()
+  while IFS= read -r b; do
+    [ -n "$b" ] && releaseBranches+=("$b")
+  done < <(git for-each-ref --sort=-committerdate --format='%(refname:short)' 'refs/remotes/origin/release/' | sed 's#^origin/##')
   remainingVersions=()
   for branch in "${releaseBranches[@]}"; do
     [ -z "$branch" ] && continue
@@ -260,7 +263,10 @@ if [ "$SKIP_TO_CLEANUP" -eq 0 ]; then
   # 4) Merge main to all ongoing hotfix branches (列表从 remote 获取).
   #    hotfix 模式下跳过当前正在 finish 的 hotfix 分支。
   set_step 5
-  mapfile -t hotfixBranches < <(git for-each-ref --sort=-committerdate --format='%(refname:short)' 'refs/remotes/origin/hotfix/' | sed 's#^origin/##')
+  hotfixBranches=()
+  while IFS= read -r b; do
+    [ -n "$b" ] && hotfixBranches+=("$b")
+  done < <(git for-each-ref --sort=-committerdate --format='%(refname:short)' 'refs/remotes/origin/hotfix/' | sed 's#^origin/##')
   for branch in "${hotfixBranches[@]}"; do
     [ -z "$branch" ] && continue
     [ "$MODE" = "hotfix" ] && [ "$branch" = "$targetBranch" ] && continue
