@@ -12,6 +12,8 @@ repositories {
 
 dependencies {
     implementation("org.apache.commons:commons-exec:1.3")
+    implementation("org.yaml:snakeyaml:2.2")
+    testImplementation("junit:junit:4.13.2")
 }
 
 // Configure Gradle IntelliJ Plugin - read more: https://github.com/JetBrains/gradle-intellij-plugin

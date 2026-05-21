@@ -94,6 +94,9 @@
                 <action id="StartNewHotfixMainMenu" class="com.zerofinance.zerogitdeploy.action.StartNewHotfixAction" icon="AllIcons.Actions.Execute" text="Start New Hotfix" description="ZeroGit Start New Hotfix" />
                 <action id="FinishHotfixMainMenu" class="com.zerofinance.zerogitdeploy.action.FinishHotfixAction" icon="AllIcons.Actions.Commit" text="Finish Hotfix" description="ZeroGit Finish Hotfix" />
             </group>
+            <group id="ZeroMainGitlabCiSubMenu" text="GitLab CI" popup="true" icon="AllIcons.Actions.Execute">
+                <action id="RunGitlabCiBaseExecCmdMainMenu" class="com.zerofinance.zerogitdeploy.action.RunGitlabCiBaseExecCmdAction" icon="AllIcons.Actions.Execute" text="Run BASE_EXEC_CMD" description="Run BASE_EXEC_CMD from .gitlab-ci.yml" />
+            </group>
             <action id="GitFlowGuidelineMainMenu" class="com.zerofinance.zerogitdeploy.action.GitFlowGuidelineAction" icon="AllIcons.General.Web" text="GitFlow Guideline" description="Open GitFlow Guideline in browser" />
         </group>
 

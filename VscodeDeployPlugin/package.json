@@ -23,7 +23,8 @@
         "onCommand:extension.GenerateCommitMessage",
         "onCommand:extension.AiCodeReview",
         "onCommand:extension.GitFlowGuideline",
-        "onCommand:extension.GitMergeRequest"
+        "onCommand:extension.GitMergeRequest",
+        "onCommand:extension.RunGitlabCiBaseExecCmd"
     ],
     "main": "./src/extension.js",
     "contributes": {
@@ -111,6 +112,10 @@
             {
                 "command": "extension.GitMergeRequest",
                 "title": "Merge Request"
+            },
+            {
+                "command": "extension.RunGitlabCiBaseExecCmd",
+                "title": "Run BASE_EXEC_CMD"
             }
         ],
         "menus": {
@@ -157,6 +162,10 @@
                 {
                     "submenu": "zerogit.hotfix.menu",
                     "group": "4_hotfix"
+                },
+                {
+                    "submenu": "zerogit.gitlabci.menu",
+                    "group": "5_gitlabci"
                 },
                 {
                     "command": "extension.GitFlowGuideline",
@@ -206,6 +215,12 @@
                     "command": "extension.FinishHotfix",
                     "group": "1_finish"
                 }
+            ],
+            "zerogit.gitlabci.menu": [
+                {
+                    "command": "extension.RunGitlabCiBaseExecCmd",
+                    "group": "0_run"
+                }
             ]
         },
         "submenus": [
@@ -228,6 +243,10 @@
             {
                 "id": "zerogit.hotfix.menu",
                 "label": "Hotfix"
+            },
+            {
+                "id": "zerogit.gitlabci.menu",
+                "label": "GitLab CI"
             }
         ]
     },
@@ -244,6 +263,7 @@
     },
     "dependencies": {
         "axios": "^0.18.0",
-        "tmp": "0.0.33"
+        "tmp": "0.0.33",
+        "yaml": "^2.9.0"
     }
 }

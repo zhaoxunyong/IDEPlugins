@@ -28,6 +28,8 @@ import com.zerofinance.zerogitdeploy.setting.ZeroGitDeploySetting;
 import com.zerofinance.zerogitdeploy.tools.CommandUtils;
 import com.zerofinance.zerogitdeploy.tools.DeployCmdExecuter;
 import com.zerofinance.zerogitdeploy.tools.ExecuteResult;
+import com.zerofinance.zerogitdeploy.tools.GitlabCiCommandOption;
+import com.zerofinance.zerogitdeploy.tools.GitlabCiCommandReader;
 import com.zerofinance.zerogitdeploy.tools.MessagesUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.SystemUtils;
@@ -346,6 +348,17 @@ public class ZeroGitFlowHandler {
         }
         String script = CommandUtils.processZeroGitScript(rootPath, "AiCodeReview.sh");
         confirmAndRunInTerminal("AI Code Review", rootPath, script, Lists.newArrayList());
+    }
+
+    public void runGitlabCiBaseExecCmd() throws Exception {
+        debugLog("command triggered", "Run BASE_EXEC_CMD");
+        String rootPath = getRootPath();
+        List<GitlabCiCommandOption> options = GitlabCiCommandReader.readFromRepoRoot(rootPath);
+        GitlabCiCommandOption selected = chooseGitlabCiCommand(options);
+        if (selected == null) {
+            return;
+        }
+        confirmAndRunRawCommandInTerminal("Run BASE_EXEC_CMD", rootPath, selected.getCommand());
     }
 
     public void startNewRelease() throws Exception {
@@ -784,6 +797,20 @@ public class ZeroGitFlowHandler {
                 NotificationType.INFORMATION);
     }
 
+    private void confirmAndRunRawCommandInTerminal(String commandName, String rootPath, String rawCommand) throws IOException {
+        String message = buildRawConfirmMessage(commandName, rootPath, rawCommand);
+        if (!yes(message, "ZeroGit Confirm")) {
+            debugLog("raw command execution cancelled by user", commandName);
+            return;
+        }
+        debugLog("send raw command to terminal", toRawBashCommand(rootPath, rawCommand));
+        runRawCommandInTerminal(rootPath, rawCommand);
+        MessagesUtils.showMessage(project,
+                commandName + " executed done, please check the logs in terminal.",
+                moduleName + ": Done",
+                NotificationType.INFORMATION);
+    }
+
     private void confirmAndRunSyncAsync(String commandName, String rootPath, String script, List<String> params, String branchType) {
         String message = buildConfirmMessage(commandName, rootPath, script, params);
         if (!yes(message, "ZeroGit Confirm")) {
@@ -895,6 +922,30 @@ public class ZeroGitFlowHandler {
         pair.second.executeCommand(command);
     }
 
+    private void runRawCommandInTerminal(String rootPath, String rawCommand) throws IOException {
+        String command = toRawBashCommand(rootPath, rawCommand);
+        TerminalView terminalView = TerminalView.getInstance(project);
+        ToolWindow window = ToolWindowManager.getInstance(project).getToolWindow(TerminalToolWindowFactory.TOOL_WINDOW_ID);
+        if (window == null) {
+            throw new DeployPluginException("Terminal tool window unavailable.");
+        }
+        window.activate(null);
+        ContentManager contentManager = window.getContentManager();
+        Content content = contentManager.findContent(TITLE);
+        if (content == null) {
+            ShellTerminalWidget terminal = terminalView.createLocalShellWidget(project.getBasePath(), TITLE);
+            terminal.executeCommand(command);
+            return;
+        }
+        Pair<Content, ShellTerminalWidget> pair = getSuitableProcess(content);
+        if (pair == null) {
+            throw new DeployPluginException("已有终端在执行命令，请稍后重试。");
+        }
+        pair.first.setDisplayName(TITLE);
+        contentManager.setSelectedContent(pair.first);
+        pair.second.executeCommand(command);
+    }
+
     private String toBashCommand(String rootPath, String script, List<String> parameters) {
         if (SystemUtils.IS_OS_WINDOWS) {
             String normalizedRootPath = rootPath.replace("\\", "/");
@@ -928,8 +979,64 @@ public class ZeroGitFlowHandler {
         return sb.toString();
     }
 
+    private String toRawBashCommand(String rootPath, String rawCommand) {
+        if (SystemUtils.IS_OS_WINDOWS) {
+            String normalizedRootPath = rootPath.replace("\\", "/");
+            String bashExe = ZeroGitDeploySetting.getGitHome() + "\\bin\\bash.exe";
+            String bashActualCommand = "cd " + quote(normalizedRootPath, false) + " && " + rawCommand;
+            StringBuilder sb = new StringBuilder()
+                    .append(quote(bashExe, true));
+            if (ZeroGitDeploySetting.isDebug()) {
+                sb.append(" -x");
+            }
+            sb.append(" -lc ").append(quote(bashActualCommand, true));
+            return sb.toString();
+        }
+
+        StringBuilder sb = new StringBuilder("bash");
+        if (ZeroGitDeploySetting.isDebug()) {
+            sb.append(" -x");
+        }
+        String actualCommand = buildCdCommand(rootPath) + " && " + rawCommand;
+        sb.append(" -lc ").append(quote(actualCommand, false));
+        return sb.toString();
+    }
+
     private String buildConfirmMessage(String cmd, String rootPath, String script, List<String> params) {
         return "命令: " + cmd + "\n工作目录: " + rootPath + "\n脚本: " + script + "\n参数: " + String.join(" ", params) + "\n\n确认执行？";
+    }
+
+    private String buildRawConfirmMessage(String cmd, String rootPath, String rawCommand) {
+        return "命令: " + cmd + "\n工作目录: " + rootPath + "\n执行内容: " + rawCommand + "\n\n确认执行？";
+    }
+
+    private GitlabCiCommandOption chooseGitlabCiCommand(List<GitlabCiCommandOption> options) {
+        if (options == null || options.isEmpty()) {
+            return null;
+        }
+        if (options.size() == 1) {
+            return options.get(0);
+        }
+        String[] labels = options.stream()
+                .map(GitlabCiCommandOption::getDisplayText)
+                .toArray(String[]::new);
+        String selected = Messages.showEditableChooseDialog(
+                "请选择要执行的 BASE_EXEC_CMD",
+                "ZeroGit: GitLab CI",
+                Messages.getInformationIcon(),
+                labels,
+                labels[0],
+                null
+        );
+        if (StringUtils.isBlank(selected)) {
+            return null;
+        }
+        for (GitlabCiCommandOption option : options) {
+            if (selected.equals(option.getDisplayText()) || selected.equals(option.getCommand())) {
+                return option;
+            }
+        }
+        throw new DeployPluginException("无效的 BASE_EXEC_CMD 选择: " + selected);
     }
 
     private List<String> listLocalFeatureBranches(String rootPath, String groupName) throws Exception {

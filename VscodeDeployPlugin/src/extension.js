@@ -3,6 +3,7 @@ const vscode = require('vscode')
 const myPlugin = require('./myPlugin')
 const tmp = require('tmp')
 const fs = require('fs')
+const YAML = require('yaml')
 
 const util = require('util')
 const exec = util.promisify(require('child_process').exec)
@@ -22,7 +23,10 @@ const DEFAULT_GROUP_NAMES_FALLBACK = 'a b c'
 const CONFIG_GIT_BASH = `${CONFIG_ROOT}.gitBash`
 const DEFAULT_SCRIPT_ROOT_URL = 'https://gitlab.zerofinance.net/dave.zhao/deployPlugin/-/raw/git-flow'
 const COMMAND_PREFIX = 'extension.'
+const COMMAND_RUN_GITLAB_CI_BASE_EXEC = 'extension.RunGitlabCiBaseExecCmd'
 const GITFLOW_GUIDELINE_URL = 'https://v04jaasnl45.feishu.cn/wiki/Vg5PwK2smiPxGLk7w4Gc7tZanjb'
+const GITLAB_CI_FILE_NAME = '.gitlab-ci.yml'
+const GITLAB_CI_NOT_FOUND_MESSAGE = '项目中未找到.gitlab-ci.yml文件'
 const gitCheckFile = 'gitCheck.sh'
 const tmpdir = tmp.tmpdir
 const gitCheckPath = tmpdir + '/' + gitCheckFile
@@ -148,6 +152,101 @@ function parseConfiguredGroupNames (raw) {
         return []
     }
     return s.split(/\s+/).filter(Boolean)
+}
+
+function splitBaseExecCommands (value) {
+    return String(value || '')
+        .split(';')
+        .map(item => item.trim())
+        .filter(Boolean)
+}
+
+function extractBaseExecCommandsFromGitlabCi (yamlText) {
+    let parsed
+    try {
+        parsed = YAML.parse(String(yamlText || ''))
+    } catch (err) {
+        throw new Error(`.gitlab-ci.yml 解析失败：${err.message}`)
+    }
+
+    const commands = []
+    const seen = new Set()
+    const appendCommands = value => {
+        if (typeof value !== 'string') {
+            return
+        }
+        splitBaseExecCommands(value).forEach(command => {
+            if (!seen.has(command)) {
+                seen.add(command)
+                commands.push(command)
+            }
+        })
+    }
+
+    appendCommands(parsed && parsed.BASE_EXEC_CMD)
+    appendCommands(parsed && parsed.variables && parsed.variables.BASE_EXEC_CMD)
+
+    Object.keys(parsed || {}).forEach(key => {
+        const node = parsed[key]
+        if (!node || typeof node !== 'object' || Array.isArray(node)) {
+            return
+        }
+        appendCommands(node.variables && node.variables.BASE_EXEC_CMD)
+    })
+
+    if (commands.length === 0) {
+        throw new Error('未找到 BASE_EXEC_CMD 配置')
+    }
+
+    return commands
+}
+
+function readBaseExecCommandsFromRepoRoot (rootPath) {
+    const gitlabCiPath = path.join(rootPath, GITLAB_CI_FILE_NAME)
+    if (!fs.existsSync(gitlabCiPath)) {
+        throw new Error(GITLAB_CI_NOT_FOUND_MESSAGE)
+    }
+    const yamlText = fs.readFileSync(gitlabCiPath, 'utf8')
+    return extractBaseExecCommandsFromGitlabCi(yamlText)
+}
+
+async function pickBaseExecCommand (commands) {
+    if (!Array.isArray(commands) || commands.length === 0) {
+        return null
+    }
+    if (commands.length === 1) {
+        return commands[0]
+    }
+
+    const selected = await vscode.window.showQuickPick(
+        commands.map(command => ({
+            label: command,
+            value: command
+        })),
+        {
+            ignoreFocusOut: true,
+            canPickMany: false,
+            title: '选择要执行的 BASE_EXEC_CMD',
+            placeHolder: 'BASE_EXEC_CMD 包含多个命令，请选择其一'
+        }
+    )
+
+    return selected ? selected.value : null
+}
+
+function buildBaseExecBashCommand (rootPath, commandText) {
+    const normalizedRootPath = normalizePath(rootPath)
+    const bashPath = getBashPath()
+    const debug = vscode.workspace.getConfiguration().get(CONFIG_DEBUG)
+    const traceOpt = debug ? ' -x' : ''
+    const innerCommand = `cd ${quoteBashArg(normalizedRootPath)} && ${commandText}`
+    return `"${bashPath}"${traceOpt} -lc ${quoteBashArg(innerCommand)}`
+}
+
+function runBaseExecCommandInTerminal (rootPath, commandText) {
+    const cmdStr = buildBaseExecBashCommand(rootPath, commandText)
+    debugLog('send gitlab ci command to terminal', cmdStr)
+    getTerminal().sendText(cmdStr)
 }
 
 async function ensureGroupNameConfigured () {
@@ -1367,6 +1466,51 @@ function activate (context) {
         })
     )
 
+    context.subscriptions.push(
+        vscode.commands.registerCommand(COMMAND_RUN_GITLAB_CI_BASE_EXEC, async (resourceUri) => {
+            try {
+                let selectedPath
+                if (resourceUri && resourceUri.fsPath) {
+                    const p = normalizePath(resourceUri.fsPath)
+                    try {
+                        selectedPath = fs.existsSync(p) && fs.statSync(p).isFile() ? path.dirname(p) : p
+                    } catch (_) {
+                        selectedPath = path.dirname(p)
+                    }
+                    debugLog('use resource path as selected for gitlab ci', selectedPath)
+                }
+
+                if (!selectedPath) {
+                    const selectedItem = await pickWorkspaceFolder()
+                    if (!selectedItem) {
+                        return
+                    }
+                    selectedPath = selectedItem.uri.fsPath
+                }
+
+                const rootPath = await resolveGitRootPath(selectedPath)
+                if (!rootPath) {
+                    const errMsg = `${normalizePath(selectedPath)} is not inside a git repository.`
+                    await showErrorWithCopy(errMsg, errMsg)
+                    return
+                }
+
+                const commands = readBaseExecCommandsFromRepoRoot(rootPath)
+                const selectedCommand = await pickBaseExecCommand(commands)
+                if (!selectedCommand) {
+                    return
+                }
+
+                runBaseExecCommandInTerminal(rootPath, selectedCommand)
+                vscode.window.showInformationMessage('GitLab CI command executed done, please check the logs in terminal.')
+            } catch (err) {
+                const msg = err && err.message ? err.message : String(err)
+                debugLog('gitlab ci command failed', { msg })
+                await showErrorWithCopy(msg, buildErrorDetails(err))
+            }
+        })
+    )
+
     Object.keys(gitFlowScriptByCommand).forEach(commandId => {
         context.subscriptions.push(
             vscode.commands.registerCommand(commandId, async (resourceUri) => {
@@ -1884,5 +2028,8 @@ function deactivate () { }
  */
 module.exports = {
     activate,
-    deactivate
+    deactivate,
+    readBaseExecCommandsFromRepoRoot,
+    splitBaseExecCommands,
+    extractBaseExecCommandsFromGitlabCi
 }
