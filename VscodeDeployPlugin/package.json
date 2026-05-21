@@ -2,7 +2,7 @@
     "name": "zerofinance-git",
     "displayName": "zerofinance-git",
     "description": "zerofinance-git",
-    "version": "2.0.1",
+    "version": "2.0.3",
     "publisher": "zerofinance",
     "repository": "https://github.com/zhaoxunyong/vs-code-git-plugin",
     "engines": {
@@ -115,7 +115,7 @@
             },
             {
                 "command": "extension.RunGitlabCiBaseExecCmd",
-                "title": "Run BASE_EXEC_CMD"
+                "title": "Run CI Command"
             }
         ],
         "menus": {

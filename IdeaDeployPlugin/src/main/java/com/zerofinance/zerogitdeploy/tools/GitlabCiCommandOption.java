@@ -18,6 +18,9 @@ public class GitlabCiCommandOption {
     }
 
     public String getDisplayText() {
-        return command;
+        if (sourceLabel == null || sourceLabel.trim().isEmpty()) {
+            return command;
+        }
+        return "[" + sourceLabel + "]: " + command;
     }
 }

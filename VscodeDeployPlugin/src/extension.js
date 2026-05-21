@@ -161,7 +161,7 @@ function splitBaseExecCommands (value) {
         .filter(Boolean)
 }
 
-function extractBaseExecCommandsFromGitlabCi (yamlText) {
+function extractBaseExecCommandOptionsFromGitlabCi (yamlText) {
     let parsed
     try {
         parsed = YAML.parse(String(yamlText || ''))
@@ -169,16 +169,20 @@ function extractBaseExecCommandsFromGitlabCi (yamlText) {
         throw new Error(`.gitlab-ci.yml 解析失败：${err.message}`)
     }
 
-    const commands = []
+    const options = []
     const seen = new Set()
-    const appendCommands = value => {
+    const appendCommands = (value, sourceLabel = '') => {
         if (typeof value !== 'string') {
             return
         }
         splitBaseExecCommands(value).forEach(command => {
             if (!seen.has(command)) {
                 seen.add(command)
-                commands.push(command)
+                const label = sourceLabel ? `[${sourceLabel}]: ${command}` : command
+                options.push({
+                    label,
+                    value: command
+                })
             }
         })
     }
@@ -191,14 +195,18 @@ function extractBaseExecCommandsFromGitlabCi (yamlText) {
         if (!node || typeof node !== 'object' || Array.isArray(node)) {
             return
         }
-        appendCommands(node.variables && node.variables.BASE_EXEC_CMD)
+        appendCommands(node.variables && node.variables.BASE_EXEC_CMD, key)
     })
 
-    if (commands.length === 0) {
+    if (options.length === 0) {
         throw new Error('未找到 BASE_EXEC_CMD 配置')
     }
 
-    return commands
+    return options
+}
+
+function extractBaseExecCommandsFromGitlabCi (yamlText) {
+    return extractBaseExecCommandOptionsFromGitlabCi(yamlText).map(option => option.value)
 }
 
 function readBaseExecCommandsFromRepoRoot (rootPath) {
@@ -207,7 +215,7 @@ function readBaseExecCommandsFromRepoRoot (rootPath) {
         throw new Error(GITLAB_CI_NOT_FOUND_MESSAGE)
     }
     const yamlText = fs.readFileSync(gitlabCiPath, 'utf8')
-    return extractBaseExecCommandsFromGitlabCi(yamlText)
+    return extractBaseExecCommandOptionsFromGitlabCi(yamlText)
 }
 
 async function pickBaseExecCommand (commands) {
@@ -215,14 +223,11 @@ async function pickBaseExecCommand (commands) {
         return null
     }
     if (commands.length === 1) {
-        return commands[0]
+        return commands[0].value
     }
 
     const selected = await vscode.window.showQuickPick(
-        commands.map(command => ({
-            label: command,
-            value: command
-        })),
+        commands,
         {
             ignoreFocusOut: true,
             canPickMany: false,
@@ -2029,6 +2034,7 @@ function deactivate () { }
 module.exports = {
     activate,
     deactivate,
+    extractBaseExecCommandOptionsFromGitlabCi,
     readBaseExecCommandsFromRepoRoot,
     splitBaseExecCommands,
     extractBaseExecCommandsFromGitlabCi
