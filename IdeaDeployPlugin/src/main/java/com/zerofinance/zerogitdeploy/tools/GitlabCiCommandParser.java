@@ -20,7 +20,7 @@ public final class GitlabCiCommandParser {
             throw new IllegalArgumentException(".gitlab-ci.yml 解析失败：" + e.getMessage(), e);
         }
         if (!(loaded instanceof Map)) {
-            throw new IllegalArgumentException("未找到 BASE_EXEC_CMD 配置");
+            throw new IllegalArgumentException("未找到 CI Command 配置");
         }
 
         Map<String, GitlabCiCommandOption> options = new LinkedHashMap<>();
@@ -44,7 +44,7 @@ public final class GitlabCiCommandParser {
         }
 
         if (options.isEmpty()) {
-            throw new IllegalArgumentException("未找到 BASE_EXEC_CMD 配置");
+            throw new IllegalArgumentException("未找到 CI Command 配置");
         }
 
         return new ArrayList<>(options.values());

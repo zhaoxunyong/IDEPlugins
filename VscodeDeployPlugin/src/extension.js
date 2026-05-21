@@ -199,7 +199,7 @@ function extractBaseExecCommandOptionsFromGitlabCi (yamlText) {
     })
 
     if (options.length === 0) {
-        throw new Error('未找到 BASE_EXEC_CMD 配置')
+        throw new Error('未找到 CI Command 配置')
     }
 
     return options
@@ -231,8 +231,8 @@ async function pickBaseExecCommand (commands) {
         {
             ignoreFocusOut: true,
             canPickMany: false,
-            title: '选择要执行的 BASE_EXEC_CMD',
-            placeHolder: 'BASE_EXEC_CMD 包含多个命令，请选择其一'
+            title: '选择要执行的 CI Command',
+            placeHolder: 'CI Command 包含多个命令，请选择其一'
         }
     )
 
