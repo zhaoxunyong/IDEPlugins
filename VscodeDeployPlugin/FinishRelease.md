@@ -77,7 +77,7 @@
    - 若本地 main 已存在，则随后会 `git pull origin main`。
 
 3. **将 release 分支合并到 main**
-   - `git merge --no-ff "$releaseBranch"`：保留合并记录，方便回溯。
+   - `git merge "$releaseBranch"`：将 release 合并到 main。
 
 4. **处理 Tag**
    - 同步远程 Tag：`git fetch origin --tags --prune-tags`
@@ -110,7 +110,7 @@
 3. **依次处理每个 develop 分支**
    - `checkout_or_track_branch "$branch"`
    - 若本地已存在，对应分支执行 `git pull origin "$branch"`。
-   - 合并 main：`git merge --no-ff main`
+   - 合并 main：`git merge main`
    - 推送到远程：`git push origin "$branch"`
 
 #### 步骤 5：同步 main → 所有未完成的 release 分支
@@ -122,7 +122,7 @@
 2. **依次处理每个 release 分支**
    - `checkout_or_track_branch "$branch"`
    - 如有需要，对应分支执行 `git pull origin "$branch"`。
-   - 合并 main：`git merge --no-ff main`
+   - 合并 main：`git merge main`
    - 推送到远程：`git push origin "$branch"`
    - 将该分支名加入 `remainingVersions` 数组，记录为“仍然存在的发布分支”。
 
@@ -134,7 +134,7 @@
 2. **依次处理每个 hotfix 分支**
    - `checkout_or_track_branch "$branch"`
    - 如有需要，对应分支执行 `git pull origin "$branch"`。
-   - 合并 main：`git merge --no-ff main`
+   - 合并 main：`git merge main`
    - 推送到远程：`git push origin "$branch"`
    - 同样记录进 `remainingVersions`，后续统一输出。
 

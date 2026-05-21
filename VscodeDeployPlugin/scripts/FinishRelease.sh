@@ -209,7 +209,7 @@ if [ "$SKIP_TO_CLEANUP" -eq 0 ]; then
   [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $targetBranch" git pull origin "$targetBranch"
   checkout_or_track_branch "main"
   [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest main" git pull origin main
-  run_git "Merge $targetBranch into main" git merge --no-ff "$targetBranch"
+  run_git "Merge $targetBranch into main" git merge "$targetBranch"
   # main 在第 6 步统一推送
   STEP_STATUS[2]="DONE"
 
@@ -224,7 +224,7 @@ if [ "$SKIP_TO_CLEANUP" -eq 0 ]; then
     [ -z "$branch" ] && continue
     checkout_or_track_branch "$branch"
     [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $branch" git pull origin "$branch"
-    run_git "Merge main into $branch" git merge --no-ff main
+    run_git "Merge main into $branch" git merge main
     PUSH_BRANCHES+=("$branch")
   done
   if [ ${#developBranches[@]} -gt 0 ]; then
@@ -246,7 +246,7 @@ if [ "$SKIP_TO_CLEANUP" -eq 0 ]; then
     [ "$MODE" = "release" ] && [ "$branch" = "$targetBranch" ] && continue
     checkout_or_track_branch "$branch"
     [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $branch" git pull origin "$branch"
-    run_git "Merge main into $branch" git merge --no-ff main
+    run_git "Merge main into $branch" git merge main
     PUSH_BRANCHES+=("$branch")
     remainingVersions+=("$branch")
   done
@@ -272,7 +272,7 @@ if [ "$SKIP_TO_CLEANUP" -eq 0 ]; then
     [ "$MODE" = "hotfix" ] && [ "$branch" = "$targetBranch" ] && continue
     checkout_or_track_branch "$branch"
     [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $branch" git pull origin "$branch"
-    run_git "Merge main into $branch" git merge --no-ff main
+    run_git "Merge main into $branch" git merge main
     PUSH_BRANCHES+=("$branch")
     remainingVersions+=("$branch")
   done
