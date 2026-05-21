@@ -351,14 +351,14 @@ public class ZeroGitFlowHandler {
     }
 
     public void runGitlabCiBaseExecCmd() throws Exception {
-        debugLog("command triggered", "Run BASE_EXEC_CMD");
+        debugLog("command triggered", "Run CI Command");
         String rootPath = getRootPath();
         List<GitlabCiCommandOption> options = GitlabCiCommandReader.readFromRepoRoot(rootPath);
         GitlabCiCommandOption selected = chooseGitlabCiCommand(options);
         if (selected == null) {
             return;
         }
-        confirmAndRunRawCommandInTerminal("Run BASE_EXEC_CMD", rootPath, selected.getCommand());
+        confirmAndRunRawCommandInTerminal("Run CI Command", rootPath, selected.getCommand());
     }
 
     public void startNewRelease() throws Exception {

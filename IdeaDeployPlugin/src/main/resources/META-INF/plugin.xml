@@ -34,6 +34,7 @@
 
     <change-notes><![CDATA[
     <ul>
+        <li>2.0.3 : Added "Run CI Command" action. </li>
         <li>2.0.2 : Changed name to "zerofinance-git". </li>
         <li>2.0.1 : Fixed icon issues. </li>
         <li>2.0.0 : Refactored to ZeroGit-only flow with 7 commands and removed legacy release/newBranch/changeVersion/anyTool actions. </li>
@@ -123,7 +124,7 @@
                 <action id="FinishHotfixPopupMenu" class="com.zerofinance.zerogitdeploy.action.FinishHotfixAction" icon="AllIcons.Actions.Commit" text="Finish Hotfix" description="ZeroGit Finish Hotfix" />
             </group>
             <group id="ZeroPopupGitlabCiSubMenu" text="GitLab CI" popup="true" icon="AllIcons.Actions.Execute">
-                <action id="RunGitlabCiBaseExecCmdPopupMenu" class="com.zerofinance.zerogitdeploy.action.RunGitlabCiBaseExecCmdAction" icon="AllIcons.Actions.Execute" text="Run BASE_EXEC_CMD" description="Run BASE_EXEC_CMD from .gitlab-ci.yml" />
+                <action id="RunGitlabCiBaseExecCmdPopupMenu" class="com.zerofinance.zerogitdeploy.action.RunGitlabCiBaseExecCmdAction" icon="AllIcons.Actions.Execute" text="Run CI Command" description="Run a CI command from .gitlab-ci.yml" />
             </group>
             <action id="GitFlowGuidelinePopupMenu" class="com.zerofinance.zerogitdeploy.action.GitFlowGuidelineAction" icon="AllIcons.General.Web" text="GitFlow Guideline" description="Open GitFlow Guideline in browser" />
         </group>
