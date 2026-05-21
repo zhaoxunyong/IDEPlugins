@@ -798,11 +798,6 @@ public class ZeroGitFlowHandler {
     }
 
     private void confirmAndRunRawCommandInTerminal(String commandName, String rootPath, String rawCommand) throws IOException {
-        String message = buildRawConfirmMessage(commandName, rootPath, rawCommand);
-        if (!yes(message, "ZeroGit Confirm")) {
-            debugLog("raw command execution cancelled by user", commandName);
-            return;
-        }
         debugLog("send raw command to terminal", toRawBashCommand(rootPath, rawCommand));
         runRawCommandInTerminal(rootPath, rawCommand);
         MessagesUtils.showMessage(project,
@@ -1004,10 +999,6 @@ public class ZeroGitFlowHandler {
 
     private String buildConfirmMessage(String cmd, String rootPath, String script, List<String> params) {
         return "命令: " + cmd + "\n工作目录: " + rootPath + "\n脚本: " + script + "\n参数: " + String.join(" ", params) + "\n\n确认执行？";
-    }
-
-    private String buildRawConfirmMessage(String cmd, String rootPath, String rawCommand) {
-        return "命令: " + cmd + "\n工作目录: " + rootPath + "\n执行内容: " + rawCommand + "\n\n确认执行？";
     }
 
     private GitlabCiCommandOption chooseGitlabCiCommand(List<GitlabCiCommandOption> options) {
