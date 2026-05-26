@@ -34,6 +34,7 @@
 
     <change-notes><![CDATA[
     <ul>
+        <li>2.0.4 : Fixed some issues. </li>
         <li>2.0.3 : Added "Run CI Command" action. </li>
         <li>2.0.2 : Changed name to "zerofinance-git". </li>
         <li>2.0.1 : Fixed icon issues. </li>

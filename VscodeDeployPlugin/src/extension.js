@@ -1,6 +1,7 @@
 const path = require('path')
 const vscode = require('vscode')
 const myPlugin = require('./myPlugin')
+const { pomXmlContainsSnapshot } = require('./pomSnapshot')
 const tmp = require('tmp')
 const fs = require('fs')
 const YAML = require('yaml')
@@ -662,19 +663,7 @@ async function confirmFinishHotfixUsageNotice () {
     return showModalYesNoDialog('只有Maintainer角色才有权限操作，请确认你对该项目是否有Maintainer权限？\n\n此功能仅限于解决CICD自动化merge代码时出现冲突的场景。解决完冲突后，再到项目的Pipeline里面重新执行对应的job即可。')
 }
 
-function pomXmlContainsSnapshot (rootPath) {
-    const pomPath = path.join(rootPath, 'pom.xml')
-    try {
-        if (!fs.existsSync(pomPath) || !fs.statSync(pomPath).isFile()) {
-            return false
-        }
-        return fs.readFileSync(pomPath, 'utf8').includes('-SNAPSHOT')
-    } catch (_) {
-        return false
-    }
-}
-
-/** StartNewRelease / StartNewHotfix：仓库根存在 pom.xml 且含 -SNAPSHOT 时需用户确认，取消则中断。 */
+/** StartNewRelease / StartNewHotfix：当前目录树任意 pom.xml 含 -SNAPSHOT 时需用户确认，取消则中断。 */
 async function confirmPomSnapshotIfPresent (rootPath) {
     if (!pomXmlContainsSnapshot(rootPath)) {
         return true
@@ -2034,6 +2023,7 @@ function deactivate () { }
 module.exports = {
     activate,
     deactivate,
+    pomXmlContainsSnapshot,
     extractBaseExecCommandOptionsFromGitlabCi,
     readBaseExecCommandsFromRepoRoot,
     splitBaseExecCommands,

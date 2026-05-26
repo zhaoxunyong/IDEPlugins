@@ -1236,19 +1236,43 @@ public class ZeroGitFlowHandler {
     }
 
     private static boolean pomXmlContainsSnapshot(String rootPath) {
-        File pom = new File(rootPath, "pom.xml");
-        if (!pom.isFile()) {
+        File root = new File(rootPath);
+        if (!root.isDirectory()) {
             return false;
         }
+        return containsSnapshotInPomTree(root);
+    }
+
+    private static boolean containsSnapshotInPomTree(File dir) {
+        File[] children = dir.listFiles();
+        if (children == null) {
+            return false;
+        }
+        for (File child : children) {
+            if (child.isDirectory()) {
+                if (".git".equals(child.getName())) {
+                    continue;
+                }
+                if (containsSnapshotInPomTree(child)) {
+                    return true;
+                }
+            } else if ("pom.xml".equals(child.getName()) && fileContainsSnapshot(child)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean fileContainsSnapshot(File pom) {
         try {
-            String content = new String(Files.readAllBytes(pom.toPath()), StandardCharsets.UTF_8);
+            String content = Files.readString(pom.toPath(), StandardCharsets.UTF_8);
             return content.contains("-SNAPSHOT");
         } catch (IOException e) {
             return false;
         }
     }
 
-    /** Start New Release / Hotfix：仓库根存在 pom.xml 且含 -SNAPSHOT 时需用户确认，取消则中断。 */
+    /** Start New Release / Hotfix：当前目录树任意 pom.xml 含 -SNAPSHOT 时需用户确认，取消则中断。 */
     private boolean confirmPomSnapshotIfPresent(String rootPath) {
         if (!pomXmlContainsSnapshot(rootPath)) {
             return true;
