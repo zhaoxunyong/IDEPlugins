@@ -368,8 +368,9 @@ public class ZeroGitFlowHandler {
             return;
         }
         String rootPath = getRootPath();
+        String snapshotCheckRootPath = resolvePomSnapshotCheckRootPath(rootPath, modulePath);
         runWithGitCheckInBackground(rootPath, "StartNewRelease.sh", (rPath, script) -> {
-            if (!confirmPomSnapshotIfPresent(rPath)) {
+            if (snapshotCheckRootPath != null && !confirmPomSnapshotIfPresent(snapshotCheckRootPath)) {
                 return;
             }
             gitFetchOriginPrune(rPath);
@@ -449,8 +450,9 @@ public class ZeroGitFlowHandler {
             return;
         }
         String rootPath = getRootPath();
+        String snapshotCheckRootPath = resolvePomSnapshotCheckRootPath(rootPath, modulePath);
         runWithGitCheckInBackground(rootPath, "StartNewHotfix.sh", (rPath, script) -> {
-            if (!confirmPomSnapshotIfPresent(rPath)) {
+            if (snapshotCheckRootPath != null && !confirmPomSnapshotIfPresent(snapshotCheckRootPath)) {
                 return;
             }
             gitFetchOriginPrune(rPath);
@@ -575,6 +577,40 @@ public class ZeroGitFlowHandler {
         return CommandUtils.getRootProjectPath(modulePath);
     }
 
+    private static String resolvePomSnapshotCheckRootPath(String gitRootPath, String selectedPath) {
+        if (StringUtils.isBlank(gitRootPath)) {
+            return null;
+        }
+        File gitRoot = new File(gitRootPath);
+        if (!gitRoot.isDirectory()) {
+            return null;
+        }
+        File currentDir = toDirectoryStatic(selectedPath);
+        if (currentDir == null) {
+            return gitRoot.getPath();
+        }
+        String gitRootCanonicalPath = canonicalPathOf(gitRoot);
+        String currentCanonicalPath = canonicalPathOf(currentDir);
+        if (currentCanonicalPath.equals(gitRootCanonicalPath)) {
+            return gitRoot.getPath();
+        }
+        List<File> mavenRoots = new ArrayList<>();
+        collectMavenRootsUnderStatic(gitRoot, mavenRoots);
+        File bestRoot = null;
+        int bestPathLength = Integer.MAX_VALUE;
+        String separator = File.separator;
+        for (File root : mavenRoots) {
+            String rootPath = canonicalPathOf(root);
+            boolean underThisRoot = currentCanonicalPath.equals(rootPath)
+                    || currentCanonicalPath.startsWith(rootPath + separator);
+            if (underThisRoot && rootPath.length() < bestPathLength) {
+                bestRoot = root;
+                bestPathLength = rootPath.length();
+            }
+        }
+        return bestRoot == null ? null : bestRoot.getPath();
+    }
+
     private String getMavenProjectRootPath() {
         String gitRootPath = getRootPath();
         if (StringUtils.isBlank(gitRootPath)) {
@@ -637,6 +673,23 @@ public class ZeroGitFlowHandler {
         }
     }
 
+    private static void collectMavenRootsUnderStatic(File dir, List<File> result) {
+        if (dir == null || !dir.isDirectory()) {
+            return;
+        }
+        if (hasValidMavenPomStatic(dir)) {
+            result.add(dir);
+        }
+        File[] children = dir.listFiles();
+        if (children != null) {
+            for (File child : children) {
+                if (child.isDirectory() && !".git".equals(child.getName())) {
+                    collectMavenRootsUnderStatic(child, result);
+                }
+            }
+        }
+    }
+
     private File toDirectory(String path) {
         if (StringUtils.isBlank(path)) {
             return null;
@@ -649,6 +702,28 @@ public class ZeroGitFlowHandler {
             return file;
         }
         return file.getParentFile();
+    }
+
+    private static File toDirectoryStatic(String path) {
+        if (StringUtils.isBlank(path)) {
+            return null;
+        }
+        File file = new File(path);
+        if (!file.exists()) {
+            return null;
+        }
+        if (file.isDirectory()) {
+            return file;
+        }
+        return file.getParentFile();
+    }
+
+    private static String canonicalPathOf(File file) {
+        try {
+            return file.getCanonicalPath();
+        } catch (IOException e) {
+            return file.getAbsolutePath();
+        }
     }
 
     private boolean sameFile(File left, File right) {
@@ -670,12 +745,32 @@ public class ZeroGitFlowHandler {
         return looksLikeMavenPom(pomFile);
     }
 
+    private static boolean hasValidMavenPomStatic(File directory) {
+        if (directory == null) {
+            return false;
+        }
+        File pomFile = new File(directory, "pom.xml");
+        if (!pomFile.exists() || !pomFile.isFile()) {
+            return false;
+        }
+        return looksLikeMavenPomStatic(pomFile);
+    }
+
     private boolean looksLikeMavenPom(File pomFile) {
         try {
             String content = Files.readString(pomFile.toPath(), StandardCharsets.UTF_8);
             return content.contains("<project");
         } catch (IOException e) {
             debugLog("failed to read pom.xml", e.getMessage());
+            return false;
+        }
+    }
+
+    private static boolean looksLikeMavenPomStatic(File pomFile) {
+        try {
+            String content = Files.readString(pomFile.toPath(), StandardCharsets.UTF_8);
+            return content.contains("<project");
+        } catch (IOException e) {
             return false;
         }
     }
