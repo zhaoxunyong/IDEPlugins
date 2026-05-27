@@ -25,6 +25,7 @@ import com.intellij.ui.content.Content;
 import com.intellij.ui.content.ContentManager;
 import com.zerofinance.zerogitdeploy.exception.DeployPluginException;
 import com.zerofinance.zerogitdeploy.setting.ZeroGitDeploySetting;
+import com.zerofinance.zerogitdeploy.setting.GitMrAssigneeSupport;
 import com.zerofinance.zerogitdeploy.tools.CommandUtils;
 import com.zerofinance.zerogitdeploy.tools.DeployCmdExecuter;
 import com.zerofinance.zerogitdeploy.tools.ExecuteResult;
@@ -264,18 +265,23 @@ public class ZeroGitFlowHandler {
         String groupName = requireGroupName();
         String rootPath = getRootPath();
         runWithGitCheckInBackground(rootPath, "GitMergeRequest.sh", (rPath, script) -> {
-            String assignee = Messages.showInputDialog(
-                    project,
-                    "请输入 GitLab MR 指派人用户名（push option merge_request.assign）。可留空表示不指定指派人。",
+            List<String> options = GitMrAssigneeSupport.buildGitMrAssigneeChooserValues(
+                    ZeroGitDeploySetting.getGitMrAssignees()
+            );
+            String assignee = Messages.showEditableChooseDialog(
+                    "请选择 assignee，或手动填写其他 GitLab 用户名",
                     "ZeroGit: Merge Request",
                     Messages.getInformationIcon(),
-                    "",
+                    options.toArray(new String[0]),
+                    GitMrAssigneeSupport.ASSIGNEE_PLACEHOLDER,
                     null
             );
-            if (assignee == null) {
+            String normalizedAssignee = GitMrAssigneeSupport.normalizeGitMrAssigneeSelection(assignee);
+            if (StringUtils.isBlank(normalizedAssignee)) {
+                Messages.showErrorDialog(project, GitMrAssigneeSupport.getMissingGitMrAssigneeMessage(), "ZeroGit: Merge Request");
                 return;
             }
-            confirmAndRunInTerminal("Merge Request", rPath, script, Lists.newArrayList(groupName, assignee.trim()));
+            confirmAndRunInTerminal("Merge Request", rPath, script, Lists.newArrayList(groupName, normalizedAssignee));
         });
     }
 

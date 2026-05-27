@@ -2,6 +2,13 @@ const path = require('path')
 const vscode = require('vscode')
 const myPlugin = require('./myPlugin')
 const { pomXmlContainsSnapshot } = require('./pomSnapshot')
+const {
+    MANUAL_ASSIGNEE_PICK_VALUE,
+    buildGitMrAssigneeQuickPickItems,
+    getMissingGitMrAssigneeMessage,
+    normalizeGitMrAssigneeSelection,
+    parseConfiguredGitMrAssignees
+} = require('./gitMrAssignee')
 const tmp = require('tmp')
 const fs = require('fs')
 const YAML = require('yaml')
@@ -20,6 +27,7 @@ const CONFIG_CHECK_GIT_VERSION = `${CONFIG_ROOT}.checkGitVersion`
 const CONFIG_DEBUG = `${CONFIG_ROOT}.debug`
 const CONFIG_GROUP_NAME = `${CONFIG_ROOT}.groupName`
 const CONFIG_GROUP_NAMES = `${CONFIG_ROOT}.groupNames`
+const CONFIG_GIT_MR_ASSIGNEES = `${CONFIG_ROOT}.gitMrAssignees`
 const DEFAULT_GROUP_NAMES_FALLBACK = 'a b c'
 const CONFIG_GIT_BASH = `${CONFIG_ROOT}.gitBash`
 const DEFAULT_SCRIPT_ROOT_URL = 'https://gitlab.zerofinance.net/dave.zhao/deployPlugin/-/raw/git-flow'
@@ -302,15 +310,33 @@ async function ensureGroupNameConfigured () {
 }
 
 async function askGitMrAssignee () {
+    const configuredAssignees = parseConfiguredGitMrAssignees(
+        vscode.workspace.getConfiguration().get(CONFIG_GIT_MR_ASSIGNEES)
+    )
+    const selected = await vscode.window.showQuickPick(
+        buildGitMrAssigneeQuickPickItems(configuredAssignees),
+        {
+            ignoreFocusOut: true,
+            canPickMany: false,
+            title: '选择 Merge Request assignee',
+            placeHolder: '先从配置列表中选择 assignee；如需其他用户名，可选择手动输入'
+        }
+    )
+
+    if (!selected) {
+        return null
+    }
+
+    if (selected.value !== MANUAL_ASSIGNEE_PICK_VALUE) {
+        return normalizeGitMrAssigneeSelection(selected.value)
+    }
+
     const input = await vscode.window.showInputBox({
         ignoreFocusOut: true,
-        placeHolder: 'GitLab 用户名（可留空，不指定 MR 指派人）',
-        prompt: '请输入 glab mr create 的 --assignee（GitLab 用户名）；取消则终止。'
+        placeHolder: '请输入其他 GitLab 用户名',
+        prompt: '请输入不在配置列表中的 assignee；取消或留空则终止 MR 流程。'
     })
-    if (input === undefined) {
-        return undefined
-    }
-    return String(input).trim()
+    return normalizeGitMrAssigneeSelection(input)
 }
 
 async function askStartFeatureName (groupName) {
@@ -1683,8 +1709,9 @@ async function executeGitFlowCommand (commandId, resourceUri) {
     const scriptArgs = commandRequiresGroup ? [groupName] : []
     if (commandId === 'extension.GitMergeRequest') {
         const assignee = await askGitMrAssignee()
-        if (assignee === undefined) {
-            debugLog('git merge request aborted: assignee input cancelled')
+        if (!assignee) {
+            debugLog('git merge request aborted: assignee missing')
+            vscode.window.showErrorMessage(getMissingGitMrAssigneeMessage())
             return { executed: false, groupName }
         }
         scriptArgs.push(assignee)
@@ -2024,8 +2051,12 @@ module.exports = {
     activate,
     deactivate,
     pomXmlContainsSnapshot,
+    buildGitMrAssigneeQuickPickItems,
     extractBaseExecCommandOptionsFromGitlabCi,
+    getMissingGitMrAssigneeMessage,
     readBaseExecCommandsFromRepoRoot,
+    normalizeGitMrAssigneeSelection,
+    parseConfiguredGitMrAssignees,
     splitBaseExecCommands,
     extractBaseExecCommandsFromGitlabCi
 }

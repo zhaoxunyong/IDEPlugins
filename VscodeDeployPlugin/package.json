@@ -57,6 +57,11 @@
                     "default": "",
                     "description": "Default group when running tasks (must be one token from zerofinanceGit.groupNames). Empty means no default; you still choose from the list each time."
                 },
+                "zerofinanceGit.gitMrAssignees": {
+                    "type": "string",
+                    "default": "faker.zhou justin.wang conan.chen rain.he",
+                    "description": "Space-separated GitLab usernames shown in the Merge Request assignee dropdown. Users must still explicitly choose an assignee from the dropdown or manually enter another username to continue."
+                },
                 "zerofinanceGit.gitBash": {
                     "type": "string",
                     "default": "",

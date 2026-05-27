@@ -34,6 +34,7 @@ public class ZeroGitDeploySetting implements Configurable {
     private JTextField scriptURLField;
     private JComboBox<String> groupNameComboBox;
     private JTextField groupNamesField;
+    private JTextField gitMrAssigneesField;
     private JCheckBox checkGitVersionCheckBox;
 
     private static final String GIT_HOME_KEY = "gitDeployPluginGitHomeKey";
@@ -42,6 +43,7 @@ public class ZeroGitDeploySetting implements Configurable {
     private static final String DEBUG_KEY = "gitDeployPluginDebugKey";
     private static final String GROUP_NAME_KEY = "gitDeployPluginGroupNameKey";
     private static final String GROUP_NAMES_KEY = "gitDeployPluginGroupNamesKey";
+    private static final String GIT_MR_ASSIGNEES_KEY = "gitDeployPluginGitMrAssigneesKey";
     private static final String CHECK_GIT_VERSION_KEY = "gitDeployPluginCheckGitVersionKey";
     private static final String DEFAULT_GROUP_NAMES = "a b c";
 
@@ -51,6 +53,8 @@ public class ZeroGitDeploySetting implements Configurable {
         needDebugCheckBox.setSelected(isDebug());
         String storedNames = PropertiesComponent.getInstance().getValue(GROUP_NAMES_KEY);
         groupNamesField.setText(StringUtils.isBlank(storedNames) ? DEFAULT_GROUP_NAMES : storedNames.trim());
+        String storedAssignees = PropertiesComponent.getInstance().getValue(GIT_MR_ASSIGNEES_KEY);
+        gitMrAssigneesField.setText(StringUtils.isBlank(storedAssignees) ? GitMrAssigneeSupport.DEFAULT_GIT_MR_ASSIGNEES : storedAssignees.trim());
         refreshGroupNameComboFromField();
         checkGitVersionCheckBox.setSelected(isCheckGitVersion());
         button1.addActionListener(new ActionListener() {
@@ -125,6 +129,11 @@ public class ZeroGitDeploySetting implements Configurable {
         return StringUtils.isBlank(stored) ? DEFAULT_GROUP_NAMES : stored.trim();
     }
 
+    private String persistedGitMrAssigneesForCompare() {
+        String stored = PropertiesComponent.getInstance().getValue(GIT_MR_ASSIGNEES_KEY);
+        return StringUtils.isBlank(stored) ? GitMrAssigneeSupport.DEFAULT_GIT_MR_ASSIGNEES : stored.trim();
+    }
+
     @Nls(capitalization = Nls.Capitalization.Title)
     @Override
     public String getDisplayName() {
@@ -144,6 +153,7 @@ public class ZeroGitDeploySetting implements Configurable {
                 || !StringUtils.equals(String.valueOf(scriptURLField.getText()),PropertiesComponent.getInstance().getValue(SCRIPT_URL_KEY))
                 || !StringUtils.equals(String.valueOf(needDebugCheckBox.isSelected()),PropertiesComponent.getInstance().getValue(DEBUG_KEY))
                 || !StringUtils.equals(groupNamesField.getText().trim(), persistedGroupNamesForCompare())
+                || !StringUtils.equals(gitMrAssigneesField.getText().trim(), persistedGitMrAssigneesForCompare())
                 || !StringUtils.equals(String.valueOf(groupNameComboBox.getSelectedItem()), PropertiesComponent.getInstance().getValue(GROUP_NAME_KEY))
                 || !StringUtils.equals(String.valueOf(checkGitVersionCheckBox.isSelected()), PropertiesComponent.getInstance().getValue(CHECK_GIT_VERSION_KEY));
     }
@@ -163,6 +173,7 @@ public class ZeroGitDeploySetting implements Configurable {
         PropertiesComponent.getInstance().setValue(SCRIPT_URL_KEY, scriptURLField.getText());
         PropertiesComponent.getInstance().setValue(DEBUG_KEY, String.valueOf(needDebugCheckBox.isSelected()));
         PropertiesComponent.getInstance().setValue(GROUP_NAMES_KEY, groupNamesField.getText().trim());
+        PropertiesComponent.getInstance().setValue(GIT_MR_ASSIGNEES_KEY, gitMrAssigneesField.getText().trim());
         PropertiesComponent.getInstance().setValue(GROUP_NAME_KEY, String.valueOf(groupNameComboBox.getSelectedItem()));
         PropertiesComponent.getInstance().setValue(CHECK_GIT_VERSION_KEY, String.valueOf(checkGitVersionCheckBox.isSelected()));
     }
@@ -207,6 +218,12 @@ public class ZeroGitDeploySetting implements Configurable {
             return groupName;
         }
         return allowed.get(0);
+    }
+
+    public static List<String> getGitMrAssignees() {
+        return GitMrAssigneeSupport.getConfiguredGitMrAssignees(
+                PropertiesComponent.getInstance().getValue(GIT_MR_ASSIGNEES_KEY)
+        );
     }
 
     public static boolean isCheckGitVersion() {
