@@ -34,7 +34,7 @@ require_command() {
 
 require_command git
 
-EMPTY_COMMIT_MESSAGE="chore: trigger MR creation"
+MR_COMMIT_PREFIX="MR-"
 
 current_branch="$(git rev-parse --abbrev-ref HEAD)"
 if [[ "$current_branch" == "HEAD" || -z "${current_branch//[$'\r\n\t ']}" ]]; then
@@ -46,25 +46,32 @@ if [[ -z "$target_branch" ]]; then
   target_branch="develop-${groupName}"
 fi
 
-commit_message="$(git log --grep="$EMPTY_COMMIT_MESSAGE" --invert-grep -1 --format=%B)"
+latest_commit_message="$(git log \
+  --perl-regexp \
+  --grep="^${MR_COMMIT_PREFIX}" \
+  --invert-grep \
+  -1 \
+  --format=%B)"
 
-if [[ -z "${commit_message//[$'\r\n\t ']}" ]]; then
+if [[ -z "${latest_commit_message//[$'\r\n\t ']}" ]]; then
   echo "Failed to get the latest commit message" >&2
   exit 1
 fi
 
-title="$(printf '%s\n' "$commit_message" | awk 'NF { print; exit }')"
+title="$(printf '%s\n' "$latest_commit_message" | awk 'NF { print; exit }')"
 
 if [[ -z "${title//[$'\r\n\t ']}" ]]; then
   echo "The latest commit message is empty, cannot create MR" >&2
   exit 1
 fi
 
+commit_message="${MR_COMMIT_PREFIX}${title}"
+
 ahead_behind="$(git rev-list --left-right --count @{u}...HEAD 2>/dev/null || true)"
 ahead_count="$(printf '%s\n' "$ahead_behind" | awk '{ print $2 }')"
 if [[ -n "${ahead_count//[$'\r\n\t ']}" && "$ahead_count" == "0" ]]; then
   echo "No outgoing commits detected. Creating an empty commit to trigger MR creation."
-  git commit --allow-empty -m "$EMPTY_COMMIT_MESSAGE"
+  git commit --allow-empty -m "$commit_message"
 fi
 
 echo "groupName: $groupName"
