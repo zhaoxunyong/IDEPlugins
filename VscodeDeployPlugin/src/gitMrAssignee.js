@@ -1,5 +1,3 @@
-const MANUAL_ASSIGNEE_PICK_VALUE = '__manual_git_mr_assignee__'
-
 function splitConfiguredValues (raw) {
     return String(raw || '')
         .trim()
@@ -26,18 +24,10 @@ function parseConfiguredGitMrAssignees (raw) {
 }
 
 function buildGitMrAssigneeQuickPickItems (assignees) {
-    const configuredItems = dedupeKeepOrder(assignees || []).map(value => ({
+    return dedupeKeepOrder(assignees || []).map(value => ({
         label: value,
         value
     }))
-
-    configuredItems.push({
-        label: '$(edit) 手动输入其他 assignee',
-        description: '输入不在配置列表中的 GitLab 用户名',
-        value: MANUAL_ASSIGNEE_PICK_VALUE
-    })
-
-    return configuredItems
 }
 
 function normalizeGitMrAssigneeSelection (raw) {
@@ -45,14 +35,24 @@ function normalizeGitMrAssigneeSelection (raw) {
     return value || null
 }
 
+function resolveGitMrAssigneeSelection (selectedItems, typedValue) {
+    const selected = Array.isArray(selectedItems) && selectedItems.length > 0
+        ? normalizeGitMrAssigneeSelection(selectedItems[0] && selectedItems[0].value)
+        : null
+    if (selected) {
+        return selected
+    }
+    return normalizeGitMrAssigneeSelection(typedValue)
+}
+
 function getMissingGitMrAssigneeMessage () {
     return '请选择 assignee，或手动填写其他 assignee 后再发起 Merge Request。'
 }
 
 module.exports = {
-    MANUAL_ASSIGNEE_PICK_VALUE,
     buildGitMrAssigneeQuickPickItems,
     getMissingGitMrAssigneeMessage,
     normalizeGitMrAssigneeSelection,
-    parseConfiguredGitMrAssignees
+    parseConfiguredGitMrAssignees,
+    resolveGitMrAssigneeSelection
 }

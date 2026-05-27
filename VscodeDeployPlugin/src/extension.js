@@ -3,11 +3,11 @@ const vscode = require('vscode')
 const myPlugin = require('./myPlugin')
 const { pomXmlContainsSnapshot } = require('./pomSnapshot')
 const {
-    MANUAL_ASSIGNEE_PICK_VALUE,
     buildGitMrAssigneeQuickPickItems,
     getMissingGitMrAssigneeMessage,
     normalizeGitMrAssigneeSelection,
-    parseConfiguredGitMrAssignees
+    parseConfiguredGitMrAssignees,
+    resolveGitMrAssigneeSelection
 } = require('./gitMrAssignee')
 const tmp = require('tmp')
 const fs = require('fs')
@@ -313,30 +313,50 @@ async function askGitMrAssignee () {
     const configuredAssignees = parseConfiguredGitMrAssignees(
         vscode.workspace.getConfiguration().get(CONFIG_GIT_MR_ASSIGNEES)
     )
-    const selected = await vscode.window.showQuickPick(
-        buildGitMrAssigneeQuickPickItems(configuredAssignees),
-        {
-            ignoreFocusOut: true,
-            canPickMany: false,
-            title: '选择 Merge Request assignee',
-            placeHolder: '先从配置列表中选择 assignee；如需其他用户名，可选择手动输入'
+    const items = buildGitMrAssigneeQuickPickItems(configuredAssignees)
+    return await new Promise(resolve => {
+        const quickPick = vscode.window.createQuickPick()
+        const disposables = []
+        let settled = false
+
+        const finish = result => {
+            if (settled) {
+                return
+            }
+            settled = true
+            disposables.forEach(d => d.dispose())
+            quickPick.hide()
+            quickPick.dispose()
+            resolve(result)
         }
-    )
 
-    if (!selected) {
-        return null
-    }
+        quickPick.ignoreFocusOut = true
+        quickPick.canSelectMany = false
+        quickPick.title = '选择 Merge Request assignee'
+        quickPick.placeholder = '可直接在顶部输入其他 GitLab 用户名，或从列表中选择 assignee'
+        quickPick.items = items
+        if (items.length > 0) {
+            quickPick.activeItems = [items[0]]
+        }
 
-    if (selected.value !== MANUAL_ASSIGNEE_PICK_VALUE) {
-        return normalizeGitMrAssigneeSelection(selected.value)
-    }
+        disposables.push(quickPick.onDidAccept(() => {
+            finish(resolveGitMrAssigneeSelection(quickPick.selectedItems, quickPick.value))
+        }))
+        disposables.push(quickPick.onDidChangeValue(value => {
+            if (normalizeGitMrAssigneeSelection(value)) {
+                quickPick.activeItems = []
+                return
+            }
+            if (items.length > 0) {
+                quickPick.activeItems = [items[0]]
+            }
+        }))
+        disposables.push(quickPick.onDidHide(() => {
+            finish(null)
+        }))
 
-    const input = await vscode.window.showInputBox({
-        ignoreFocusOut: true,
-        placeHolder: '请输入其他 GitLab 用户名',
-        prompt: '请输入不在配置列表中的 assignee；取消或留空则终止 MR 流程。'
+        quickPick.show()
     })
-    return normalizeGitMrAssigneeSelection(input)
 }
 
 async function askStartFeatureName (groupName) {
@@ -2057,6 +2077,7 @@ module.exports = {
     readBaseExecCommandsFromRepoRoot,
     normalizeGitMrAssigneeSelection,
     parseConfiguredGitMrAssignees,
+    resolveGitMrAssigneeSelection,
     splitBaseExecCommands,
     extractBaseExecCommandsFromGitlabCi
 }
