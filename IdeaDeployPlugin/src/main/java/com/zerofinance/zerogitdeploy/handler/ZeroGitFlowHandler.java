@@ -268,12 +268,13 @@ public class ZeroGitFlowHandler {
             List<String> options = GitMrAssigneeSupport.buildGitMrAssigneeChooserValues(
                     ZeroGitDeploySetting.getGitMrAssignees()
             );
+            String defaultAssignee = options.isEmpty() ? "" : options.get(0);
             String assignee = Messages.showEditableChooseDialog(
                     "请选择 assignee，或手动填写其他 GitLab 用户名",
                     "ZeroGit: Merge Request",
                     Messages.getInformationIcon(),
                     options.toArray(new String[0]),
-                    GitMrAssigneeSupport.ASSIGNEE_PLACEHOLDER,
+                    defaultAssignee,
                     null
             );
             String normalizedAssignee = GitMrAssigneeSupport.normalizeGitMrAssigneeSelection(assignee);

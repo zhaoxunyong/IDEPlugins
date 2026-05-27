@@ -9,7 +9,6 @@ import java.util.List;
 
 public final class GitMrAssigneeSupport {
     public static final String DEFAULT_GIT_MR_ASSIGNEES = "faker.zhou justin.wang conan.chen rain.he";
-    public static final String ASSIGNEE_PLACEHOLDER = "请选择 assignee，或手动填写其他 GitLab 用户名";
 
     private GitMrAssigneeSupport() {
     }
@@ -23,21 +22,14 @@ public final class GitMrAssigneeSupport {
     }
 
     public static List<String> buildGitMrAssigneeChooserValues(List<String> assignees) {
-        List<String> values = new ArrayList<>();
-        values.add(ASSIGNEE_PLACEHOLDER);
-        values.addAll(new LinkedHashSet<>(assignees));
-        return values;
+        return new ArrayList<>(new LinkedHashSet<>(assignees));
     }
 
     public static String normalizeGitMrAssigneeSelection(String raw) {
         if (StringUtils.isBlank(raw)) {
             return null;
         }
-        String normalized = raw.trim();
-        if (ASSIGNEE_PLACEHOLDER.equals(normalized)) {
-            return null;
-        }
-        return normalized;
+        return raw.trim();
     }
 
     public static String getMissingGitMrAssigneeMessage() {
