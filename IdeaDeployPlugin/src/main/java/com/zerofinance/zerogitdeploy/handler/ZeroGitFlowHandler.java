@@ -49,8 +49,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -66,6 +70,9 @@ public class ZeroGitFlowHandler {
     private static final Pattern FEATURE_SUFFIX_PATTERN = Pattern.compile("^\\d+-\\S.*$");
     private static final Pattern SEMVER_PATTERN = Pattern.compile("^(\\d+)\\.(\\d+)\\.(\\d+)$");
     private static final Pattern MAVEN_VERSION_PATTERN = Pattern.compile("^(\\d+)\\.(\\d+)\\.(\\d+)(-SNAPSHOT|-RC\\d+)?$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern XML_COMMENT_PATTERN = Pattern.compile("<!--.*?-->", Pattern.DOTALL);
+    private static final Pattern PROPERTY_REFERENCE_PATTERN = Pattern.compile("\\$\\{([^}]+)}");
+    private static final Pattern PROPERTY_ENTRY_PATTERN = Pattern.compile("<([A-Za-z0-9_.-]+)>(.*?)</\\1>", Pattern.DOTALL);
     private static final String[] GROUPS = new String[]{"a", "b"};
     private static final String TITLE = "ZeroGit";
     private static final Logger LOG = Logger.getInstance(ZeroGitFlowHandler.class);
@@ -1368,10 +1375,89 @@ public class ZeroGitFlowHandler {
     private static boolean fileContainsSnapshot(File pom) {
         try {
             String content = Files.readString(pom.toPath(), StandardCharsets.UTF_8);
-            return content.contains("-SNAPSHOT");
+            return pomContentContainsSnapshot(content);
         } catch (IOException e) {
             return false;
         }
+    }
+
+    private static boolean pomContentContainsSnapshot(String content) {
+        String normalizedContent = stripXmlComments(content);
+        Map<String, String> properties = extractPomProperties(normalizedContent);
+        return blockVersionsContainSnapshot(normalizedContent, "dependency", properties)
+                || blockVersionsContainSnapshot(normalizedContent, "plugin", properties);
+    }
+
+    private static String stripXmlComments(String content) {
+        return XML_COMMENT_PATTERN.matcher(StringUtils.defaultString(content)).replaceAll("");
+    }
+
+    private static Map<String, String> extractPomProperties(String content) {
+        Map<String, String> properties = new HashMap<>();
+        for (String block : extractTagBlocks(content, "properties")) {
+            Matcher matcher = PROPERTY_ENTRY_PATTERN.matcher(block);
+            while (matcher.find()) {
+                properties.put(matcher.group(1), normalizeXmlText(matcher.group(2)));
+            }
+        }
+        return properties;
+    }
+
+    private static boolean blockVersionsContainSnapshot(String content, String tagName, Map<String, String> properties) {
+        for (String block : extractTagBlocks(content, tagName)) {
+            String version = extractFirstTagValue(block, "version");
+            if (StringUtils.isNotBlank(version) && versionContainsSnapshot(version, properties)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static List<String> extractTagBlocks(String content, String tagName) {
+        List<String> blocks = new ArrayList<>();
+        Matcher matcher = createTagPattern(tagName).matcher(content);
+        while (matcher.find()) {
+            blocks.add(matcher.group(1));
+        }
+        return blocks;
+    }
+
+    private static String extractFirstTagValue(String content, String tagName) {
+        Matcher matcher = createTagPattern(tagName).matcher(content);
+        return matcher.find() ? normalizeXmlText(matcher.group(1)) : "";
+    }
+
+    private static Pattern createTagPattern(String tagName) {
+        return Pattern.compile("<" + tagName + "(?:\\s[^>]*)?>(.*?)</" + tagName + ">", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    }
+
+    private static String normalizeXmlText(String value) {
+        return StringUtils.defaultString(value).trim();
+    }
+
+    private static boolean versionContainsSnapshot(String version, Map<String, String> properties) {
+        return resolvePropertyReferences(version, properties, new HashSet<>()).contains("-SNAPSHOT");
+    }
+
+    private static String resolvePropertyReferences(String value, Map<String, String> properties, Set<String> seen) {
+        String normalizedValue = normalizeXmlText(value);
+        if (normalizedValue.isEmpty()) {
+            return "";
+        }
+        Matcher matcher = PROPERTY_REFERENCE_PATTERN.matcher(normalizedValue);
+        StringBuffer resolved = new StringBuffer();
+        while (matcher.find()) {
+            String propertyName = normalizeXmlText(matcher.group(1));
+            String replacement = matcher.group(0);
+            if (!propertyName.isEmpty() && !seen.contains(propertyName) && properties.containsKey(propertyName)) {
+                Set<String> nextSeen = new HashSet<>(seen);
+                nextSeen.add(propertyName);
+                replacement = resolvePropertyReferences(properties.get(propertyName), properties, nextSeen);
+            }
+            matcher.appendReplacement(resolved, Matcher.quoteReplacement(replacement));
+        }
+        matcher.appendTail(resolved);
+        return resolved.toString();
     }
 
     /** Start New Release / Hotfix：当前目录树任意 pom.xml 含 -SNAPSHOT 时需用户确认，取消则中断。 */
