@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 
 # 当前工作目录（$PWD）下若存在 Pre_<本脚本文件名> 则执行，否则跳过
 _VSDEP_PRE="$PWD/Pre_$(basename "${BASH_SOURCE[0]:-$0}")"
