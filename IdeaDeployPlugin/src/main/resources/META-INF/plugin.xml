@@ -76,6 +76,34 @@
     </extensions>
 
     <actions>
+        <!-- main menu -->
+        <group id="ZeroMainAction" text="ZeroGit" description="A git deploy plugin tool">
+            <add-to-group group-id="MainMenu" anchor="after" relative-to-action="Git.MainMenu" />
+            <action id="GenerateCommitMessageMainMenu" class="com.zerofinance.zerogitdeploy.action.GenerateCommitMessageAction" icon="AllIcons.Actions.EditSource" text="Generate Commit Message" description="ZeroGit Generate Commit Message" />
+            <action id="AiCodeReviewMainMenu" class="com.zerofinance.zerogitdeploy.action.AiCodeReviewAction" icon="AllIcons.General.InspectionsEye" text="AI Code Review" description="ZeroGit AI Code Review (staged)" />
+            <group id="ZeroMainMavenSubMenu" text="Maven" popup="true" icon="/icons/mavenMenu.svg">
+                <action id="MavenChangeMainMenu" class="com.zerofinance.zerogitdeploy.action.MavenChangeAction" icon="AllIcons.Nodes.PpLib" text="Maven Change" description="ZeroGit Maven Change" />
+            </group>
+            <group id="ZeroMainFeatureSubMenu" text="Feature" popup="true" icon="/icons/featureMenu.svg">
+                <action id="StartNewFeatureMainMenu" class="com.zerofinance.zerogitdeploy.action.StartNewFeatureAction" icon="AllIcons.Vcs.Branch" text="Start New Feature" description="ZeroGit Start New Feature" />
+                <action id="FinishFeatureMainMenu" class="com.zerofinance.zerogitdeploy.action.FinishFeatureAction" icon="AllIcons.Vcs.Branch" text="Finish Feature" description="ZeroGit Finish Feature" />
+                <action id="RebaseFeatureMainMenu" class="com.zerofinance.zerogitdeploy.action.RebaseFeatureAction" icon="AllIcons.Actions.MoveTo2" text="Rebase Feature" description="ZeroGit Rebase Feature" />
+                <action id="GitMergeRequestMainMenu" class="com.zerofinance.zerogitdeploy.action.GitMergeRequestAction" icon="AllIcons.Vcs.Merge" text="Merge Request" description="ZeroGit Merge Request (push options)" />
+            </group>
+            <group id="ZeroMainReleaseSubMenu" text="Release" popup="true" icon="/icons/releaseMenu.svg">
+                <action id="StartNewReleaseMainMenu" class="com.zerofinance.zerogitdeploy.action.StartNewReleaseAction" icon="AllIcons.Actions.Execute" text="Start New Release" description="ZeroGit Start New Release" />
+                <action id="FinishReleaseMainMenu" class="com.zerofinance.zerogitdeploy.action.FinishReleaseAction" icon="AllIcons.Actions.Commit" text="Finish Release" description="ZeroGit Finish Release" />
+            </group>
+            <group id="ZeroMainHotfixSubMenu" text="Hotfix" popup="true" icon="/icons/hotfixMenu.svg">
+                <action id="StartNewHotfixMainMenu" class="com.zerofinance.zerogitdeploy.action.StartNewHotfixAction" icon="AllIcons.Actions.Execute" text="Start New Hotfix" description="ZeroGit Start New Hotfix" />
+                <action id="FinishHotfixMainMenu" class="com.zerofinance.zerogitdeploy.action.FinishHotfixAction" icon="AllIcons.Actions.Commit" text="Finish Hotfix" description="ZeroGit Finish Hotfix" />
+            </group>
+            <group id="ZeroMainGitlabCiSubMenu" text="GitLab CI" popup="true" icon="AllIcons.Actions.Execute">
+                <action id="RunGitlabCiBaseExecCmdMainMenu" class="com.zerofinance.zerogitdeploy.action.RunGitlabCiBaseExecCmdAction" icon="AllIcons.Actions.Execute" text="Run CI Command" description="Run a CI command from .gitlab-ci.yml" />
+            </group>
+            <action id="GitFlowGuidelineMainMenu" class="com.zerofinance.zerogitdeploy.action.GitFlowGuidelineAction" icon="AllIcons.General.Web" text="GitFlow Guideline" description="Open GitFlow Guideline in browser" />
+        </group>
+
         <!-- popup menu -->
         <!-- https://xujin.org/guides/idea-01/ -->
         <group id="ZeroPopupMenuAction" text="ZeroGit" popup="true" icon="AllIcons.Actions.Colors">
