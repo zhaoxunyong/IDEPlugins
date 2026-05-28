@@ -78,7 +78,7 @@
     <actions>
         <!-- main menu -->
         <group id="ZeroMainAction" text="ZeroGit" description="A git deploy plugin tool">
-            <add-to-group group-id="MainMenu" anchor="after" relative-to-action="Git.MainMenu" />
+            <add-to-group group-id="VcsGroups" anchor="after" relative-to-action="Git.MainMenu" />
             <action id="GenerateCommitMessageMainMenu" class="com.zerofinance.zerogitdeploy.action.GenerateCommitMessageAction" icon="AllIcons.Actions.EditSource" text="Generate Commit Message" description="ZeroGit Generate Commit Message" />
             <action id="AiCodeReviewMainMenu" class="com.zerofinance.zerogitdeploy.action.AiCodeReviewAction" icon="AllIcons.General.InspectionsEye" text="AI Code Review" description="ZeroGit AI Code Review (staged)" />
             <group id="ZeroMainMavenSubMenu" text="Maven" popup="true" icon="/icons/mavenMenu.svg">
