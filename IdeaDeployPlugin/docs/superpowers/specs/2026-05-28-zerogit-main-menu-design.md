@@ -12,7 +12,7 @@ Restore a top-level `ZeroGit` entry in the IntelliJ IDEA main menu and make its 
 
 ## Proposed Change
 
-Reintroduce a `ZeroGit` action group in `src/main/resources/META-INF/plugin.xml` and attach it to `MainMenu` after `ToolsMenu`.
+Reintroduce a `ZeroGit` action group in `src/main/resources/META-INF/plugin.xml` and attach it to `MainMenu` after `Git.MainMenu`.
 
 The restored main menu will contain these items in this order:
 
@@ -41,7 +41,7 @@ No toolbar entries will be changed.
 
 - Reuse the existing action classes already used by popup and toolbar registrations.
 - Keep action labels and descriptions consistent with the existing popup registrations.
-- Keep the main menu placement rule as `MainMenu` with `anchor="after"` and `relative-to-action="ToolsMenu"`.
+- Keep the main menu placement rule as `MainMenu` with `anchor="after"` and `relative-to-action="Git.MainMenu"`.
 
 ## Validation
 
