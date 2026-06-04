@@ -217,6 +217,7 @@ if [ "$SKIP_TO_CLEANUP" -eq 0 ]; then
   set_step 3
   run_git "Refresh remote branches" git fetch -q origin --prune
   developBranches=()
+  mergedDevelopBranches=()
   while IFS= read -r b; do
     [ -n "$b" ] && developBranches+=("$b")
   done < <(git for-each-ref --format='%(refname:short)' 'refs/remotes/origin' | sed 's#^origin/##' | grep '^develop-' || true)
@@ -226,6 +227,7 @@ if [ "$SKIP_TO_CLEANUP" -eq 0 ]; then
     [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $branch" git pull origin "$branch"
     run_git "Merge main into $branch" git merge main
     PUSH_BRANCHES+=("$branch")
+    mergedDevelopBranches+=("$branch")
   done
   if [ ${#developBranches[@]} -gt 0 ]; then
     STEP_STATUS[3]="DONE"
@@ -324,6 +326,7 @@ else
   STEP_STATUS[7]="SKIPPED"
 fi
 
+echo "MERGED_DEVELOP_BRANCHES: ${mergedDevelopBranches[*]}"
 echo "REMAINING_RELEASES: ${remainingVersions[*]}"
 
 # 当前工作目录（$PWD）下若存在 Post_<本脚本文件名> 则执行，否则跳过
