@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feature
+  id="com.zerofinance.zerogit.eclipse.feature"
+  label="zerofinance-git"
+  version="2.0.0.qualifier"
+  provider-name="zerofinance"
+  plugin="com.zerofinance.zerogit.eclipse">
+  <description url="https://appbuild.zerofinance.hk/eclipse/">
+    ZeroGit Eclipse plugin update site.
+  </description>
+  <url>
+    <update label="zerofinance-git" url="https://appbuild.zerofinance.hk/eclipse/"/>
+  </url>
+  <plugin
+    id="com.zerofinance.zerogit.eclipse"
+    download-size="0"
+    install-size="0"
+    version="2.0.0.qualifier"
+    unpack="false"/>
+</feature>
