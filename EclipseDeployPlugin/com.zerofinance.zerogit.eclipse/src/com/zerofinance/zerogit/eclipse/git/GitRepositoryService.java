@@ -11,6 +11,7 @@ import org.apache.commons.lang.StringUtils;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ListBranchCommand.ListMode;
 import org.eclipse.jgit.api.LsRemoteCommand;
+import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
@@ -95,6 +96,18 @@ public class GitRepositoryService {
             git.close();
         }
         return versionService.findLatestHotfixBaseTag(tagNames);
+    }
+
+    public boolean hasStagedChanges(String repoRoot) throws IOException, GitAPIException {
+        Git git = Git.open(new File(repoRoot));
+        try {
+            Status status = git.status().call();
+            return !status.getAdded().isEmpty()
+                    || !status.getChanged().isEmpty()
+                    || !status.getRemoved().isEmpty();
+        } finally {
+            git.close();
+        }
     }
 
     private List<String> listBranches(String repoRoot, String branchPrefix, boolean includeLocal, boolean includeRemote)

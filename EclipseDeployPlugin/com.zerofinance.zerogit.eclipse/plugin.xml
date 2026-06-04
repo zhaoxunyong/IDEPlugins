@@ -64,6 +64,97 @@
       name="Git Deploy Settings"
       class="com.zerofinance.zerogit.eclipse.settings.ZeroGitPreferencePage"/>
   </extension>
+  <extension point="org.eclipse.ui.handlers">
+    <handler
+      class="com.zerofinance.zerogit.eclipse.actions.GenerateCommitMessageHandler"
+      commandId="com.zerofinance.zerogit.eclipse.commands.generateCommitMessage"/>
+    <handler
+      class="com.zerofinance.zerogit.eclipse.actions.AiCodeReviewHandler"
+      commandId="com.zerofinance.zerogit.eclipse.commands.aiCodeReview"/>
+    <handler
+      class="com.zerofinance.zerogit.eclipse.actions.StartNewFeatureHandler"
+      commandId="com.zerofinance.zerogit.eclipse.commands.startNewFeature"/>
+    <handler
+      class="com.zerofinance.zerogit.eclipse.actions.FinishFeatureHandler"
+      commandId="com.zerofinance.zerogit.eclipse.commands.finishFeature"/>
+    <handler
+      class="com.zerofinance.zerogit.eclipse.actions.RebaseFeatureHandler"
+      commandId="com.zerofinance.zerogit.eclipse.commands.rebaseFeature"/>
+    <handler
+      class="com.zerofinance.zerogit.eclipse.actions.MergeRequestHandler"
+      commandId="com.zerofinance.zerogit.eclipse.commands.mergeRequest"/>
+    <handler
+      class="com.zerofinance.zerogit.eclipse.actions.GitFlowGuidelineHandler"
+      commandId="com.zerofinance.zerogit.eclipse.commands.gitflowGuideline"/>
+  </extension>
+  <extension point="org.eclipse.ui.menus">
+    <menuContribution locationURI="popup:org.eclipse.ui.popup.any?after=additions">
+      <menu
+        id="com.zerofinance.zerogit.eclipse.menu.root"
+        label="ZeroGit">
+        <command
+          commandId="com.zerofinance.zerogit.eclipse.commands.generateCommitMessage"
+          label="Generate Commit Message"/>
+        <command
+          commandId="com.zerofinance.zerogit.eclipse.commands.aiCodeReview"
+          label="AI Code Review"/>
+        <separator name="zerogit.groups"/>
+        <menu
+          id="com.zerofinance.zerogit.eclipse.menu.maven"
+          label="Maven">
+          <command
+            commandId="com.zerofinance.zerogit.eclipse.commands.mavenChange"
+            label="Maven Change"/>
+        </menu>
+        <menu
+          id="com.zerofinance.zerogit.eclipse.menu.feature"
+          label="Feature">
+          <command
+            commandId="com.zerofinance.zerogit.eclipse.commands.startNewFeature"
+            label="Start New Feature"/>
+          <command
+            commandId="com.zerofinance.zerogit.eclipse.commands.finishFeature"
+            label="Finish Feature"/>
+          <command
+            commandId="com.zerofinance.zerogit.eclipse.commands.rebaseFeature"
+            label="Rebase Feature"/>
+          <command
+            commandId="com.zerofinance.zerogit.eclipse.commands.mergeRequest"
+            label="Merge Request"/>
+        </menu>
+        <menu
+          id="com.zerofinance.zerogit.eclipse.menu.release"
+          label="Release">
+          <command
+            commandId="com.zerofinance.zerogit.eclipse.commands.startNewRelease"
+            label="Start New Release"/>
+          <command
+            commandId="com.zerofinance.zerogit.eclipse.commands.finishRelease"
+            label="Finish Release"/>
+        </menu>
+        <menu
+          id="com.zerofinance.zerogit.eclipse.menu.hotfix"
+          label="Hotfix">
+          <command
+            commandId="com.zerofinance.zerogit.eclipse.commands.startNewHotfix"
+            label="Start New Hotfix"/>
+          <command
+            commandId="com.zerofinance.zerogit.eclipse.commands.finishHotfix"
+            label="Finish Hotfix"/>
+        </menu>
+        <menu
+          id="com.zerofinance.zerogit.eclipse.menu.ci"
+          label="GitLab CI">
+          <command
+            commandId="com.zerofinance.zerogit.eclipse.commands.runCiCommand"
+            label="Run CI Command"/>
+        </menu>
+        <command
+          commandId="com.zerofinance.zerogit.eclipse.commands.gitflowGuideline"
+          label="GitFlow Guideline"/>
+      </menu>
+    </menuContribution>
+  </extension>
   <extension point="org.eclipse.core.runtime.preferences">
     <initializer
       class="com.zerofinance.zerogit.eclipse.settings.ZeroGitPreferenceInitializer"/>

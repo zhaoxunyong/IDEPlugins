@@ -2,6 +2,8 @@ package com.zerofinance.zerogit.eclipse.tests.git;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
@@ -51,5 +53,27 @@ public class GitRepositoryServiceTest {
 
         assertNotNull(latest);
         assertEquals("hotfix/a/1.4.1-202606041630", latest.getTagName());
+    }
+
+    @Test
+    public void detectsWhetherRepositoryHasStagedChanges() throws Exception {
+        File repoDir = Files.createTempDirectory("zerogit-staged").toFile();
+        Git git = Git.init().setDirectory(repoDir).call();
+        try {
+            Files.write(new File(repoDir, "README.md").toPath(), "init\n".getBytes(StandardCharsets.UTF_8));
+            git.add().addFilepattern("README.md").call();
+            git.commit().setMessage("init").call();
+
+            GitRepositoryService service = new GitRepositoryService();
+            assertFalse(service.hasStagedChanges(repoDir.getAbsolutePath()));
+
+            Files.write(new File(repoDir, "README.md").toPath(), "changed\n".getBytes(StandardCharsets.UTF_8));
+            assertFalse(service.hasStagedChanges(repoDir.getAbsolutePath()));
+
+            git.add().addFilepattern("README.md").call();
+            assertTrue(service.hasStagedChanges(repoDir.getAbsolutePath()));
+        } finally {
+            git.close();
+        }
     }
 }

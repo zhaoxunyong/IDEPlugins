@@ -8,13 +8,17 @@ Bundle-Vendor: zerofinance
 Require-Bundle: org.eclipse.ui,
  org.eclipse.core.runtime,
  org.eclipse.core.resources,
+ org.eclipse.core.commands,
+ org.eclipse.core.jobs,
  org.eclipse.jface,
+ org.eclipse.ui.console,
  org.eclipse.ui.workbench,
  org.yaml.snakeyaml
 Bundle-RequiredExecutionEnvironment: JavaSE-1.8
 Bundle-ActivationPolicy: lazy
 Export-Package: com.zerofinance.zerogit.eclipse.ci,\
  com.zerofinance.zerogit.eclipse.exec,\
+ com.zerofinance.zerogit.eclipse.flow,\
  com.zerofinance.zerogit.eclipse.git,\
  com.zerofinance.zerogit.eclipse.settings
 Bundle-ClassPath: .,
