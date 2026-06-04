@@ -5,11 +5,11 @@ import java.util.List;
 import org.apache.commons.lang.StringUtils;
 import org.eclipse.jface.dialogs.InputDialog;
 import org.eclipse.jface.dialogs.MessageDialog;
+import org.eclipse.jface.viewers.LabelProvider;
 import org.eclipse.jface.window.Window;
 import org.eclipse.swt.program.Program;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.dialogs.ElementListSelectionDialog;
-import org.eclipse.jface.viewers.LabelProvider;
 
 public class UserInteraction {
 
@@ -17,7 +17,7 @@ public class UserInteraction {
         return chooseValue(
                 shell,
                 "ZeroGit: Select Group",
-                "请选择 ZeroGit Group",
+                "\u8bf7\u9009\u62e9 ZeroGit Group",
                 groups,
                 defaultGroup);
     }
@@ -32,33 +32,25 @@ public class UserInteraction {
 
     public String promptFeatureBranch(Shell shell, String group, String initialValue) {
         String prefix = "feature/" + StringUtils.trimToEmpty(group) + "/";
-        InputDialog dialog = new InputDialog(
+        return openTextInputDialog(
                 shell,
                 "ZeroGit: Start New Feature",
-                "请输入 Feature 分支名（需以 " + prefix + " 开头）",
-                StringUtils.defaultIfEmpty(initialValue, prefix),
-                null);
-        return dialog.open() == Window.OK ? StringUtils.trimToNull(dialog.getValue()) : null;
+                "\u8bf7\u8f93\u5165 Feature \u5206\u652f\u540d\uff08\u9700\u4ee5 " + prefix + " \u5f00\u5934\uff09",
+                StringUtils.defaultIfEmpty(initialValue, prefix));
     }
 
     public String promptAssignee(Shell shell, List<String> assignees) {
-        String defaultValue = assignees == null || assignees.isEmpty() ? "" : assignees.get(0);
-        String message = "请选择 assignee，或直接输入其他 GitLab 用户名";
-        if (assignees != null && !assignees.isEmpty()) {
-            message += "\n已配置: " + StringUtils.join(assignees, ", ");
+        List<String> candidateValues = assignees == null ? java.util.Collections.<String>emptyList() : assignees;
+        String defaultValue = candidateValues.isEmpty() ? "" : candidateValues.get(0);
+        String message = "\u8bf7\u9009\u62e9 assignee\uff0c\u6216\u76f4\u63a5\u8f93\u5165\u5176\u4ed6 GitLab \u7528\u6237\u540d";
+        if (!candidateValues.isEmpty()) {
+            message += "\n\u5df2\u914d\u7f6e: " + StringUtils.join(candidateValues, ", ");
         }
-        InputDialog dialog = new InputDialog(
-                shell,
-                "ZeroGit: Merge Request",
-                message,
-                defaultValue,
-                null);
-        return dialog.open() == Window.OK ? StringUtils.trimToNull(dialog.getValue()) : null;
+        return openEditableSelectionDialog(shell, "ZeroGit: Merge Request", message, candidateValues, defaultValue);
     }
 
     public String promptText(Shell shell, String title, String message, String initialValue) {
-        InputDialog dialog = new InputDialog(shell, title, message, StringUtils.defaultString(initialValue), null);
-        return dialog.open() == Window.OK ? StringUtils.trimToNull(dialog.getValue()) : null;
+        return openTextInputDialog(shell, title, message, StringUtils.defaultString(initialValue));
     }
 
     public boolean confirm(Shell shell, String title, String message) {
@@ -79,6 +71,21 @@ public class UserInteraction {
 
     public boolean openExternalUrl(String url) {
         return Program.launch(StringUtils.trimToEmpty(url));
+    }
+
+    protected String openTextInputDialog(Shell shell, String title, String message, String initialValue) {
+        InputDialog dialog = new InputDialog(shell, title, message, StringUtils.defaultString(initialValue), null);
+        return dialog.open() == Window.OK ? StringUtils.trimToNull(dialog.getValue()) : null;
+    }
+
+    protected String openEditableSelectionDialog(
+            Shell shell,
+            String title,
+            String message,
+            List<String> values,
+            String defaultValue) {
+        EditableSelectionDialog dialog = new EditableSelectionDialog(shell, title, message, values, defaultValue);
+        return dialog.open() == Window.OK ? StringUtils.trimToNull(dialog.getSelection()) : null;
     }
 
     private String chooseFromList(Shell shell, String title, String message, List<String> values, String defaultValue) {
