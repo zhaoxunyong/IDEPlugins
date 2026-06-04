@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+  <extension point="org.eclipse.ui.commands">
+    <category
+      id="com.zerofinance.zerogit.eclipse.commands.category"
+      name="ZeroGit"/>
+    <command
+      id="com.zerofinance.zerogit.eclipse.commands.generateCommitMessage"
+      categoryId="com.zerofinance.zerogit.eclipse.commands.category"
+      name="Generate Commit Message"/>
+    <command
+      id="com.zerofinance.zerogit.eclipse.commands.aiCodeReview"
+      categoryId="com.zerofinance.zerogit.eclipse.commands.category"
+      name="AI Code Review"/>
+    <command
+      id="com.zerofinance.zerogit.eclipse.commands.mavenChange"
+      categoryId="com.zerofinance.zerogit.eclipse.commands.category"
+      name="Maven Change"/>
+    <command
+      id="com.zerofinance.zerogit.eclipse.commands.startNewFeature"
+      categoryId="com.zerofinance.zerogit.eclipse.commands.category"
+      name="Start New Feature"/>
+    <command
+      id="com.zerofinance.zerogit.eclipse.commands.finishFeature"
+      categoryId="com.zerofinance.zerogit.eclipse.commands.category"
+      name="Finish Feature"/>
+    <command
+      id="com.zerofinance.zerogit.eclipse.commands.rebaseFeature"
+      categoryId="com.zerofinance.zerogit.eclipse.commands.category"
+      name="Rebase Feature"/>
+    <command
+      id="com.zerofinance.zerogit.eclipse.commands.mergeRequest"
+      categoryId="com.zerofinance.zerogit.eclipse.commands.category"
+      name="Merge Request"/>
+    <command
+      id="com.zerofinance.zerogit.eclipse.commands.startNewRelease"
+      categoryId="com.zerofinance.zerogit.eclipse.commands.category"
+      name="Start New Release"/>
+    <command
+      id="com.zerofinance.zerogit.eclipse.commands.finishRelease"
+      categoryId="com.zerofinance.zerogit.eclipse.commands.category"
+      name="Finish Release"/>
+    <command
+      id="com.zerofinance.zerogit.eclipse.commands.startNewHotfix"
+      categoryId="com.zerofinance.zerogit.eclipse.commands.category"
+      name="Start New Hotfix"/>
+    <command
+      id="com.zerofinance.zerogit.eclipse.commands.finishHotfix"
+      categoryId="com.zerofinance.zerogit.eclipse.commands.category"
+      name="Finish Hotfix"/>
+    <command
+      id="com.zerofinance.zerogit.eclipse.commands.runCiCommand"
+      categoryId="com.zerofinance.zerogit.eclipse.commands.category"
+      name="Run CI Command"/>
+    <command
+      id="com.zerofinance.zerogit.eclipse.commands.gitflowGuideline"
+      categoryId="com.zerofinance.zerogit.eclipse.commands.category"
+      name="GitFlow Guideline"/>
+  </extension>
+  <extension point="org.eclipse.ui.preferencePages">
+    <page
+      id="com.zerofinance.zerogit.eclipse.preferences.main"
+      name="Git Deploy Settings"
+      class="com.zerofinance.zerogit.eclipse.settings.ZeroGitPreferencePage"/>
+  </extension>
+  <extension point="org.eclipse.ui.handlers">
+    <handler
+      class="com.zerofinance.zerogit.eclipse.actions.GenerateCommitMessageHandler"
+      commandId="com.zerofinance.zerogit.eclipse.commands.generateCommitMessage"/>
+    <handler
+      class="com.zerofinance.zerogit.eclipse.actions.AiCodeReviewHandler"
+      commandId="com.zerofinance.zerogit.eclipse.commands.aiCodeReview"/>
+    <handler
+      class="com.zerofinance.zerogit.eclipse.actions.MavenChangeHandler"
+      commandId="com.zerofinance.zerogit.eclipse.commands.mavenChange"/>
+    <handler
+      class="com.zerofinance.zerogit.eclipse.actions.StartNewFeatureHandler"
+      commandId="com.zerofinance.zerogit.eclipse.commands.startNewFeature"/>
+    <handler
+      class="com.zerofinance.zerogit.eclipse.actions.FinishFeatureHandler"
+      commandId="com.zerofinance.zerogit.eclipse.commands.finishFeature"/>
+    <handler
+      class="com.zerofinance.zerogit.eclipse.actions.RebaseFeatureHandler"
+      commandId="com.zerofinance.zerogit.eclipse.commands.rebaseFeature"/>
+    <handler
+      class="com.zerofinance.zerogit.eclipse.actions.MergeRequestHandler"
+      commandId="com.zerofinance.zerogit.eclipse.commands.mergeRequest"/>
+    <handler
+      class="com.zerofinance.zerogit.eclipse.actions.StartNewReleaseHandler"
+      commandId="com.zerofinance.zerogit.eclipse.commands.startNewRelease"/>
+    <handler
+      class="com.zerofinance.zerogit.eclipse.actions.FinishReleaseHandler"
+      commandId="com.zerofinance.zerogit.eclipse.commands.finishRelease"/>
+    <handler
+      class="com.zerofinance.zerogit.eclipse.actions.StartNewHotfixHandler"
+      commandId="com.zerofinance.zerogit.eclipse.commands.startNewHotfix"/>
+    <handler
+      class="com.zerofinance.zerogit.eclipse.actions.FinishHotfixHandler"
+      commandId="com.zerofinance.zerogit.eclipse.commands.finishHotfix"/>
+    <handler
+      class="com.zerofinance.zerogit.eclipse.actions.RunCiCommandHandler"
+      commandId="com.zerofinance.zerogit.eclipse.commands.runCiCommand"/>
+    <handler
+      class="com.zerofinance.zerogit.eclipse.actions.GitFlowGuidelineHandler"
+      commandId="com.zerofinance.zerogit.eclipse.commands.gitflowGuideline"/>
+  </extension>
+  <extension point="org.eclipse.ui.menus">
+    <menuContribution locationURI="popup:org.eclipse.ui.popup.any?after=additions">
+      <menu
+        id="com.zerofinance.zerogit.eclipse.menu.root"
+        label="ZeroGit">
+        <command
+          commandId="com.zerofinance.zerogit.eclipse.commands.generateCommitMessage"
+          label="Generate Commit Message"/>
+        <command
+          commandId="com.zerofinance.zerogit.eclipse.commands.aiCodeReview"
+          label="AI Code Review"/>
+        <separator name="zerogit.groups"/>
+        <menu
+          id="com.zerofinance.zerogit.eclipse.menu.maven"
+          label="Maven">
+          <command
+            commandId="com.zerofinance.zerogit.eclipse.commands.mavenChange"
+            label="Maven Change"/>
+        </menu>
+        <menu
+          id="com.zerofinance.zerogit.eclipse.menu.feature"
+          label="Feature">
+          <command
+            commandId="com.zerofinance.zerogit.eclipse.commands.startNewFeature"
+            label="Start New Feature"/>
+          <command
+            commandId="com.zerofinance.zerogit.eclipse.commands.finishFeature"
+            label="Finish Feature"/>
+          <command
+            commandId="com.zerofinance.zerogit.eclipse.commands.rebaseFeature"
+            label="Rebase Feature"/>
+          <command
+            commandId="com.zerofinance.zerogit.eclipse.commands.mergeRequest"
+            label="Merge Request"/>
+        </menu>
+        <menu
+          id="com.zerofinance.zerogit.eclipse.menu.release"
+          label="Release">
+          <command
+            commandId="com.zerofinance.zerogit.eclipse.commands.startNewRelease"
+            label="Start New Release"/>
+          <command
+            commandId="com.zerofinance.zerogit.eclipse.commands.finishRelease"
+            label="Finish Release"/>
+        </menu>
+        <menu
+          id="com.zerofinance.zerogit.eclipse.menu.hotfix"
+          label="Hotfix">
+          <command
+            commandId="com.zerofinance.zerogit.eclipse.commands.startNewHotfix"
+            label="Start New Hotfix"/>
+          <command
+            commandId="com.zerofinance.zerogit.eclipse.commands.finishHotfix"
+            label="Finish Hotfix"/>
+        </menu>
+        <menu
+          id="com.zerofinance.zerogit.eclipse.menu.ci"
+          label="GitLab CI">
+          <command
+            commandId="com.zerofinance.zerogit.eclipse.commands.runCiCommand"
+            label="Run CI Command"/>
+        </menu>
+        <command
+          commandId="com.zerofinance.zerogit.eclipse.commands.gitflowGuideline"
+          label="GitFlow Guideline"/>
+      </menu>
+    </menuContribution>
+  </extension>
+  <extension point="org.eclipse.core.runtime.preferences">
+    <initializer
+      class="com.zerofinance.zerogit.eclipse.settings.ZeroGitPreferenceInitializer"/>
+  </extension>
+</plugin>
