@@ -14,7 +14,7 @@ import org.eclipse.jface.viewers.LabelProvider;
 public class UserInteraction {
 
     public String chooseGroup(Shell shell, List<String> groups, String defaultGroup) {
-        return chooseFromList(
+        return chooseValue(
                 shell,
                 "ZeroGit: Select Group",
                 "请选择 ZeroGit Group",
@@ -23,7 +23,11 @@ public class UserInteraction {
     }
 
     public String chooseBranch(Shell shell, String title, String message, List<String> branches) {
-        return chooseFromList(shell, title, message, branches, null);
+        return chooseValue(shell, title, message, branches, null);
+    }
+
+    public String chooseValue(Shell shell, String title, String message, List<String> values, String defaultValue) {
+        return chooseFromList(shell, title, message, values, defaultValue);
     }
 
     public String promptFeatureBranch(Shell shell, String group, String initialValue) {
@@ -49,6 +53,11 @@ public class UserInteraction {
                 message,
                 defaultValue,
                 null);
+        return dialog.open() == Window.OK ? StringUtils.trimToNull(dialog.getValue()) : null;
+    }
+
+    public String promptText(Shell shell, String title, String message, String initialValue) {
+        InputDialog dialog = new InputDialog(shell, title, message, StringUtils.defaultString(initialValue), null);
         return dialog.open() == Window.OK ? StringUtils.trimToNull(dialog.getValue()) : null;
     }
 

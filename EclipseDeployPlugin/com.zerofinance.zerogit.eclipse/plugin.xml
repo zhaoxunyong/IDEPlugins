@@ -72,6 +72,9 @@
       class="com.zerofinance.zerogit.eclipse.actions.AiCodeReviewHandler"
       commandId="com.zerofinance.zerogit.eclipse.commands.aiCodeReview"/>
     <handler
+      class="com.zerofinance.zerogit.eclipse.actions.MavenChangeHandler"
+      commandId="com.zerofinance.zerogit.eclipse.commands.mavenChange"/>
+    <handler
       class="com.zerofinance.zerogit.eclipse.actions.StartNewFeatureHandler"
       commandId="com.zerofinance.zerogit.eclipse.commands.startNewFeature"/>
     <handler
@@ -83,6 +86,21 @@
     <handler
       class="com.zerofinance.zerogit.eclipse.actions.MergeRequestHandler"
       commandId="com.zerofinance.zerogit.eclipse.commands.mergeRequest"/>
+    <handler
+      class="com.zerofinance.zerogit.eclipse.actions.StartNewReleaseHandler"
+      commandId="com.zerofinance.zerogit.eclipse.commands.startNewRelease"/>
+    <handler
+      class="com.zerofinance.zerogit.eclipse.actions.FinishReleaseHandler"
+      commandId="com.zerofinance.zerogit.eclipse.commands.finishRelease"/>
+    <handler
+      class="com.zerofinance.zerogit.eclipse.actions.StartNewHotfixHandler"
+      commandId="com.zerofinance.zerogit.eclipse.commands.startNewHotfix"/>
+    <handler
+      class="com.zerofinance.zerogit.eclipse.actions.FinishHotfixHandler"
+      commandId="com.zerofinance.zerogit.eclipse.commands.finishHotfix"/>
+    <handler
+      class="com.zerofinance.zerogit.eclipse.actions.RunCiCommandHandler"
+      commandId="com.zerofinance.zerogit.eclipse.commands.runCiCommand"/>
     <handler
       class="com.zerofinance.zerogit.eclipse.actions.GitFlowGuidelineHandler"
       commandId="com.zerofinance.zerogit.eclipse.commands.gitflowGuideline"/>

@@ -57,6 +57,19 @@ public class BashCommandBuilder {
                 : buildUnixBatch(debug, scriptPath, args);
     }
 
+    public String[] buildShellCommand(boolean debug, String gitHome, String workingDirectory, String commandText) {
+        boolean runOnWindows = windows || SystemUtils.IS_OS_WINDOWS;
+        if (runOnWindows && StringUtils.isBlank(gitHome)) {
+            throw new IllegalArgumentException("Git home is required when building Windows bash commands.");
+        }
+        String bashPath = runOnWindows ? resolveWindowsBashPath(gitHome) : "bash";
+        String normalizedDirectory = normalizeForBash(workingDirectory, runOnWindows);
+        String wrapped = "cd " + quoteForBash(normalizedDirectory) + " && " + StringUtils.trimToEmpty(commandText);
+        return debug
+                ? new String[] {bashPath, "-x", "-lc", wrapped}
+                : new String[] {bashPath, "-lc", wrapped};
+    }
+
     private String resolveWindowsBashPath(String gitHome) {
         String normalized = StringUtils.trimToEmpty(gitHome).replace("/", File.separator);
         if (StringUtils.endsWithIgnoreCase(normalized, File.separator + "bash.exe")
@@ -64,5 +77,17 @@ public class BashCommandBuilder {
             return normalized;
         }
         return normalized + File.separator + "bin" + File.separator + "bash.exe";
+    }
+
+    private String normalizeForBash(String path, boolean runOnWindows) {
+        String normalized = StringUtils.trimToEmpty(path);
+        if (!runOnWindows) {
+            return normalized;
+        }
+        return normalized.replace("\\", "/");
+    }
+
+    private String quoteForBash(String value) {
+        return "'" + StringUtils.defaultString(value).replace("'", "'\\''") + "'";
     }
 }

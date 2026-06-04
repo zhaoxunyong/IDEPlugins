@@ -39,4 +39,15 @@ public class BashCommandBuilderTest {
         assertEquals("-x", parts[1]);
         assertEquals("/tmp/StartNewFeature.sh", parts[2]);
     }
+
+    @Test
+    public void shellCommandsWrapRawCommandWithLoginShellExecution() {
+        BashCommandBuilder builder = new BashCommandBuilder(true);
+        String[] parts = builder.buildShellCommand(true, "D:\\Developer\\Git", "D:\\repo", "mvn -q test");
+
+        assertEquals("D:\\Developer\\Git\\bin\\bash.exe", parts[0]);
+        assertEquals("-x", parts[1]);
+        assertEquals("-lc", parts[2]);
+        assertEquals("cd 'D:/repo' && mvn -q test", parts[3]);
+    }
 }
