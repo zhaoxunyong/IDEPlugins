@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+  <extension point="org.eclipse.ui.commands">
+    <category
+      id="com.zerofinance.zerogit.eclipse.commands.category"
+      name="ZeroGit"/>
+    <command
+      id="com.zerofinance.zerogit.eclipse.commands.generateCommitMessage"
+      categoryId="com.zerofinance.zerogit.eclipse.commands.category"
+      name="Generate Commit Message"/>
+    <command
+      id="com.zerofinance.zerogit.eclipse.commands.aiCodeReview"
+      categoryId="com.zerofinance.zerogit.eclipse.commands.category"
+      name="AI Code Review"/>
+    <command
+      id="com.zerofinance.zerogit.eclipse.commands.mavenChange"
+      categoryId="com.zerofinance.zerogit.eclipse.commands.category"
+      name="Maven Change"/>
+    <command
+      id="com.zerofinance.zerogit.eclipse.commands.startNewFeature"
+      categoryId="com.zerofinance.zerogit.eclipse.commands.category"
+      name="Start New Feature"/>
+    <command
+      id="com.zerofinance.zerogit.eclipse.commands.finishFeature"
+      categoryId="com.zerofinance.zerogit.eclipse.commands.category"
+      name="Finish Feature"/>
+    <command
+      id="com.zerofinance.zerogit.eclipse.commands.rebaseFeature"
+      categoryId="com.zerofinance.zerogit.eclipse.commands.category"
+      name="Rebase Feature"/>
+    <command
+      id="com.zerofinance.zerogit.eclipse.commands.mergeRequest"
+      categoryId="com.zerofinance.zerogit.eclipse.commands.category"
+      name="Merge Request"/>
+    <command
+      id="com.zerofinance.zerogit.eclipse.commands.startNewRelease"
+      categoryId="com.zerofinance.zerogit.eclipse.commands.category"
+      name="Start New Release"/>
+    <command
+      id="com.zerofinance.zerogit.eclipse.commands.finishRelease"
+      categoryId="com.zerofinance.zerogit.eclipse.commands.category"
+      name="Finish Release"/>
+    <command
+      id="com.zerofinance.zerogit.eclipse.commands.startNewHotfix"
+      categoryId="com.zerofinance.zerogit.eclipse.commands.category"
+      name="Start New Hotfix"/>
+    <command
+      id="com.zerofinance.zerogit.eclipse.commands.finishHotfix"
+      categoryId="com.zerofinance.zerogit.eclipse.commands.category"
+      name="Finish Hotfix"/>
+    <command
+      id="com.zerofinance.zerogit.eclipse.commands.runCiCommand"
+      categoryId="com.zerofinance.zerogit.eclipse.commands.category"
+      name="Run CI Command"/>
+    <command
+      id="com.zerofinance.zerogit.eclipse.commands.gitflowGuideline"
+      categoryId="com.zerofinance.zerogit.eclipse.commands.category"
+      name="GitFlow Guideline"/>
+  </extension>
+</plugin>
