@@ -1,312 +1,292 @@
-# ZeroGit JetBrains IDEA 插件 — 产品需求文档 (idea-prd)
+# `zerofinance-git` IntelliJ IDEA 插件产品说明（当前实现）
 
-本文档面向 **IdeaDeployPlugin**（Java / IntelliJ Platform）项目，在功能上与 [VscodeDeployPlugin/prd.md](../VscodeDeployPlugin/prd.md) 对齐，实现基于 Git Flow 的 7 个 ZeroGit 命令；技术描述采用 JetBrains/IDEA 术语与 API，便于直接落地开发。
-
----
-
-## 约束说明：scripts 脚本复用
-
-- **脚本与 VS Code 插件共用**：使用 VscodeDeployPlugin 仓库下 `scripts/` 目录中的脚本，**不修改任何脚本代码**。
-- 脚本的入参、输出格式、执行环境（Bash、工作目录、参数顺序）以现有脚本为准；IDEA 插件只负责：
-  - 配置（groupName、脚本 URL、Git 路径等）
-  - 弹窗输入/选择（分支名、版本、要结束的分支等）
-  - 解析脚本路径（项目根优先，否则从配置 URL 下载）
-  - 调用脚本（终端或同步执行）并解析输出（如 `REMAINING_RELEASES:`）。
+本文档按 `IdeaDeployPlugin` 当前代码同步更新，基线为仓库当前实现（校对日期：2026-06-04，对应插件版本 `2.0.6`）。  
+旧版文档把 IDEA 插件描述成“待对齐 VS Code 的 7 个命令重构目标”，这一说法已经过期；当前 IDEA 插件已经落地为完整的 ZeroGit 工具集。
 
 ---
 
-## 1. 项目概述
+## 1. 产品概述
 
-### 1.1 定位
+- **插件 ID**：`com.zerofinance.git`
+- **插件名**：`zerofinance-git`
+- **定位**：在 IntelliJ IDEA 中统一执行 ZeroGit / Git Flow / Maven / GitLab CI 辅助流程
+- **技术基线**：
+  - Java 11
+  - Gradle Kotlin DSL
+  - IntelliJ Platform `2022.1`
+  - 依赖 `org.jetbrains.plugins.terminal`
 
-- **产品名称**：Zero Git Deploy Toolkit（与现有 plugin.xml 名称一致，可保留或改为 ZeroGit）
-- **类型**：基于 Git Flow 的 IntelliJ Platform 插件，面向多分组（如 a/b）的 feature / release / hotfix 分支管理。
-- **核心价值**：在 IDEA 内通过菜单/工具栏触发 7 个标准化流程（Start/Finish Feature、Rebase Feature、Start/Finish Release、Start/Finish Hotfix），减少手工敲命令与误操作；脚本与 VS Code 插件完全一致，便于跨 IDE 统一流程。
+当前能力由以下 **13 个入口**构成：
 
-### 1.2 技术栈（IDEA 侧）
-
-- **语言 / 构建**：Java 11+，Gradle（Kotlin DSL），`org.jetbrains.intellij` 插件。
-- **依赖**：IntelliJ Platform API、`org.jetbrains.plugins.terminal`、可选 `git4idea` 或命令行 Git 调用；脚本下载可用 `java.net.URL`/`HttpURLConnection` 或现有 `CommandUtils.processScript` 思路。
-- **脚本执行**：Bash；Windows 下使用配置的 Git Bash 路径（与现有 `ZeroGitDeploySetting.getGitHome()` 一致）。
-
-### 1.3 与现有 IdeaDeployPlugin 的关系
-
-- **保留可复用**：`ZeroGitDeploySetting`（Git Home、Script URL、Debug 等）、`DeployCmdExecuter` 的同步/终端执行方式、`CommandUtils.getRootProjectPath`、Tool Window（Git Deploy）、Notification、Console 输出。
-- **需要新增/改造**：
-  - 配置项：**groupName**（必选，枚举 a/b）；可选 **checkGitVersion**。
-  - 7 个独立 Action：StartNewFeature、FinishFeature、RebaseFeature、StartNewRelease、FinishRelease、StartNewHotfix、FinishHotfix（与 VS Code 命令一一对应）。
-  - 脚本名与 VS Code 对齐：`StartNewFeature.sh`、`FinishFeature.sh`、`RebaseFeature.sh`、`StartNewRelease.sh`、`FinishRelease.sh`、`StartNewHotfix.sh`，以及执行前 `gitCheck.sh`。
-  - 分支/版本逻辑：feature 命名规则、release/hotfix SemVer、建议版本计算、剩余分支解析等（见下文）。
-
----
-
-## 2. 核心概念
-
-### 2.1 分组（Group）
-
-- 所有 7 个操作都**必须**先配置 **groupName**，且只能为预定义枚举值（如 `a`、`b`）。
-- 分组用于：
-  - 分支前缀：`feature/<group>/`、`release/<group>/`、`hotfix/<group>/`
-  - develop 分支名：`develop-<group>`（如 `develop-a`、`develop-b`）
-- 未配置或非法时：提示「请先配置 groupName 为 a 或 b」，并引导打开 **Settings → Git Deploy Settings**（或 ZeroGit 配置页）。
-
-### 2.2 分支命名规范
-
-| 类型    | 前缀格式            | 名称/版本规则             | 示例                  |
-|---------|---------------------|---------------------------|-----------------------|
-| feature | `feature/<group>/`   | 数字-描述，如 `001-login` | `feature/a/001-login` |
-| release | `release/<group>/`  | SemVer：`X.Y.Z`           | `release/a/1.0.0`     |
-| hotfix  | `hotfix/<group>/`   | SemVer：`X.Y.Z`           | `hotfix/a/1.0.1`      |
-
-- **develop**：`develop-<group>`。**main**：主发布分支，release/hotfix 完成后合并到 main 并打 tag（如 `v1.0.0`）。
-
-### 2.3 Git Flow 流程简述
-
-- **Feature**：从 `develop-<group>` 拉取 `feature/<group>/xxx`，开发完成后在 GitLab MR 到 `develop-<group>` 并 Merge，再在插件中「Finish Feature」删除本地 feature 分支。
-- **Release**：从 develop 拉取 `release/<group>/X.Y.Z`，测试通过后「Finish Release」：合并到 main、打 tag、删除 release 分支、将 main 合并回各 develop 及未完成的 release/hotfix 分支。
-- **Hotfix**：从 main 拉取 `hotfix/<group>/X.Y.Z`，修完后「Finish Hotfix」：合并回 main、打 tag、同步回 develop 等。
+1. `Generate Commit Message`
+2. `AI Code Review`
+3. `Maven Change`
+4. `Start New Feature`
+5. `Finish Feature`
+6. `Rebase Feature`
+7. `Merge Request`
+8. `Start New Release`
+9. `Finish Release`
+10. `Start New Hotfix`
+11. `Finish Hotfix`
+12. `Run CI Command`
+13. `GitFlow Guideline`
 
 ---
 
-## 3. 配置项（IDEA 实现）
+## 2. 运行约束
 
-建议在 **Settings → Git Deploy Settings**（`ZeroGitDeploySetting`）中提供下表项；与 VS Code 的 `zerofinanceGit.*` 对应关系已注明。
+### 2.1 脚本复用原则
 
-| 配置项说明           | 存储 Key（示例）     | 类型   | 默认值 | 说明 |
-|----------------------|----------------------|--------|--------|------|
-| 脚本根 URL           | SCRIPT_URL_KEY       | String | 指定 GitLab raw 地址 | 对应 `zerofinanceGit.gitScriptsUrlPreference`，末尾无 `/`。 |
-| Git 主目录（Windows）| GIT_HOME_KEY         | String | 空     | 用于 bash.exe 路径；Windows 必填。 |
-| 分组 groupName       | GROUP_NAME_KEY       | String | ""     | **必选**。枚举："" \| "a" \| "b"。对应 `zerofinanceGit.groupName`。 |
-| 检查 Git 版本        | CHECK_GIT_VERSION_KEY| Boolean| true   | 对应 `zerofinanceGit.checkGitVersion`，要求 ≥ 2.29。 |
-| Debug                | DEBUG_KEY            | Boolean| false  | 对应 `zerofinanceGit.debug`；开启时脚本执行带 `bash -x`，日志可打至 IDEA 的 Event Log / 控制台。 |
-| 在终端中运行         | RUNNING_IN_TERMINAL_KEY | Boolean | 见现有 | 与现有一致：部分命令在 Terminal 中执行，部分同步执行。 |
+- IDEA 插件与 VS Code 插件复用同一套 ZeroGit Shell 脚本。
+- 运行时优先查找“**当前 Git 仓库根目录**下的同名脚本”。
+- 若仓库根不存在同名脚本，则从配置的 Script URL 下载到系统临时目录执行。
+- 每次执行前都会清理 ZeroGit 临时脚本缓存。
+- IDEA 插件仓库中的 [`scripts/`](./scripts) 只是当前仓库自带脚本资产；业务仓库要覆盖脚本，覆盖点仍然是“业务仓库根目录同名脚本”。
 
-现有 **Maven Repo URL**、**Skip Repo Change Confirm**、**More Details** 等可保留，与 ZeroGit 流程无冲突即可。
+### 2.2 Windows 约束
 
----
+- Windows 环境下，`ZeroGitFlowHandler` 构造时会强制检查 `Git Home`
+- 未配置时会直接弹出设置页并中断执行
+- 最终执行路径为 `<Git Home>\\bin\\bash.exe`
 
-## 4. 命令与功能清单（7 个 Action）
+### 2.3 脚本钩子
 
-以下 7 个功能与 VS Code 的 7 个命令一一对应；IDEA 侧以 **AnAction** 形式注册，并在菜单/工具栏中展示。
+共享脚本支持仓库根目录中的：
 
-### 4.1 ZeroGit: Start New Feature
+- `Pre_<ScriptName>.sh`
+- `Post_<ScriptName>.sh`
 
-- **脚本**：`StartNewFeature.sh`
-- **流程**：
-  1. 校验 groupName 已配置（否则提示并打开设置）。
-  2. 弹窗输入 feature 名称：默认/占位符带 `feature/<group>/`，校验：必须以该前缀开头，后缀匹配 `^\d+-\S.*$`（如 `001-login`）。
-  3. 确定 Git 根目录：当前 Project 的 Git 根，或多模块时可选 Module/根（与「选择工作区」等价）。
-  4. 执行 **gitCheck**（见第 6 节）。
-  5. 解析脚本路径：项目根下存在 `StartNewFeature.sh` 则用本地，否则从配置 URL 下载到临时目录。
-  6. 确认执行对话框：展示命令名、工作目录、脚本名、参数。
-  7. **在终端执行**：`<bash> <script> <groupName> <fullFeatureName>`。
-- **脚本参数**：`[groupName, fullFeatureName]`。
-
-### 4.2 ZeroGit: Finish Feature
-
-- **脚本**：`FinishFeature.sh`
-- **流程**：
-  1. 校验 groupName。
-  2. **确认**：「是否已在 GitLab 中 MR 到 develop-<group> 并完成 Merge？继续只会删除本地 feature 分支。」→ 否则中止。
-  3. 确定 Git 根 → gitCheck → 解析脚本。
-  4. 从**本地**分支列表选择要结束的 feature 分支（仅 `feature/<group>/` 前缀，按数字前缀降序）；无则提示并中止。
-  5. 再次确认执行 → **在终端执行**脚本。
-- **脚本参数**：`[groupName, selectedFeatureBranch]`。
-
-### 4.3 ZeroGit: Rebase Feature
-
-- **脚本**：`RebaseFeature.sh`
-- **流程**：
-  1. 校验 groupName，确定 Git 根，gitCheck，解析脚本。
-  2. 获取当前分支（如通过 `GitRepositoryManager` 或 `git rev-parse --abbrev-ref HEAD`）；若非 `feature/<group>/` 开头，报错并中止。
-  3. 确认执行 → **在终端执行**，参数为当前分支名。
-- **脚本参数**：`[groupName, currentBranch]`。
-
-### 4.4 ZeroGit: Start New Release
-
-- **脚本**：`StartNewRelease.sh`
-- **流程**：
-  1. 校验 groupName。
-  2. **确认**：「是否已执行 Finish Feature 操作？」→ 否则中止。
-  3. 确定 Git 根 → gitCheck → 解析脚本。
-  4. 输入 release 版本（带 `release/<group>/` 前缀）：建议版本 = max(远程最新 release 版本, 最新 hotfix 版本, 最新 tag 版本) 的 minor+1 且 patch=0；若无则 `1.0.0`。校验：SemVer；不与已有 release 重名；不与已有 hotfix 版本冲突。
-  5. 确认执行 → **在终端执行**。
-- **脚本参数**：`[groupName, fullReleaseName]`。
-
-### 4.5 ZeroGit: Finish Release
-
-- **脚本**：`FinishRelease.sh`
-- **流程**：
-  1. 校验 groupName。
-  2. **确认 1**：合并提示「只有 Maintainer 才有权限，请确认你有 Maintainer 权限？
-
-此功能仅限于解决CICD自动化merge代码时出现冲突的场景。解决完冲突后，再到项目的Pipeline里面重新执行对应的job即可。」→ 否则中止。
-  3. **确认 2**：「运维是否已完成上线？」→ 否则中止。
-  4. 确定 Git 根 → gitCheck → 解析脚本。
-  5. 从远程（及本地）release 分支列表选择要结束的分支（按版本降序）。
-  6. **确认 3**：展示命令、工作目录、脚本、参数 → 确认执行。
-  7. **同步执行**脚本（如 `DeployCmdExecuter.exec`），以便解析 stdout/stderr。
-  8. 从输出中解析 `REMAINING_RELEASES:` 或 `Remaining release branches:`；若有剩余分支，再弹窗：「目前有进行中的 xxx 分支，请评估是否需要重新测试？」
-  9. 失败时提示「FinishRelease 失败，请通过日志查看具体原因」。
-- **脚本参数**：`[selectedReleaseBranch]`（选中的 release 分支名）。脚本根据分支前缀 `release/` 自动识别模式。
-
-### 4.6 ZeroGit: Start New Hotfix
-
-- **脚本**：`StartNewHotfix.sh`
-- **流程**：
-  1. 校验 groupName，确定 Git 根，gitCheck，解析脚本。
-  2. 输入 hotfix 版本（带 `hotfix/<group>/` 前缀）：建议版本逻辑同 release；校验 SemVer、不与已有 hotfix 重名、不与 release 版本冲突。
-  3. 确认执行 → **在终端执行**。
-- **脚本参数**：`[groupName, fullHotfixName]`。
-
-### 4.7 ZeroGit: Finish Hotfix
-
-- **脚本**：`FinishRelease.sh`（与 Finish Release 共用，根据分支前缀 `hotfix/` 自动识别）
-- **流程**：与 Finish Release 类似（先弹出合并提示：Maintainer 权限确认 + 仅限处理 CICD 自动化 merge 冲突、处理后到 Pipeline 重跑对应 job，再确认运维已上线 → 选 Git 根 → gitCheck → 选择要结束的 hotfix 分支 → 确认 → **同步执行** → 解析剩余分支并可选提示）。失败时提示「FinishHotfix 失败，请通过日志查看具体原因」。
-- **脚本参数**：`[selectedHotfixBranch]`（选中的 hotfix 分支名）。
+因此 IDEA 与 VS Code 在脚本层面具备一致的扩展点。
 
 ---
 
-## 5. 脚本解析与执行机制（IDEA 实现）
+## 3. 配置项
 
-### 5.1 脚本来源优先级
+设置页来自 `ZeroGitDeploySetting`，展示名为 **Git Deploy Settings**。
 
-1. **项目 Git 根目录**：若存在同名脚本（如 `StartNewFeature.sh`），优先使用。
-2. **远程下载**：否则从配置的 Script URL 拼接脚本名下载到 `System.getProperty("java.io.tmpdir")`（或现有 `CommandUtils.getTempFolder()`），再执行。下载失败提示 URL 不可用。
-3. **缓存清理**：每次执行任意 ZeroGit 命令前，可清理临时目录下已缓存的脚本文件（gitCheck.sh 及各 `*Feature*`/`*Release*`/`*Hotfix*`.sh），确保下次可从远程重新下载（与 VS Code 行为一致）。
+| 配置项 | 存储 Key | 默认值 | 说明 |
+|---|---|---|---|
+| Git Home | `gitDeployPluginGitHomeKey` | 空 | Windows 下必填，指向 Git 安装目录 |
+| Script URL | `gitDeployPluginScriptURLKey` | `https://gitlab.zerofinance.net/dave.zhao/deployPlugin/-/raw/main/git-flow` | 远程脚本根地址 |
+| Debug | `gitDeployPluginDebugKey` | `false` | 开启后 Bash 命令带 `-x` |
+| Group Names | `gitDeployPluginGroupNamesKey` | `a b c` | 允许选择的分组列表，空格分隔 |
+| Group Default Name | `gitDeployPluginGroupNameKey` | 首个有效分组 | 仅用于默认选项；执行时仍会弹窗选择 |
+| Git MR Assignees | `gitDeployPluginGitMrAssigneesKey` | `faker.zhou justin.wang conan.chen rain.he` | Merge Request assignee 候选 |
+| Check Git Version | `gitDeployPluginCheckGitVersionKey` | `false` | 是否要求 Git 版本 `>= 2.29` |
 
-### 5.2 脚本与命令映射
+当前实现要点：
 
-| Action / 功能       | 脚本文件名        |
-|---------------------|-------------------|
-| Start New Feature   | StartNewFeature.sh |
-| Finish Feature      | FinishFeature.sh   |
-| Rebase Feature      | RebaseFeature.sh   |
-| Start New Release   | StartNewRelease.sh |
-| Finish Release      | FinishRelease.sh   |
-| Start New Hotfix    | StartNewHotfix.sh  |
-| Finish Hotfix       | FinishRelease.sh   |
-
-### 5.3 Bash 与参数
-
-- 参数传递：与 VS Code 一致，单引号转义（单引号内单引号用 `'\''`）；或使用 `CommandLine.addArgument` 逐参数传入（避免 shell 注入）。
-- Windows：使用 `ZeroGitDeploySetting.getGitHome() + "\\bin\\bash.exe"`；未配置时提示在 Settings 中配置 Git 主目录。
-- Debug 开启时：执行命令带 `-x`；解析「剩余分支」等输出时过滤掉以 `+` 开头的 trace 行。
-
-### 5.4 执行方式区分
-
-- **在终端执行**：Start New Feature、Finish Feature、Rebase Feature、Start New Release、Start New Hotfix。使用 IDEA Terminal（如 `TerminalView`、`ShellTerminalWidget.executeCommand`）或现有「在终端中运行」逻辑，便于用户看到实时输出。
-- **同步执行**：Finish Release、Finish Hotfix。使用 `DeployCmdExecuter.exec(console, workHome, command, parameters, true)` 或等价方式，捕获 stdout/stderr 并解析 `REMAINING_RELEASES:` 等。
+- `groupName` 不再是静态必填后直接使用，而是每次执行命令时都从 `groupNames` 中再次弹窗选择
+- 设置页里 `groupName` 主要承担“默认高亮项”的作用
 
 ---
 
-## 6. gitCheck（执行前检查）
+## 4. 核心概念
 
-在执行任何 ZeroGit 脚本前，必须通过 **gitCheck**（执行 `gitCheck.sh` 或内联等价逻辑）：
+### 4.1 分组
 
-- **Git 根**：当前工作目录为 Git 仓库根（存在 `.git`）；IDEA 可用 `CommandUtils.getRootProjectPath(modulePath)` 或 `GitUtil.getRepositoryManager(project).getRepositoryForFile(virtualFile)` 得到根路径。
-- **工作区干净**：`git status --porcelain` 为空。
-- **当前分支**：能解析出非 HEAD 的当前分支名。
-- **上游**：当前分支已设置 upstream。
-- **与远程同步**：先 `git fetch origin --prune`，再比较 `@{u}...HEAD`：不能 behind（需先 pull），不能 ahead（需先 push）。
+- 分支前缀：
+  - `feature/<group>/`
+  - `release/<group>/`
+  - `hotfix/<group>/`
+- 开发分支：
+  - `develop-<group>`
+- 当前实现中，除 `Finish Release` / `Finish Hotfix` / `Generate Commit Message` / `AI Code Review` 外，命令执行前都会先选择 group
 
-可选（配置 **checkGitVersion** 为 true）：执行 `git version`，解析版本 ≥ 2.29.x；不满足时提示安装/升级 Git。
+### 4.2 版本规则
 
----
+| 类型 | 规则 | 示例 |
+|---|---|---|
+| Feature | `feature/<group>/<number>-<desc>` | `feature/a/001-login` |
+| Release | `release/<group>/X.Y.Z` | `release/a/1.2.0` |
+| Hotfix | `hotfix/<group>/X.Y.Z` | `hotfix/a/1.2.1` |
 
-## 7. 版本与分支辅助逻辑
+### 4.3 版本建议逻辑
 
-### 7.1 分支与 Tag 获取
+- `Start New Release`
+  - 取“最新远程 tag + 所有 group 的远程 release/hotfix 分支”中的最大 SemVer
+  - 按 **minor + 1，patch 清零** 生成建议版本
+  - 再避开当前 group 已有冲突版本
+- `Start New Hotfix`
+  - 必须先找到最新生产 tag
+  - 取“最新生产 tag + 所有 group 的远程 release/hotfix 分支”中的最大 SemVer
+  - 按 **patch + 1** 生成建议版本
+  - 再避开当前 group 已有冲突版本
 
-- **release 分支列表**：`git fetch origin --prune` + `git for-each-ref refs/heads/release/<group>/* refs/remotes/origin/release/<group>/*`，按版本降序。
-- **hotfix 分支列表**：同上，前缀 `hotfix/<group>/`。
-- **本地 feature 分支**：`refs/heads/feature/<group>/*`，按数字前缀降序。
-- **最新远程 tag（SemVer）**：`git ls-remote --tags --refs origin`，过滤 `v?X.Y.Z`，取最大版本。
+可识别的 tag 形态：
 
-实现方式：可调用 `DeployCmdExecuter.exec` 执行上述 git 命令并解析 stdout，或使用 `git4idea` API（若引入依赖）。
-
-### 7.2 建议版本计算（Release/Hotfix）
-
-取「远程最新 release 版本、最新 hotfix 版本、最新 tag 版本」三者最大值，再 minor+1 且 patch=0；若无候选则默认 `1.0.0`。
-
-### 7.3 冲突校验
-
-- Start Release：输入版本不得与已有 release 重名，且不得与已有 hotfix 版本相同。
-- Start Hotfix：输入版本不得与已有 hotfix 重名，且不得与已有 release 版本相同。
-
----
-
-## 8. UI / 交互（IDEA 实现）
-
-### 8.1 入口与菜单
-
-- **主菜单**：在 **Tools** 下或独立 **Zero** / **ZeroGit** 子菜单，分组为：
-  - Feature：Start New Feature、Finish Feature、Rebase Feature
-  - Release：Start New Release、Finish Release
-  - Hotfix：Start New Hotfix、Finish Hotfix
-- **右键菜单**：Project 视图下右键（ProjectViewPopupMenu），同上 7 个 Action。
-- **工具栏**：可在 ToolbarRunGroup 或现有 Zero 工具栏中增加上述 7 个 Action。
-
-与现有 **Release**、**NewBranch**、**ChangeVersion**、**AnyTool** 可并存；ZeroGit 的 7 个 Action 使用新脚本与 groupName 流程。
-
-### 8.2 弹窗与选择
-
-- **输入**：Feature/Release/Hotfix 名称用 `Messages.showInputDialog` 或带校验的 `DialogWrapper`；占位符、默认值、实时校验（如 feature 的 `^\d+-\S.*$`、release/hotfix 的 SemVer）。
-- **选择**：工作目录/模块用 `Module` 或 Git 根选择器；要结束的 feature/release/hotfix 分支用 `JBPopupFactory.createListPopup` 或 `Messages.showEditableChooseDialog` 等列出。
-- **确认**：Modal Yes/No 或 OK/Cancel，文案与 VS Code PRD 中各命令一致。
-
-### 8.3 状态与输出
-
-- **进度**：执行 gitCheck 或 Finish Release/Finish Hotfix 时可用 `ProgressManager.getInstance().run(Task.Backgroundable(...))` 或状态栏文案，避免 UI 卡顿。
-- **输出**：Finish Release、Finish Hotfix 的完整 stdout/stderr 输出到插件 Tool Window 的 Console（与现有 Git Deploy 控制台一致），并可在失败时自动聚焦。
-- **通知**：成功用 `NotificationGroup` + INFORMATION；失败用 ERROR，并提示查看日志。
-
-### 8.4 成功与失败文案
-
-- 成功：如「{CommandName} executed done, please check the logs in terminal.」
-- 失败：展示解析后的错误信息（含 exit code）；Finish Release/Finish Hotfix 额外提示「请通过日志查看具体失败原因」。
+- `vX.Y.Z`
+- `release/<group>/X.Y.Z-YYYYMMDDHHmm`
+- `hotfix/<group>/X.Y.Z-YYYYMMDDHHmm`
 
 ---
 
-## 9. 错误处理与边界
+## 5. 功能清单
 
-- **执行失败**：从进程 exit code、stderr、stdout 拼出用户可读信息；debug 时 stderr 过滤 `+` 开头的行。
-- **未配置 groupName**：提示并引导打开 Settings → Git Deploy Settings。
-- **非 Git 仓库 / 非 feature 分支（Rebase）**：明确中文提示并中止。
-- **无可用分支**：如「No local feature branch found for group "a"」「No remote release branch found for group "a"」等。
+### 5.1 Git / AI / CI 辅助功能
 
----
+| Action | 脚本/来源 | 当前行为 |
+|---|---|---|
+| Generate Commit Message | `GenCommitMessage.sh` | 只针对已暂存变更运行；依赖本机 `codex`；默认模型 `gpt-5.4`；只生成 message，不自动 commit |
+| AI Code Review | `AiCodeReview.sh` | 只针对已暂存变更运行；依赖本机 `codex`；要求 `code-review-expert` skill 已安装 |
+| Maven Change | `MavenChange.sh` | 选择 Maven 子项目、选择 `release/snapshot`、输入版本；`release` 会检查 Nexus2 并执行 `mvn deploy` |
+| Merge Request | `GitMergeRequest.sh` | 通过 GitLab push options 创建 MR；默认目标分支 `develop-<group>`；assignee 可从候选中选择或手填 |
+| Run CI Command | 直接解析 `.gitlab-ci.yml` | 从 `BASE_EXEC_CMD` 候选中选择一条命令，在 Terminal 中执行 |
+| GitFlow Guideline | Feishu 链接 | 浏览器打开团队 GitFlow 指南 |
 
-## 10. 与现有 IdeaDeployPlugin 的对接建议
+### 5.2 ZeroGit Flow 功能
 
-| 现有组件               | 建议用法 |
-|------------------------|----------|
-| `ZeroGitDeploySetting` | 增加 GROUP_NAME_KEY、CHECK_GIT_VERSION_KEY；Script URL 与 VS Code 默认对齐（同一 GitLab raw 地址）。 |
-| `CommandUtils.getRootProjectPath` | 继续用于解析 Git 根。 |
-| `CommandUtils.processScript`      | 复用「项目根优先 → 远程下载 → 写临时目录」逻辑；**不再**对脚本内容做 `#cd #{project}` 替换（VS Code 脚本无此占位符）。若现有脚本有该占位符，仅对旧脚本保留；新 ZeroGit 脚本直接按路径执行即可。 |
-| `DeployCmdExecuter.exec`          | 用于 gitCheck、Finish Release、Finish Hotfix 的同步执行及输出到 Console。 |
-| `CmdBuilder` + Terminal 执行      | 用于其余 5 个命令的「在终端中运行」。 |
-| `DeployPluginHandler`             | 可拆分为「ZeroGit 流程 Handler」与原有 Release/NewBranch/ChangeVersion/AnyTool 的 Handler；或新建 `ZeroGitFlowHandler`，仅负责 7 个命令的入参收集与脚本调用。 |
-| plugin.xml                         | 新增 7 个 Action 的注册与菜单/工具栏项；保留现有 Release、NewBranch、ChangeVersion、AnyTool。 |
-
----
-
-## 11. 附录：脚本文件清单（与 VS Code 一致）
-
-| 脚本名             | 用途 |
-|--------------------|------|
-| gitCheck.sh        | 工作区干净、当前分支、upstream、与远程同步、可选 Git 版本检查 |
-| StartNewFeature.sh | 从 develop-<group> 拉取并创建 feature 分支（不自动 push） |
-| FinishFeature.sh   | 删除本地 feature 分支（前提：已在 GitLab MR 并 merge） |
-| RebaseFeature.sh   | 对当前 feature 分支做 rebase |
-| StartNewRelease.sh | 创建 release 分支 |
-| FinishRelease.sh   | release/hotfix → main、打 tag、删分支、main 合并回 develop 及未完成 release/hotfix（由分支前缀 release/ 或 hotfix/ 区分模式） |
-| StartNewHotfix.sh  | 创建 hotfix 分支 |
-
-以上脚本**直接复用** VscodeDeployPlugin 的 `scripts/` 目录，不修改任何脚本代码。
+| Action | 脚本 | 执行方式 | 当前行为摘要 |
+|---|---|---|---|
+| Start New Feature | `StartNewFeature.sh` | IDEA Terminal | 选择 group，输入 `feature/<group>/001-desc`，通过 `gitCheck` 后执行 |
+| Finish Feature | `FinishFeature.sh` | IDEA Terminal | 先确认已 MR 到 `develop-<group>`，再从本地 feature 列表中选择分支 |
+| Rebase Feature | `RebaseFeature.sh` | IDEA Terminal | 不跑 `gitCheck`；要求当前分支必须为 `feature/<group>/...` |
+| Start New Release | `StartNewRelease.sh` | IDEA Terminal | 先确认提测时机；若发现依赖里有 `-SNAPSHOT` 会二次确认；版本建议按最新 tag/release/hotfix 推导 |
+| Finish Release | `FinishRelease.sh` | 同步执行 + Tool Window Console | 不先选 group；先确认 Maintainer 权限与上线完成，再选择 release 分支；执行后解析剩余 release/hotfix 分支提示 |
+| Start New Hotfix | `StartNewHotfix.sh` | IDEA Terminal | 先确认主干回合情况；若发现依赖里有 `-SNAPSHOT` 会二次确认；必须基于最新生产 tag 创建 |
+| Finish Hotfix | `FinishRelease.sh` | 同步执行 + Tool Window Console | 不先选 group；流程同 Finish Release，但目标分支为 hotfix |
 
 ---
 
-**文档版本**：1.0  
-**基于**：VscodeDeployPlugin/prd.md + IdeaDeployPlugin 现有代码结构  
-**用途**：JetBrains IDEA 插件（IdeaDeployPlugin）重构与 ZeroGit 功能对齐
+## 6. 各命令的关键细节
+
+### 6.1 Start New Feature
+
+- 输入值必须以 `feature/<group>/` 开头
+- 后缀必须满足 `^\d+-\S.*$`
+- 脚本参数：`[groupName, fullFeatureName]`
+
+### 6.2 Finish Feature
+
+- 先确认“是否已在 GitLab 中 MR 到 `develop-<group>` 并完成 Merge”
+- 只从本地 `feature/<group>/` 分支中选目标
+- 分支按数字前缀降序排列
+- 脚本参数：`[groupName, selectedFeatureBranch]`
+
+### 6.3 Rebase Feature
+
+- 当前分支必须匹配 `feature/<group>/`
+- 脚本参数：`[groupName, currentBranch]`
+- 这是当前实现中少数不跑 `gitCheck` 的命令
+
+### 6.4 Merge Request
+
+- 通过 `Messages.showEditableChooseDialog` 选择或手动输入 assignee
+- assignee 不能为空
+- 脚本从最新一次非 `MR-` 前缀提交中提取标题作为 MR title
+- 若当前分支没有待推送提交，脚本会自动创建空提交触发 MR
+- 默认目标分支 `develop-<group>`
+- 脚本参数：`[groupName, assignee]`
+
+### 6.5 Maven Change
+
+- 插件会从当前路径向上定位最近的有效 Maven 项目，而不是简单使用整个 Git 仓库根
+- `release` / `snapshot` 两种模式均通过对话框选择
+- `snapshot`：
+  - 若当前版本可解析，则建议 `patch + 1` 后追加 `-SNAPSHOT`
+- `release`：
+  - 当前版本必须为 `-SNAPSHOT` 或 `-RCN`
+  - `-SNAPSHOT` 建议转成 `-RC1`
+  - `-RCN` 建议转成 `-RC(N+1)`
+  - 脚本会调用 Nexus2 检查版本是否已存在
+- 脚本参数：`[groupName, mavenVersion]`
+
+### 6.6 Start New Release
+
+- 先确认“是否已执行 FinishFeature、是否准备提测”
+- 若依赖或插件版本中存在 `-SNAPSHOT`，会额外弹窗确认
+- `StartNewRelease.sh` 在 Maven 项目中会自动：
+  - 创建 `release/<group>/X.Y.Z`
+  - 将 `pom.xml` 改为 `X.Y.Z-RC1`
+  - 自动提交 `chore: set version to X.Y.Z-RC1`
+  - push 到远端并设置 upstream
+- 脚本参数：`[groupName, fullReleaseName]`
+
+### 6.7 Finish Release
+
+- 不需要先选择 group
+- 必须先确认：
+  - 当前用户有 Maintainer 权限
+  - 此功能仅用于处理 CICD 自动 merge 冲突
+  - 运维已完成上线
+- 执行方式不是 Terminal，而是 `DeployCmdExecuter.exec(console, ...)`
+- 输出会写入插件 Tool Window Console，并解析剩余 release/hotfix 分支进行后续提醒
+- 脚本参数：`[selectedReleaseBranch]`
+
+### 6.8 Start New Hotfix
+
+- 必须先确认上线后的代码已及时回合到 `main/develop/release/hotfix`
+- 若依赖或插件版本中存在 `-SNAPSHOT`，会额外弹窗确认
+- 必须先找到最新生产 tag，找不到则直接中断
+- 创建前会再次确认“即将基于哪个 tag 创建 hotfix”
+- 脚本实际执行 `git switch -c <hotfix> <baseTag>`
+- 脚本参数：`[groupName, fullHotfixName, baseTag]`
+
+### 6.9 Finish Hotfix
+
+- 与 Finish Release 共用 `FinishRelease.sh`
+- 不需要先选择 group
+- 执行方式同 Finish Release
+- 脚本参数：`[selectedHotfixBranch]`
+
+---
+
+## 7. `gitCheck` 规则
+
+IDEA 插件中，以下命令不会先跑 `gitCheck`：
+
+- `Generate Commit Message`
+- `AI Code Review`
+- `Maven Change`
+- `Rebase Feature`
+
+其余 ZeroGit 主流程都会先执行 `gitCheck.sh`。当前检查内容：
+
+1. 工作区必须干净
+2. 当前不能处于 detached HEAD
+3. 当前分支必须已配置 upstream
+4. 先执行 `git fetch origin --prune`
+5. 不能 behind 远端
+6. 不能 ahead 远端
+7. 若设置 `Check Git Version=true`，则 Git 版本必须 `>= 2.29`
+
+---
+
+## 8. UI 入口
+
+当前 `plugin.xml` 已注册以下入口：
+
+- 主菜单 `VcsGroups` 下的 `ZeroGit`
+- `ProjectViewPopupMenu`
+- `EditorPopupMenu`
+- `ToolbarRunGroup`
+
+菜单结构包含：
+
+- `ZeroGit`
+- `Maven`
+- `Feature`
+- `Release`
+- `Hotfix`
+- `GitLab CI`
+
+附加说明：
+
+- `Feature` 子菜单包含 `Merge Request`
+- Toolbar 上除 `Run CI Command` 外，已挂出大部分常用入口
+- Finish Release / Finish Hotfix 的日志输出依赖插件 Tool Window `GitDeployPlugin`
+
+---
+
+## 9. 与旧版文档相比的关键更新
+
+这次同步修正了以下过期信息：
+
+1. IDEA 插件已不是“待实现的 7 命令对齐项目”，而是和 VS Code 对齐的 13 个功能入口
+2. `groupNames` / `groupName` 已支持动态配置，并在执行前再次选择
+3. 已补充 `Git MR Assignees`、`Check Git Version`、`Run CI Command`
+4. `Start New Hotfix` 当前真实脚本参数为 3 个：`groupName`、`hotfixName`、`baseTag`
+5. `Start New Release` 已包含 Maven 项目自动升级到 `RC1` 并提交的逻辑
+6. `Generate Commit Message`、`AI Code Review`、`Maven Change` 已是正式功能，不应继续遗漏
+7. `Finish Release` / `Finish Hotfix` 当前是“同步执行脚本 + Tool Window Console 解析输出”的模式
