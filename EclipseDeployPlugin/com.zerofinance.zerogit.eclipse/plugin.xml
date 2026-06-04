@@ -58,4 +58,14 @@
       categoryId="com.zerofinance.zerogit.eclipse.commands.category"
       name="GitFlow Guideline"/>
   </extension>
+  <extension point="org.eclipse.ui.preferencePages">
+    <page
+      id="com.zerofinance.zerogit.eclipse.preferences.main"
+      name="Git Deploy Settings"
+      class="com.zerofinance.zerogit.eclipse.settings.ZeroGitPreferencePage"/>
+  </extension>
+  <extension point="org.eclipse.core.runtime.preferences">
+    <initializer
+      class="com.zerofinance.zerogit.eclipse.settings.ZeroGitPreferenceInitializer"/>
+  </extension>
 </plugin>
