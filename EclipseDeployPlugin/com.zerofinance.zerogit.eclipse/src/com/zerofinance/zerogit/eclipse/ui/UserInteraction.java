@@ -3,6 +3,7 @@ package com.zerofinance.zerogit.eclipse.ui;
 import java.util.List;
 
 import org.apache.commons.lang.StringUtils;
+import org.eclipse.jface.dialogs.Dialog;
 import org.eclipse.jface.dialogs.InputDialog;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.viewers.LabelProvider;
@@ -54,19 +55,19 @@ public class UserInteraction {
     }
 
     public boolean confirm(Shell shell, String title, String message) {
-        return MessageDialog.openConfirm(shell, title, message);
+        return createConfirmDialog(shell, title, message).open() == Window.OK;
     }
 
     public void showInfo(Shell shell, String title, String message) {
-        MessageDialog.openInformation(shell, title, message);
+        createInformationDialog(shell, title, message).open();
     }
 
     public void showWarning(Shell shell, String title, String message) {
-        MessageDialog.openWarning(shell, title, message);
+        createWarningDialog(shell, title, message).open();
     }
 
     public void showError(Shell shell, String title, String message) {
-        MessageDialog.openError(shell, title, message);
+        createErrorDialog(shell, title, message).open();
     }
 
     public boolean openExternalUrl(String url) {
@@ -74,7 +75,7 @@ public class UserInteraction {
     }
 
     protected String openTextInputDialog(Shell shell, String title, String message, String initialValue) {
-        InputDialog dialog = new InputDialog(shell, title, message, StringUtils.defaultString(initialValue), null);
+        InputDialog dialog = createTextInputDialog(shell, title, message, initialValue);
         return dialog.open() == Window.OK ? StringUtils.trimToNull(dialog.getValue()) : null;
     }
 
@@ -84,15 +85,49 @@ public class UserInteraction {
             String message,
             List<String> values,
             String defaultValue) {
-        EditableSelectionDialog dialog = new EditableSelectionDialog(shell, title, message, values, defaultValue);
+        EditableSelectionDialog dialog = (EditableSelectionDialog) createEditableSelectionDialog(
+                shell, title, message, values, defaultValue);
         return dialog.open() == Window.OK ? StringUtils.trimToNull(dialog.getSelection()) : null;
+    }
+
+    protected InputDialog createTextInputDialog(Shell shell, String title, String message, String initialValue) {
+        return new TopmostInputDialog(shell, title, message, StringUtils.defaultString(initialValue), null);
+    }
+
+    protected ElementListSelectionDialog createListSelectionDialog(Shell shell) {
+        return new TopmostElementListSelectionDialog(shell, new LabelProvider());
+    }
+
+    protected Dialog createEditableSelectionDialog(
+            Shell shell,
+            String title,
+            String message,
+            List<String> values,
+            String defaultValue) {
+        return new EditableSelectionDialog(shell, title, message, values, defaultValue);
+    }
+
+    protected MessageDialog createConfirmDialog(Shell shell, String title, String message) {
+        return TopmostMessageDialog.confirm(shell, title, message);
+    }
+
+    protected MessageDialog createInformationDialog(Shell shell, String title, String message) {
+        return TopmostMessageDialog.information(shell, title, message);
+    }
+
+    protected MessageDialog createWarningDialog(Shell shell, String title, String message) {
+        return TopmostMessageDialog.warning(shell, title, message);
+    }
+
+    protected MessageDialog createErrorDialog(Shell shell, String title, String message) {
+        return TopmostMessageDialog.error(shell, title, message);
     }
 
     private String chooseFromList(Shell shell, String title, String message, List<String> values, String defaultValue) {
         if (values == null || values.isEmpty()) {
             return null;
         }
-        ElementListSelectionDialog dialog = new ElementListSelectionDialog(shell, new LabelProvider());
+        ElementListSelectionDialog dialog = createListSelectionDialog(shell);
         dialog.setTitle(title);
         dialog.setMessage(message);
         dialog.setElements(values.toArray(new String[0]));

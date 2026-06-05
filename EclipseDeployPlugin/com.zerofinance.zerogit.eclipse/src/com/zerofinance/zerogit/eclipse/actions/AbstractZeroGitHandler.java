@@ -37,6 +37,7 @@ import com.zerofinance.zerogit.eclipse.exec.CommandRequest;
 import com.zerofinance.zerogit.eclipse.exec.CommandResult;
 import com.zerofinance.zerogit.eclipse.exec.ScriptResolver;
 import com.zerofinance.zerogit.eclipse.exec.ZeroGitCommandRunner;
+import com.zerofinance.zerogit.eclipse.git.GitVersionChecker;
 import com.zerofinance.zerogit.eclipse.flow.ZeroGitFlowService;
 import com.zerofinance.zerogit.eclipse.git.GitRepositoryService;
 import com.zerofinance.zerogit.eclipse.settings.ZeroGitSettings;
@@ -49,12 +50,14 @@ public abstract class AbstractZeroGitHandler extends AbstractHandler {
     private final ZeroGitFlowService flowService;
     private final UserInteraction userInteraction;
     private final GitRepositoryService gitRepositoryService;
+    private final GitVersionChecker gitVersionChecker;
     private final ZeroGitCommandRunner commandRunner;
 
     protected AbstractZeroGitHandler() {
         this.flowService = new ZeroGitFlowService();
         this.userInteraction = new UserInteraction();
         this.gitRepositoryService = new GitRepositoryService();
+        this.gitVersionChecker = new GitVersionChecker(this.gitRepositoryService);
         this.commandRunner = new ZeroGitCommandRunner(
                 new ScriptResolver(new File(System.getProperty("java.io.tmpdir"), "zerogit-cache")),
                 new BashCommandBuilder(false));
@@ -70,6 +73,14 @@ public abstract class AbstractZeroGitHandler extends AbstractHandler {
 
     protected GitRepositoryService gitRepositoryService() {
         return gitRepositoryService;
+    }
+
+    protected void ensureGitVersionSupported(String repoRoot) throws ExecutionException {
+        try {
+            gitVersionChecker.ensureSupportedVersion(repoRoot);
+        } catch (Exception e) {
+            throw new ExecutionException(StringUtils.defaultIfEmpty(e.getMessage(), "Failed to inspect Git version."), e);
+        }
     }
 
     protected Shell shell(ExecutionEvent event) {
@@ -182,6 +193,9 @@ public abstract class AbstractZeroGitHandler extends AbstractHandler {
                 try {
                     console.println("[" + title + "] repo: " + request.getRepoRoot());
                     if (runGitCheck) {
+                        if (ZeroGitSettings.isGitVersionCheckEnabled()) {
+                            ensureGitVersionSupported(request.getRepoRoot());
+                        }
                         CommandResult gitCheckResult = commandRunner.runScript(
                                 buildRequest(request.getRepoRoot(), "gitCheck.sh", Collections.<String>emptyList()));
                         writeOutput(console, gitCheckResult);

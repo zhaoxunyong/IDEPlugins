@@ -26,6 +26,7 @@ final class EditableSelectionDialog extends Dialog {
 
     EditableSelectionDialog(Shell parentShell, String title, String message, List<String> values, String defaultValue) {
         super(parentShell);
+        setShellStyle(TopmostDialogSupport.topmostShellStyle(getShellStyle()));
         this.title = StringUtils.defaultString(title);
         this.message = StringUtils.defaultString(message);
         this.values = values == null ? Collections.<String>emptyList() : values;
@@ -36,6 +37,7 @@ final class EditableSelectionDialog extends Dialog {
     protected void configureShell(Shell shell) {
         super.configureShell(shell);
         shell.setText(title);
+        TopmostDialogSupport.activate(shell);
     }
 
     @Override
