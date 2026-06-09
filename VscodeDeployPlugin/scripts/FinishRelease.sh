@@ -183,11 +183,11 @@ echo "target branch: $targetBranch (detected mode: $MODE)"
 echo "develop branches (from remote develop-*): will be collected in step 1"
 
 echo
-echo "即将执行 Finish${MODE_TITLE} 流程："
-for i in 1 2 3 4 5 6 7; do
-  printf "%d. %s\n" "$i" "${STEP_DESC[$i]}"
-done
-echo
+# echo "即将执行 Finish${MODE_TITLE} 流程："
+# for i in 1 2 3 4 5 6 7; do
+#   printf "%d. %s\n" "$i" "${STEP_DESC[$i]}"
+# done
+# echo
 
 set_step 1
 # -q：成功时几乎无输出；失败时错误仍走 stderr，由 run_git 在出错时打印。
