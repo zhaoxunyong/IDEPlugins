@@ -287,10 +287,10 @@ if [ "$SKIP_TO_CLEANUP" -eq 0 ]; then
   # 5) 第 6 步：统一推送所有分支与 tag 到远程。
   set_step 6
   checkout_or_track_branch "main"
-  run_git "Push main" git push origin main
+  run_git "Push main" git push -q origin main
   for branch in "${PUSH_BRANCHES[@]}"; do
     [ -z "$branch" ] && continue
-    run_git "Push $branch" git push origin "$branch"
+    run_git "Push $branch" git push -q origin "$branch"
   done
   if git ls-remote --tags --refs --exit-code origin "refs/tags/$tagName" >/dev/null 2>&1; then
     echo "Tag already exists on remote: $tagName"
@@ -301,7 +301,7 @@ if [ "$SKIP_TO_CLEANUP" -eq 0 ]; then
     run_git "Delete local stale tag $tagName" git tag -d "$tagName"
   fi
   run_git "Create ${MODE} tag $tagName" git tag -a "$tagName" -m "${MODE_TITLE} $version"
-  run_git "Push tag $tagName" git push origin "$tagName"
+  run_git "Push tag $tagName" git push -q origin "$tagName"
   STEP_STATUS[6]="DONE"
 fi
 
@@ -318,7 +318,7 @@ if [ "$DELETE_FINISHED_BRANCH" -eq 1 ]; then
     run_git "Delete local branch $targetBranch" git branch -d "$targetBranch"
   fi
   if git ls-remote --exit-code --heads origin "$targetBranch" >/dev/null 2>&1; then
-    run_git "Delete remote branch $targetBranch" git push origin --delete "$targetBranch"
+    run_git "Delete remote branch $targetBranch" git push -q origin --delete "$targetBranch"
   fi
   STEP_STATUS[7]="DONE"
 else
