@@ -103,10 +103,8 @@ trap 'exit_status=$?; print_summary; exit $exit_status' EXIT
 run_git() {
   local desc="$1"
   shift
-  local keep_success_log=0
 
   if echo "$desc" | grep -qE '^(Merge|Delete)'; then
-    keep_success_log=1
     echo ">>> $desc"
   fi
   local stdout_file stderr_file ec
@@ -117,6 +115,9 @@ run_git() {
 
   if [ "$ec" -ne 0 ]; then
     echo "ERROR: $desc failed."
+    if [ -s "$stdout_file" ]; then
+      cat "$stdout_file"
+    fi
     if [ -s "$stderr_file" ]; then
       cat "$stderr_file"
     fi
@@ -127,7 +128,7 @@ run_git() {
     rm -f "$stdout_file" "$stderr_file"
     exit 1
   fi
-  if [ "$keep_success_log" -eq 1 ] && [ -s "$stderr_file" ]; then
+  if [ -s "$stderr_file" ]; then
     cat "$stderr_file"
   fi
   rm -f "$stdout_file" "$stderr_file"
