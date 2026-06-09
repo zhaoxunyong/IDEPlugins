@@ -330,7 +330,7 @@ else
   STEP_STATUS[7]="SKIPPED"
 fi
 
-echo "MERGED_DEVELOP_BRANCHES: ${mergedDevelopBranches[*]}"
+#echo "MERGED_DEVELOP_BRANCHES: ${mergedDevelopBranches[*]}"
 echo "REMAINING_RELEASES: ${remainingVersions[*]}"
 
 # 当前工作目录（$PWD）下若存在 Post_<本脚本文件名> 则执行，否则跳过
