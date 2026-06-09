@@ -179,8 +179,8 @@ is_special_cleanup_repo() {
   esac
 }
 
-echo "target branch: $targetBranch (detected mode: $MODE)"
-echo "develop branches (from remote develop-*): will be collected in step 1"
+#echo "target branch: $targetBranch (detected mode: $MODE)"
+#echo "develop branches (from remote develop-*): will be collected in step 1"
 
 echo
 # echo "即将执行 Finish${MODE_TITLE} 流程："
