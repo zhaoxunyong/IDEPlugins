@@ -103,8 +103,12 @@ trap 'exit_status=$?; print_summary; exit $exit_status' EXIT
 run_git() {
   local desc="$1"
   shift
+  local keep_success_log=0
 
-  echo ">>> $desc"
+  if echo "$desc" | grep -qE '^(Merge|Delete)'; then
+    keep_success_log=1
+    echo ">>> $desc"
+  fi
   local stdout_file stderr_file ec
   stdout_file=$(mktemp)
   stderr_file=$(mktemp)
@@ -123,11 +127,11 @@ run_git() {
     rm -f "$stdout_file" "$stderr_file"
     exit 1
   fi
-  if [ -s "$stderr_file" ]; then
+  if [ "$keep_success_log" -eq 1 ] && [ -s "$stderr_file" ]; then
     cat "$stderr_file"
   fi
   rm -f "$stdout_file" "$stderr_file"
-  # 标准输出 (1>) 不回显；仅回显标准错误 (2>)，便于飞书等场景减少冗长输出。
+  # 标准输出 (1>) 不回显；成功时仅保留 Merge/Delete 的标准错误，减少飞书等场景噪音。
 }
 
 # 收集需在第 6 步统一 push 的分支（main + 各 develop/release/hotfix）
@@ -141,13 +145,13 @@ checkout_or_track_branch() {
   NEED_PULL=0
 
   if git show-ref --verify --quiet "refs/heads/$branchName"; then
-    run_git "Checkout branch $branchName" git checkout "$branchName"
+    run_git "Checkout branch $branchName" git checkout -q "$branchName"
     NEED_PULL=1
     return
   fi
 
   if git show-ref --verify --quiet "refs/remotes/origin/$branchName"; then
-    run_git "Checkout branch $branchName from origin" git checkout --track -b "$branchName" "origin/$branchName"
+    run_git "Checkout branch $branchName from origin" git checkout -q --track -b "$branchName" "origin/$branchName"
     return
   fi
 
@@ -206,9 +210,9 @@ if [ "$SKIP_TO_CLEANUP" -eq 0 ]; then
   # 1) Merge selected branch to main, then push.
   set_step 2
   checkout_or_track_branch "$targetBranch"
-  [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $targetBranch" git pull origin "$targetBranch"
+  [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $targetBranch" git pull -q origin "$targetBranch"
   checkout_or_track_branch "main"
-  [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest main" git pull origin main
+  [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest main" git pull -q origin main
   run_git "Merge $targetBranch into main" git merge "$targetBranch"
   # main 在第 6 步统一推送
   STEP_STATUS[2]="DONE"
@@ -224,7 +228,7 @@ if [ "$SKIP_TO_CLEANUP" -eq 0 ]; then
   for branch in "${developBranches[@]}"; do
     [ -z "$branch" ] && continue
     checkout_or_track_branch "$branch"
-    [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $branch" git pull origin "$branch"
+    [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $branch" git pull -q origin "$branch"
     run_git "Merge main into $branch" git merge main
     PUSH_BRANCHES+=("$branch")
     mergedDevelopBranches+=("$branch")
@@ -247,15 +251,15 @@ if [ "$SKIP_TO_CLEANUP" -eq 0 ]; then
     [ -z "$branch" ] && continue
     [ "$MODE" = "release" ] && [ "$branch" = "$targetBranch" ] && continue
     checkout_or_track_branch "$branch"
-    [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $branch" git pull origin "$branch"
+    [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $branch" git pull -q origin "$branch"
     run_git "Merge main into $branch" git merge main
     PUSH_BRANCHES+=("$branch")
     remainingVersions+=("$branch")
   done
 
-  if [ ${#releaseBranches[@]} -gt 0 ]; then
-    echo "Remaining release branches: ${releaseBranches[*]}"
-  fi
+  # if [ ${#releaseBranches[@]} -gt 0 ]; then
+  #   echo "Remaining release branches: ${releaseBranches[*]}"
+  # fi
   if [ ${#releaseBranches[@]} -gt 0 ]; then
     STEP_STATUS[4]="DONE"
   else
@@ -273,7 +277,7 @@ if [ "$SKIP_TO_CLEANUP" -eq 0 ]; then
     [ -z "$branch" ] && continue
     [ "$MODE" = "hotfix" ] && [ "$branch" = "$targetBranch" ] && continue
     checkout_or_track_branch "$branch"
-    [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $branch" git pull origin "$branch"
+    [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $branch" git pull -q origin "$branch"
     run_git "Merge main into $branch" git merge main
     PUSH_BRANCHES+=("$branch")
     remainingVersions+=("$branch")
