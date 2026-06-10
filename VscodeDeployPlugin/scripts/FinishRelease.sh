@@ -103,8 +103,18 @@ trap 'exit_status=$?; print_summary; exit $exit_status' EXIT
 run_git() {
   local desc="$1"
   shift
+  local should_echo_progress=0
+
+  if [ "$#" -eq 0 ]; then
+    echo "ERROR: run_git requires a command."
+    if [ "$CURRENT_STEP" -ne 0 ]; then
+      STEP_STATUS[$CURRENT_STEP]="FAILED"
+    fi
+    exit 1
+  fi
 
   if echo "$desc" | grep -qE '^(Merge|Delete)'; then
+    should_echo_progress=1
     echo ">>> $desc"
   fi
   local stdout_file stderr_file ec
@@ -121,14 +131,15 @@ run_git() {
     if [ -s "$stderr_file" ]; then
       cat "$stderr_file"
     fi
-    echo "Please resolve the conflict/problem and rerun Finish ${MODE_TITLE}."
+    echo "请先解决代码冲突，然后再在gitlab pipeline中重新运行失效的job。"
     if [ "$CURRENT_STEP" -ne 0 ]; then
       STEP_STATUS[$CURRENT_STEP]="FAILED"
     fi
     rm -f "$stdout_file" "$stderr_file"
     exit 1
   fi
-  if [ -s "$stderr_file" ]; then
+  #成功时，不需要显示stdout，除非是 Merge/Delete 操作的进度提示；但 stderr 可能包含冲突等重要信息，仍然需要显示。
+  if [ "$should_echo_progress" -eq 1 ] && [ -s "$stderr_file" ]; then
     cat "$stderr_file"
   fi
   rm -f "$stdout_file" "$stderr_file"
@@ -170,7 +181,7 @@ get_origin_repo_name() {
 
 is_special_cleanup_repo() {
   case "$1" in
-    rule-engine-server|employee|mobile-approval-react)
+    employee|mobile-approval-react)
       return 0
       ;;
     *)
@@ -200,7 +211,7 @@ INITIAL_REMOTE_TAG_EXISTS=0
 SKIP_TO_CLEANUP=0
 if git ls-remote --tags --refs --exit-code origin "refs/tags/$tagName" >/dev/null 2>&1; then
   INITIAL_REMOTE_TAG_EXISTS=1
-  echo "Remote tag $tagName already exists; It may just be deployed without any code changes, skipping the merge workflow."
+  echo "Tag: $tagName 已经存在，可能是相同的版本再次被部署了，跳过代码合并流程。"
   for s in 2 3 4 5 6; do
     STEP_STATUS[$s]="SKIP"
   done
@@ -214,7 +225,7 @@ if [ "$SKIP_TO_CLEANUP" -eq 0 ]; then
   [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $targetBranch" git pull -q origin "$targetBranch"
   checkout_or_track_branch "main"
   [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest main" git pull -q origin main
-  run_git "Merge $targetBranch into main" git merge "$targetBranch"
+  run_git "Merge $targetBranch into main" git merge -q "$targetBranch"
   # main 在第 6 步统一推送
   STEP_STATUS[2]="DONE"
 
@@ -230,7 +241,7 @@ if [ "$SKIP_TO_CLEANUP" -eq 0 ]; then
     [ -z "$branch" ] && continue
     checkout_or_track_branch "$branch"
     [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $branch" git pull -q origin "$branch"
-    run_git "Merge main into $branch" git merge main
+    run_git "Merge main into $branch" git merge -q main
     PUSH_BRANCHES+=("$branch")
     mergedDevelopBranches+=("$branch")
   done
@@ -253,7 +264,7 @@ if [ "$SKIP_TO_CLEANUP" -eq 0 ]; then
     [ "$MODE" = "release" ] && [ "$branch" = "$targetBranch" ] && continue
     checkout_or_track_branch "$branch"
     [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $branch" git pull -q origin "$branch"
-    run_git "Merge main into $branch" git merge main
+    run_git "Merge main into $branch" git merge -q main
     PUSH_BRANCHES+=("$branch")
     remainingVersions+=("$branch")
   done
@@ -279,7 +290,7 @@ if [ "$SKIP_TO_CLEANUP" -eq 0 ]; then
     [ "$MODE" = "hotfix" ] && [ "$branch" = "$targetBranch" ] && continue
     checkout_or_track_branch "$branch"
     [ "$NEED_PULL" -eq 1 ] && run_git "Pull latest $branch" git pull -q origin "$branch"
-    run_git "Merge main into $branch" git merge main
+    run_git "Merge main into $branch" git merge -q main
     PUSH_BRANCHES+=("$branch")
     remainingVersions+=("$branch")
   done
@@ -327,7 +338,7 @@ if [ "$DELETE_FINISHED_BRANCH" -eq 1 ]; then
   fi
   STEP_STATUS[7]="DONE"
 else
-  echo "Keep finished branch $targetBranch for repo $originRepoName because remote tag $tagName did not exist before this run."
+  echo "$originRepoName的$targetBranch分支暂时没有被删除，因为相关的版本还需要在香港节点部署一次，等全部部署完成后再统一删除。"
   STEP_STATUS[7]="SKIPPED"
 fi
 
