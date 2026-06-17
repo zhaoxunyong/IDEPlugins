@@ -70,14 +70,33 @@ public class GitRepositoryService {
     }
 
     public VersionService.HotfixBaseTagInfo getLatestRemoteHotfixBaseTag(String repoRoot) throws IOException {
-        List<String> tagNames = new ArrayList<String>();
+        File repoDirectory = new File(repoRoot);
+        runGit(repoDirectory, "fetch", "origin", "--tags", "--prune");
+
+        Set<String> remoteTags = new LinkedHashSet<String>();
         for (String line : runGitLines(new File(repoRoot), "ls-remote", "--tags", "--refs", "origin")) {
             String[] parts = line.split("\\s+");
             if (parts.length >= 2) {
-                tagNames.add(StringUtils.removeStart(parts[1], "refs/tags/"));
+                remoteTags.add(StringUtils.removeStart(parts[1], "refs/tags/"));
             }
         }
-        return versionService.findLatestHotfixBaseTag(tagNames);
+        if (remoteTags.isEmpty()) {
+            return null;
+        }
+
+        List<String> sortedRemoteTagRefs = new ArrayList<String>();
+        for (String line : runGitLines(
+                repoDirectory,
+                "for-each-ref",
+                "--sort=-creatordate",
+                "--format=%(refname:short)|%(creatordate:iso-strict)",
+                "refs/tags")) {
+            String tagName = StringUtils.substringBefore(line, "|").trim();
+            if (remoteTags.contains(tagName)) {
+                sortedRemoteTagRefs.add(line);
+            }
+        }
+        return versionService.findLatestHotfixBaseTag(sortedRemoteTagRefs);
     }
 
     public boolean hasStagedChanges(String repoRoot) throws IOException {
