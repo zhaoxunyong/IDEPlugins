@@ -41,6 +41,13 @@ tasks {
         // untilBuild.set("231.*")
     }
 
+    // IDEA 2022.1 can fail in headless searchable options generation with
+    // "AWT-EventQueue-1; expected AWT-EventQueue-0". This index is optional
+    // for packaging the plugin zip, so keep buildPlugin focused on packaging.
+    named("buildSearchableOptions") {
+        enabled = false
+    }
+
     signPlugin {
         certificateChain.set(System.getenv("CERTIFICATE_CHAIN"))
         privateKey.set(System.getenv("PRIVATE_KEY"))
