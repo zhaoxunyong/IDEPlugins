@@ -60,6 +60,11 @@ get_effective_maven_value() {
 }
 
 check_release_version_exists_in_nexus() {
+  if ! [[ "$mvnVersion" =~ ^[0-9]+\.[0-9]+\.[0-9]+-RC[0-9]+$ ]]; then
+    echo "Maven version is not RC, skip nexus check: ${mvnVersion}"
+    return 0
+  fi
+
   local groupId artifactId
   groupId=$(get_effective_maven_value "project.groupId")
   artifactId=$(get_effective_maven_value "project.artifactId")
