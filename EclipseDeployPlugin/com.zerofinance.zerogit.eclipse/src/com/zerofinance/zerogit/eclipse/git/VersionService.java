@@ -14,6 +14,8 @@ public class VersionService {
     private static final Pattern SEMVER_ONLY_TAG_PATTERN = Pattern.compile("^v?(\\d+\\.\\d+\\.\\d+)(\\^\\{\\})?$");
     private static final Pattern REMOTE_TAG_PATTERN =
             Pattern.compile("^(release|hotfix)/[^/]+/(\\d+\\.\\d+\\.\\d+)-(\\d{12})(\\^\\{\\})?$");
+    private static final Pattern DATED_REMOTE_TAG_PATTERN =
+            Pattern.compile("^(release|hotfix)/[^/]+/(\\d+\\.\\d+\\.\\d+)-(\\d{12})$");
 
     public String suggestNextRelease(List<String> tagsAndBranches, List<String> sameGroupBranches, String group) {
         String maxVersion = maxSemverVersion(tagsAndBranches);
@@ -42,20 +44,14 @@ public class VersionService {
     }
 
     public HotfixBaseTagInfo findLatestHotfixBaseTag(List<String> tagNames) {
-        HotfixBaseTagInfo latest = null;
         for (String tagName : tagNames == null ? Collections.<String>emptyList() : tagNames) {
-            HotfixBaseTagInfo current = parseHotfixBaseTag(tagName);
+            HotfixBaseTagInfo current = parseDatedHotfixBaseTag(tagName);
             if (current == null) {
                 continue;
             }
-            if (latest == null
-                    || compareSemver(current.getVersion(), latest.getVersion()) > 0
-                    || (compareSemver(current.getVersion(), latest.getVersion()) == 0
-                            && current.getTimestamp().compareTo(latest.getTimestamp()) > 0)) {
-                latest = current;
-            }
+            return current;
         }
-        return latest;
+        return null;
     }
 
     public List<String> sortBranchesBySemverDesc(List<String> branches) {
@@ -161,6 +157,15 @@ public class VersionService {
         Matcher remoteTagMatcher = REMOTE_TAG_PATTERN.matcher(normalized);
         if (remoteTagMatcher.matches()) {
             return new HotfixBaseTagInfo(normalized, remoteTagMatcher.group(2), remoteTagMatcher.group(3));
+        }
+        return null;
+    }
+
+    private HotfixBaseTagInfo parseDatedHotfixBaseTag(String tagRefLine) {
+        String normalized = StringUtils.substringBefore(StringUtils.trimToEmpty(tagRefLine), "|").trim();
+        Matcher matcher = DATED_REMOTE_TAG_PATTERN.matcher(normalized);
+        if (matcher.matches()) {
+            return new HotfixBaseTagInfo(normalized, matcher.group(2), matcher.group(3));
         }
         return null;
     }

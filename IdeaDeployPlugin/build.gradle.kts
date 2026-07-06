@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "com.zerofinance"
-version = "2.0.6"
+version = "2.0.7"
 
 repositories {
     mavenCentral()
@@ -39,6 +39,13 @@ tasks {
     patchPluginXml {
         sinceBuild.set("212")
         // untilBuild.set("231.*")
+    }
+
+    // IDEA 2022.1 can fail in headless searchable options generation with
+    // "AWT-EventQueue-1; expected AWT-EventQueue-0". This index is optional
+    // for packaging the plugin zip, so keep buildPlugin focused on packaging.
+    named("buildSearchableOptions") {
+        enabled = false
     }
 
     signPlugin {

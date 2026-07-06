@@ -2,6 +2,7 @@ const path = require('path')
 const vscode = require('vscode')
 const myPlugin = require('./myPlugin')
 const { pomXmlContainsSnapshot } = require('./pomSnapshot')
+const { pickLatestDatedRemoteTag } = require('./tagSelection')
 const {
     buildGitMrAssigneeQuickPickItems,
     getMissingGitMrAssigneeMessage,
@@ -11,7 +12,7 @@ const {
 } = require('./gitMrAssignee')
 const tmp = require('tmp')
 const fs = require('fs')
-const YAML = require('yaml')
+const YAML = require('js-yaml')
 
 const util = require('util')
 const exec = util.promisify(require('child_process').exec)
@@ -173,7 +174,7 @@ function splitBaseExecCommands (value) {
 function extractBaseExecCommandOptionsFromGitlabCi (yamlText) {
     let parsed
     try {
-        parsed = YAML.parse(String(yamlText || ''))
+        parsed = YAML.safeLoad(String(yamlText || ''))
     } catch (err) {
         throw new Error(`.gitlab-ci.yml 解析失败：${err.message}`)
     }
@@ -400,7 +401,7 @@ async function getSuggestedReleaseVersion (rootPath, groupName, options = {}) {
     const { skipFetch = false, latestTagContext } = options
     const latestTag = latestTagContext !== undefined
         ? latestTagContext
-        : await getLatestRemoteReleaseOrHotfixTagContext(rootPath, groupName)
+        : await getLatestRemoteReleaseOrHotfixTagContext(rootPath)
     const remoteVersionsInGroup = await getRemoteReleaseHotfixVersions(rootPath, groupName, { skipFetch })
     const remoteVersionsAllGroups = await getAllRemoteReleaseHotfixVersions(rootPath, { skipFetch })
     const maxVersion = getMaxSemverVersion([latestTag ? latestTag.version : null, ...remoteVersionsAllGroups])
@@ -419,17 +420,13 @@ async function getSuggestedReleaseVersion (rootPath, groupName, options = {}) {
     )
 }
 
-async function getLatestRemoteReleaseOrHotfixTagContext (rootPath, groupName) {
-    // 兼容两种 tag 形态：
-    // 1) vX.Y.Z（由脚本 FinishRelease.sh / FinishHotfix 创建）
-    // 2) release|hotfix/<group>/X.Y.Z-YYYYMMDDHHmm（历史/扩展形态）
-    const semverOnlyTagRule = /^v?(\d+\.\d+\.\d+)(\^\{\})?$/
-    // 为了满足“按最后三位数字递增”的需求：历史 tag 不限制 groupName，取全局最大版本
-    const remoteTagRule = /^(release|hotfix)\/[^/]+\/(\d+\.\d+\.\d+)-(\d{12})(\^\{\})?$/
-    const cmd = `${buildCdCommand(rootPath)} && git ls-remote --tags --refs origin`
-    const { stdout } = await exec(cmd, { maxBuffer: 1024 * 1024 * 10 })
-    const tags = []
-    stdout.split(/\r?\n/).forEach(line => {
+async function getLatestRemoteReleaseOrHotfixTagContext (rootPath) {
+    await exec(`${buildCdCommand(rootPath)} && git fetch origin --tags --prune`, { maxBuffer: 1024 * 1024 * 10 })
+
+    const remoteTags = new Set()
+    const remoteCmd = `${buildCdCommand(rootPath)} && git ls-remote --tags --refs origin`
+    const { stdout: remoteStdout } = await exec(remoteCmd, { maxBuffer: 1024 * 1024 * 10 })
+    remoteStdout.split(/\r?\n/).forEach(line => {
         const raw = (line || '').trim()
         if (!raw) {
             return
@@ -440,43 +437,24 @@ async function getLatestRemoteReleaseOrHotfixTagContext (rootPath, groupName) {
             return
         }
         const tagName = refName.slice('refs/tags/'.length).trim()
-        // vX.Y.Z
-        const semverMatched = tagName.match(semverOnlyTagRule)
-        if (semverMatched) {
-            tags.push({
-                tagName,
-                version: semverMatched[1],
-                timestamp: null
-            })
-            return
+        if (tagName) {
+            remoteTags.add(tagName)
         }
-
-        // release|hotfix/<group>/X.Y.Z-YYYYMMDDHHmm
-        const matched = tagName.match(remoteTagRule)
-        if (!matched) return
-
-        tags.push({
-            tagName,
-            version: matched[2],
-            timestamp: matched[3]
-        })
     })
 
-    if (tags.length === 0) {
+    if (remoteTags.size === 0) {
         return null
     }
 
-    tags.sort((left, right) => {
-        const versionDiff = compareSemverVersionDesc(left.version, right.version)
-        if (versionDiff !== 0) {
-            return versionDiff
-        }
-        // timestamp 可能为空；为空时按字符串比较即可（'' < 任意数字时间戳）
-        const leftTs = left.timestamp || ''
-        const rightTs = right.timestamp || ''
-        return rightTs.localeCompare(leftTs)
-    })
-    return tags[0]
+    const localCmd = `${buildCdCommand(rootPath)} && git for-each-ref --sort=-creatordate --format="%(refname:short)|%(creatordate:iso-strict)" refs/tags`
+    const { stdout: localStdout } = await exec(localCmd, { maxBuffer: 1024 * 1024 * 10 })
+    const sortedRemoteTagRefs = localStdout
+        .split(/\r?\n/)
+        .map(line => (line || '').trim())
+        .filter(Boolean)
+        .filter(line => remoteTags.has(line.split('|')[0].trim()))
+
+    return pickLatestDatedRemoteTag(sortedRemoteTagRefs)
 }
 
 async function getRemoteReleaseHotfixVersions (rootPath, groupName, options = {}) {
@@ -518,7 +496,7 @@ async function askStartReleaseName (rootPath, groupName) {
     const conflictPrefix = `hotfix/${groupName}/`
     const semverRule = /^\d+\.\d+\.\d+$/
     await gitFetchOriginPrune(rootPath)
-    const latestReleaseTag = await getLatestRemoteReleaseOrHotfixTagContext(rootPath, groupName)
+    const latestReleaseTag = await getLatestRemoteReleaseOrHotfixTagContext(rootPath)
     const suggestedVersion = await getSuggestedReleaseVersion(rootPath, groupName, {
         skipFetch: true,
         latestTagContext: latestReleaseTag
@@ -600,9 +578,9 @@ async function askStartHotfixName (rootPath, groupName) {
     const conflictPrefix = `release/${groupName}/`
     const semverRule = /^\d+\.\d+\.\d+$/
     await gitFetchOriginPrune(rootPath)
-    const latestHotfixTag = await getLatestRemoteReleaseOrHotfixTagContext(rootPath, groupName)
+    const latestHotfixTag = await getLatestRemoteReleaseOrHotfixTagContext(rootPath)
     if (!latestHotfixTag) {
-        vscode.window.showErrorMessage(`未找到符合 release/${groupName}/X.Y.Z-YYYYMMDDHHmm 或 hotfix/${groupName}/X.Y.Z-YYYYMMDDHHmm 规则的远程 tag，Start Hotfix 已中断。`)
+        vscode.window.showErrorMessage(`未找到以 -YYYYMMDDHHmm 结尾的远程 release/hotfix tag，Start Hotfix 已中断。`)
         return null
     }
     const remoteVersionsInGroup = await getRemoteReleaseHotfixVersions(rootPath, groupName, { skipFetch: true })

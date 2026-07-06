@@ -29,7 +29,7 @@ public class StartNewHotfixHandler extends AbstractZeroGitHandler {
             ui().showError(
                     shell(event),
                     "ZeroGit: Start New Hotfix",
-                    "未找到符合 release/<group>/X.Y.Z-YYYYMMDDHHmm 或 hotfix/<group>/X.Y.Z-YYYYMMDDHHmm 规则的远程 tag。");
+                    "未找到以 -YYYYMMDDHHmm 结尾的远程 release/hotfix tag。");
             return null;
         }
 
