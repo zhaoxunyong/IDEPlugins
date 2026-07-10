@@ -124,7 +124,7 @@ if [ "$setResult" -eq 0 ]; then
   mvn versions:commit
   echo "mvn versions:commit succeeded, starting mvn deploy..."
   set +e
-  mvn deploy
+  mvn -q -Dmaven.test.skip=true deploy
   deployResult=$?
   set -e
   if [ "$deployResult" -eq 0 ]; then

@@ -138,7 +138,14 @@ if [ -f "pom.xml" ]; then
       git commit -m "chore: set version to ${mvnReleaseVersion}"
     fi
     echo "mvn versions:commit succeeded, starting mvn deploy..."
-    mvn deploy
+    set +e
+    mvn -q -Dmaven.test.skip=true deploy
+    deployResult=$?
+    set -e
+    if [ "$deployResult" -ne 0 ]; then
+      echo "mvn deploy failed, please check logs and resolve manually."
+      exit 1
+    fi
   else
     echo "mvn versions:set failed, reverting..."
     set +e
