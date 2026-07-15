@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "com.zerofinance"
-version = "2.0.7"
+version = "2.0.8"
 
 repositories {
     mavenCentral()
