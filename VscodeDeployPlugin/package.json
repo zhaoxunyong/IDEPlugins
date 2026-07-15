@@ -145,14 +145,6 @@
             ],
             "zerogit.menu": [
                 {
-                    "command": "extension.GenerateCommitMessage",
-                    "group": "0_commit"
-                },
-                {
-                    "command": "extension.AiCodeReview",
-                    "group": "0_commit"
-                },
-                {
                     "submenu": "zerogit.maven.menu",
                     "group": "1_maven"
                 },
@@ -173,8 +165,16 @@
                     "group": "5_gitlabci"
                 },
                 {
+                    "command": "extension.AiCodeReview",
+                    "group": "6_tools"
+                },
+                {
+                    "command": "extension.GenerateCommitMessage",
+                    "group": "6_tools"
+                },
+                {
                     "command": "extension.GitFlowGuideline",
-                    "group": "9_guideline"
+                    "group": "6_tools"
                 }
             ],
             "zerogit.maven.menu": [

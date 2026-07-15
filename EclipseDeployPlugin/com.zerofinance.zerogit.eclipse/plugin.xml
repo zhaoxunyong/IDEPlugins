@@ -110,13 +110,6 @@
       <menu
         id="com.zerofinance.zerogit.eclipse.menu.root"
         label="ZeroGit">
-        <command
-          commandId="com.zerofinance.zerogit.eclipse.commands.generateCommitMessage"
-          label="Generate Commit Message"/>
-        <command
-          commandId="com.zerofinance.zerogit.eclipse.commands.aiCodeReview"
-          label="AI Code Review"/>
-        <separator name="zerogit.groups"/>
         <menu
           id="com.zerofinance.zerogit.eclipse.menu.maven"
           label="Maven">
@@ -167,6 +160,13 @@
             commandId="com.zerofinance.zerogit.eclipse.commands.runCiCommand"
             label="Run CI Command"/>
         </menu>
+        <separator name="zerogit.groups"/>
+        <command
+          commandId="com.zerofinance.zerogit.eclipse.commands.aiCodeReview"
+          label="AI Code Review"/>
+        <command
+          commandId="com.zerofinance.zerogit.eclipse.commands.generateCommitMessage"
+          label="Generate Commit Message"/>
         <command
           commandId="com.zerofinance.zerogit.eclipse.commands.gitflowGuideline"
           label="GitFlow Guideline"/>

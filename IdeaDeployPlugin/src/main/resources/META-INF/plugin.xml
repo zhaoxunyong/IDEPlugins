@@ -80,8 +80,6 @@
         <!-- main menu -->
         <group id="ZeroMainAction" text="ZeroGit" description="A git deploy plugin tool">
             <add-to-group group-id="VcsGroups" anchor="after" relative-to-action="Git.MainMenu" />
-            <action id="GenerateCommitMessageMainMenu" class="com.zerofinance.zerogitdeploy.action.GenerateCommitMessageAction" icon="AllIcons.Actions.EditSource" text="Generate Commit Message" description="ZeroGit Generate Commit Message" />
-            <action id="AiCodeReviewMainMenu" class="com.zerofinance.zerogitdeploy.action.AiCodeReviewAction" icon="AllIcons.General.InspectionsEye" text="AI Code Review" description="ZeroGit AI Code Review (staged)" />
             <group id="ZeroMainMavenSubMenu" text="Maven" popup="true" icon="/icons/mavenMenu.svg">
                 <action id="MavenChangeMainMenu" class="com.zerofinance.zerogitdeploy.action.MavenChangeAction" icon="AllIcons.Nodes.PpLib" text="Maven Change" description="ZeroGit Maven Change" />
             </group>
@@ -102,6 +100,8 @@
             <group id="ZeroMainGitlabCiSubMenu" text="GitLab CI" popup="true" icon="AllIcons.Actions.Execute">
                 <action id="RunGitlabCiBaseExecCmdMainMenu" class="com.zerofinance.zerogitdeploy.action.RunGitlabCiBaseExecCmdAction" icon="AllIcons.Actions.Execute" text="Run CI Command" description="Run a CI command from .gitlab-ci.yml" />
             </group>
+            <action id="AiCodeReviewMainMenu" class="com.zerofinance.zerogitdeploy.action.AiCodeReviewAction" icon="AllIcons.General.InspectionsEye" text="AI Code Review" description="ZeroGit AI Code Review (staged)" />
+            <action id="GenerateCommitMessageMainMenu" class="com.zerofinance.zerogitdeploy.action.GenerateCommitMessageAction" icon="AllIcons.Actions.EditSource" text="Generate Commit Message" description="ZeroGit Generate Commit Message" />
             <action id="GitFlowGuidelineMainMenu" class="com.zerofinance.zerogitdeploy.action.GitFlowGuidelineAction" icon="AllIcons.General.Web" text="GitFlow Guideline" description="Open GitFlow Guideline in browser" />
         </group>
 
@@ -111,8 +111,6 @@
             <separator/>
             <add-to-group group-id="ProjectViewPopupMenu" anchor="after" relative-to-action="WeighingNewGroup" />
             <add-to-group group-id="EditorPopupMenu" anchor="last" />
-            <action id="GenerateCommitMessagePopupMenu" class="com.zerofinance.zerogitdeploy.action.GenerateCommitMessageAction" icon="AllIcons.Actions.EditSource" text="Generate Commit Message" description="ZeroGit Generate Commit Message" />
-            <action id="AiCodeReviewPopupMenu" class="com.zerofinance.zerogitdeploy.action.AiCodeReviewAction" icon="AllIcons.General.InspectionsEye" text="AI Code Review" description="ZeroGit AI Code Review (staged)" />
             <group id="ZeroPopupMavenSubMenu" text="Maven" popup="true" icon="/icons/mavenMenu.svg">
                 <action id="MavenChangePopupMenu" class="com.zerofinance.zerogitdeploy.action.MavenChangeAction" icon="AllIcons.Nodes.PpLib" text="Maven Change" description="ZeroGit Maven Change" />
             </group>
@@ -133,6 +131,8 @@
             <group id="ZeroPopupGitlabCiSubMenu" text="GitLab CI" popup="true" icon="AllIcons.Actions.Execute">
                 <action id="RunGitlabCiBaseExecCmdPopupMenu" class="com.zerofinance.zerogitdeploy.action.RunGitlabCiBaseExecCmdAction" icon="AllIcons.Actions.Execute" text="Run CI Command" description="Run a CI command from .gitlab-ci.yml" />
             </group>
+            <action id="AiCodeReviewPopupMenu" class="com.zerofinance.zerogitdeploy.action.AiCodeReviewAction" icon="AllIcons.General.InspectionsEye" text="AI Code Review" description="ZeroGit AI Code Review (staged)" />
+            <action id="GenerateCommitMessagePopupMenu" class="com.zerofinance.zerogitdeploy.action.GenerateCommitMessageAction" icon="AllIcons.Actions.EditSource" text="Generate Commit Message" description="ZeroGit Generate Commit Message" />
             <action id="GitFlowGuidelinePopupMenu" class="com.zerofinance.zerogitdeploy.action.GitFlowGuidelineAction" icon="AllIcons.General.Web" text="GitFlow Guideline" description="Open GitFlow Guideline in browser" />
         </group>
 
