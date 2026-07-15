@@ -20,6 +20,14 @@ function pickLatestDatedRemoteTag (sortedTagRefs) {
     return null
 }
 
+function extractDatedRemoteTagVersions (tagRefs) {
+    return (Array.isArray(tagRefs) ? tagRefs : [])
+        .map(tagRef => pickLatestDatedRemoteTag([tagRef]))
+        .filter(Boolean)
+        .map(tag => tag.version)
+}
+
 module.exports = {
+    extractDatedRemoteTagVersions,
     pickLatestDatedRemoteTag
 }

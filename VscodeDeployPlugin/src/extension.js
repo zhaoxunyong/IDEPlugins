@@ -2,7 +2,7 @@ const path = require('path')
 const vscode = require('vscode')
 const myPlugin = require('./myPlugin')
 const { pomXmlContainsSnapshot } = require('./pomSnapshot')
-const { pickLatestDatedRemoteTag } = require('./tagSelection')
+const { extractDatedRemoteTagVersions, pickLatestDatedRemoteTag } = require('./tagSelection')
 const {
     buildGitMrAssigneeQuickPickItems,
     getMissingGitMrAssigneeMessage,
@@ -404,7 +404,8 @@ async function getSuggestedReleaseVersion (rootPath, groupName, options = {}) {
         : await getLatestRemoteReleaseOrHotfixTagContext(rootPath)
     const remoteVersionsInGroup = await getRemoteReleaseHotfixVersions(rootPath, groupName, { skipFetch })
     const remoteVersionsAllGroups = await getAllRemoteReleaseHotfixVersions(rootPath, { skipFetch })
-    const maxVersion = getMaxSemverVersion([latestTag ? latestTag.version : null, ...remoteVersionsAllGroups])
+    const tagVersions = latestTag ? latestTag.allTagVersions : []
+    const maxVersion = getMaxSemverVersion([...tagVersions, ...remoteVersionsAllGroups])
     if (!maxVersion) {
         return '1.0.0'
     }
@@ -454,7 +455,11 @@ async function getLatestRemoteReleaseOrHotfixTagContext (rootPath) {
         .filter(Boolean)
         .filter(line => remoteTags.has(line.split('|')[0].trim()))
 
-    return pickLatestDatedRemoteTag(sortedRemoteTagRefs)
+    const latestTag = pickLatestDatedRemoteTag(sortedRemoteTagRefs)
+    if (latestTag) {
+        latestTag.allTagVersions = extractDatedRemoteTagVersions(Array.from(remoteTags))
+    }
+    return latestTag
 }
 
 async function getRemoteReleaseHotfixVersions (rootPath, groupName, options = {}) {
