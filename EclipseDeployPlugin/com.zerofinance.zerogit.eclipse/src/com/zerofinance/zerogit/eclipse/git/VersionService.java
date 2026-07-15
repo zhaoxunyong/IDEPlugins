@@ -54,6 +54,17 @@ public class VersionService {
         return null;
     }
 
+    public List<String> findDatedRemoteTags(List<String> tagNames) {
+        List<String> tags = new ArrayList<String>();
+        for (String tagName : tagNames == null ? Collections.<String>emptyList() : tagNames) {
+            HotfixBaseTagInfo current = parseDatedHotfixBaseTag(tagName);
+            if (current != null) {
+                tags.add(current.getTagName());
+            }
+        }
+        return tags;
+    }
+
     public List<String> sortBranchesBySemverDesc(List<String> branches) {
         List<String> copy = new ArrayList<String>(branches == null ? Collections.<String>emptyList() : branches);
         Collections.sort(copy, (left, right) -> compareSemver(extractVersion(right), extractVersion(left)));

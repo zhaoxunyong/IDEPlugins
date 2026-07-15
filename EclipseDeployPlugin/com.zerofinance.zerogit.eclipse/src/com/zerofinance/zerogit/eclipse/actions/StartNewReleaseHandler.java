@@ -33,10 +33,9 @@ public class StartNewReleaseHandler extends AbstractZeroGitHandler {
         List<String> allBranches = new ArrayList<String>();
         allBranches.addAll(listAllReleaseBranches(repoRoot));
         allBranches.addAll(listAllHotfixBranches(repoRoot));
-        HotfixBaseTagInfo latestTag = latestHotfixBaseTag(repoRoot);
-        if (latestTag != null) {
-            allBranches.add(latestTag.getTagName());
-        }
+        List<String> remoteTags = listRemoteReleaseOrHotfixTags(repoRoot);
+        allBranches.addAll(remoteTags);
+        HotfixBaseTagInfo latestTag = versionService.findLatestHotfixBaseTag(remoteTags);
 
         String suggestedBranch = versionService.suggestNextRelease(allBranches, merge(releaseBranches, hotfixBranches), group);
         String latestTagText = latestTag == null ? "无" : latestTag.getTagName();
@@ -102,9 +101,9 @@ public class StartNewReleaseHandler extends AbstractZeroGitHandler {
         }
     }
 
-    private HotfixBaseTagInfo latestHotfixBaseTag(String repoRoot) throws ExecutionException {
+    private List<String> listRemoteReleaseOrHotfixTags(String repoRoot) throws ExecutionException {
         try {
-            return gitRepositoryService().getLatestRemoteHotfixBaseTag(repoRoot);
+            return gitRepositoryService().listRemoteReleaseOrHotfixTags(repoRoot);
         } catch (Exception e) {
             throw new ExecutionException("Failed to inspect remote tags.", e);
         }

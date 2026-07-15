@@ -3,6 +3,8 @@ package com.zerofinance.zerogitdeploy.handler;
 import org.apache.commons.lang.StringUtils;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -30,6 +32,17 @@ final class HotfixTagSelector {
             return new HotfixBaseTagInfo(tagName, matcher.group(2), matcher.group(3));
         }
         return null;
+    }
+
+    static List<String> extractDatedRemoteTagVersions(List<String> tagRefs) {
+        List<String> versions = new ArrayList<>();
+        for (String tagRef : tagRefs == null ? Collections.<String>emptyList() : tagRefs) {
+            HotfixBaseTagInfo tag = pickLatestDatedRemoteTag(Collections.singletonList(tagRef));
+            if (tag != null) {
+                versions.add(tag.getVersion());
+            }
+        }
+        return versions;
     }
 
     static final class HotfixBaseTagInfo {

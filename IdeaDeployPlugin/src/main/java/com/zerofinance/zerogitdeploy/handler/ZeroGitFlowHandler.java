@@ -375,8 +375,10 @@ public class ZeroGitFlowHandler {
                 return;
             }
             gitFetchOriginPrune(rPath);
-            HotfixTagSelector.HotfixBaseTagInfo latestTag = getLatestRemoteHotfixBaseTag(rPath);
-            // 为了满足“按最后三位数字递增”的需求：maxVersion 取全局（跨所有 group），
+            List<String> remoteTagRefs = listRemoteReleaseOrHotfixTagRefs(rPath);
+            HotfixTagSelector.HotfixBaseTagInfo latestTag = HotfixTagSelector.pickLatestDatedRemoteTag(remoteTagRefs);
+            List<String> remoteTagVersions = HotfixTagSelector.extractDatedRemoteTagVersions(remoteTagRefs);
+            // maxVersion 比较全部远程 tag 与全局 branch（跨所有 group），
             // 但 findNextAvailableVersion 只需要避开当前 group 内已存在的 release/hotfix 版本。
             List<String> releases = listReleaseBranches(rPath, groupName, true, true);
             List<String> hotfixes = listHotfixBranches(rPath, groupName, true, true);
@@ -384,9 +386,9 @@ public class ZeroGitFlowHandler {
             List<String> remoteHotfixesInGroup = listHotfixBranches(rPath, groupName, false, true);
             List<String> remoteReleasesAll = listAllReleaseBranches(rPath, false, true);
             List<String> remoteHotfixesAll = listAllHotfixBranches(rPath, false, true);
-            String maxVersion = getMaxSemverVersion(latestTag == null ? null : latestTag.getVersion(), remoteReleasesAll, remoteHotfixesAll);
+            String maxVersion = getMaxSemverVersion(remoteTagVersions, remoteReleasesAll, remoteHotfixesAll);
             String suggested = "1.0.0";
-            if (!remoteReleasesAll.isEmpty() || !remoteHotfixesAll.isEmpty() || latestTag != null) {
+            if (!remoteReleasesAll.isEmpty() || !remoteHotfixesAll.isEmpty() || !remoteTagVersions.isEmpty()) {
                 // 新版本号规则：累计中间段（minor），而不是尾数（patch）
                 // 例如：1.0.1 -> 1.1.0
                 suggested = findNextAvailableVersion(nextMinor(maxVersion), remoteReleasesInGroup, remoteHotfixesInGroup);
@@ -1151,6 +1153,10 @@ public class ZeroGitFlowHandler {
     }
 
     private @Nullable HotfixTagSelector.HotfixBaseTagInfo getLatestRemoteHotfixBaseTag(String rootPath) throws Exception {
+        return HotfixTagSelector.pickLatestDatedRemoteTag(listRemoteReleaseOrHotfixTagRefs(rootPath));
+    }
+
+    private List<String> listRemoteReleaseOrHotfixTagRefs(String rootPath) throws Exception {
         execGitArgs(rootPath, "fetch", "origin", "--tags", "--prune");
         ExecuteResult remoteResult = execGitArgs(rootPath, "ls-remote", "--tags", "--refs", "origin");
         Set<String> remoteTags = new HashSet<>();
@@ -1169,7 +1175,7 @@ public class ZeroGitFlowHandler {
             }
         }
         if (remoteTags.isEmpty()) {
-            return null;
+            return Collections.emptyList();
         }
 
         ExecuteResult localResult = execGitArgs(rootPath,
@@ -1184,7 +1190,7 @@ public class ZeroGitFlowHandler {
                 sortedRemoteTagRefs.add(line);
             }
         }
-        return HotfixTagSelector.pickLatestDatedRemoteTag(sortedRemoteTagRefs);
+        return sortedRemoteTagRefs;
     }
 
     private String findNextAvailableVersion(String baseVersion, List<String> releases, List<String> hotfixes) {
@@ -1202,11 +1208,9 @@ public class ZeroGitFlowHandler {
         return candidate;
     }
 
-    private String getMaxSemverVersion(String tagVersion, List<String> releases, List<String> hotfixes) {
+    private String getMaxSemverVersion(List<String> tagVersions, List<String> releases, List<String> hotfixes) {
         List<String> versions = new ArrayList<>();
-        if (SEMVER_PATTERN.matcher(StringUtils.defaultString(tagVersion)).matches()) {
-            versions.add(tagVersion);
-        }
+        versions.addAll(extractVersions(tagVersions));
         versions.addAll(extractVersions(releases));
         versions.addAll(extractVersions(hotfixes));
         if (versions.isEmpty()) {
@@ -1214,6 +1218,10 @@ public class ZeroGitFlowHandler {
         }
         versions.sort(this::compareSemver);
         return versions.get(versions.size() - 1);
+    }
+
+    private String getMaxSemverVersion(String tagVersion, List<String> releases, List<String> hotfixes) {
+        return getMaxSemverVersion(Collections.singletonList(tagVersion), releases, hotfixes);
     }
 
     private void ensureSemver(String version, String error) {

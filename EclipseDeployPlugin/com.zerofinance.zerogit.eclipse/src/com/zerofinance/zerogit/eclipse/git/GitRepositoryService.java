@@ -70,6 +70,10 @@ public class GitRepositoryService {
     }
 
     public VersionService.HotfixBaseTagInfo getLatestRemoteHotfixBaseTag(String repoRoot) throws IOException {
+        return versionService.findLatestHotfixBaseTag(listRemoteReleaseOrHotfixTags(repoRoot));
+    }
+
+    public List<String> listRemoteReleaseOrHotfixTags(String repoRoot) throws IOException {
         File repoDirectory = new File(repoRoot);
         runGit(repoDirectory, "fetch", "origin", "--tags", "--prune");
 
@@ -81,7 +85,7 @@ public class GitRepositoryService {
             }
         }
         if (remoteTags.isEmpty()) {
-            return null;
+            return new ArrayList<String>();
         }
 
         List<String> sortedRemoteTagRefs = new ArrayList<String>();
@@ -96,7 +100,7 @@ public class GitRepositoryService {
                 sortedRemoteTagRefs.add(line);
             }
         }
-        return versionService.findLatestHotfixBaseTag(sortedRemoteTagRefs);
+        return versionService.findDatedRemoteTags(sortedRemoteTagRefs);
     }
 
     public boolean hasStagedChanges(String repoRoot) throws IOException {
