@@ -344,7 +344,7 @@ public class ZeroGitFlowHandler {
         debugLog("command triggered", "AI Code Review");
         String rootPath = getRootPath();
         String commitRange = StringUtils.trimToEmpty(Messages.showInputDialog(
-                "输入单个commit时只评审该提交；输入commit范围时评审该范围内的提交。留空则评审已暂存变更。",
+                "输入单个commit时只评审该提交；输入commit范围时评审该范围内的提交。留空则评审已暂存变更。\n例如：HEAD（单提交）、HEAD~3（最近 3 个提交）、a b（a-b区间的提交）",
                 "ZeroGit: AI Code Review",
                 Messages.getQuestionIcon(),
                 "",

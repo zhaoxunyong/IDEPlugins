@@ -1797,7 +1797,7 @@ async function executeGitFlowCommand (commandId, resourceUri) {
     if (commandId === 'extension.AiCodeReview') {
         const commitRange = await vscode.window.showInputBox({
             ignoreFocusOut: true,
-            placeHolder: '例如：HEAD（单提交）、HEAD~3 HEAD（最近 3 个提交）',
+            placeHolder: '例如：HEAD（单提交）、HEAD~3（最近 3 个提交）、a b（a-b区间的提交）',
             prompt: '输入单个commit时只评审该提交；输入commit范围时评审该范围内的提交。留空则评审已暂存变更。'
         })
         scriptArgs.push(...buildAiCodeReviewScriptArgs(commitRange))
