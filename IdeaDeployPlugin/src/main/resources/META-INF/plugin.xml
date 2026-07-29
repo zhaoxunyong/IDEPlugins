@@ -101,7 +101,7 @@
             <group id="ZeroMainGitlabCiSubMenu" text="GitLab CI" popup="true" icon="AllIcons.Actions.Execute">
                 <action id="RunGitlabCiBaseExecCmdMainMenu" class="com.zerofinance.zerogitdeploy.action.RunGitlabCiBaseExecCmdAction" icon="AllIcons.Actions.Execute" text="Run CI Command" description="Run a CI command from .gitlab-ci.yml" />
             </group>
-            <action id="AiCodeReviewMainMenu" class="com.zerofinance.zerogitdeploy.action.AiCodeReviewAction" icon="AllIcons.General.InspectionsEye" text="AI Code Review" description="ZeroGit AI Code Review (staged)" />
+            <action id="AiCodeReviewMainMenu" class="com.zerofinance.zerogitdeploy.action.AiCodeReviewAction" icon="AllIcons.General.InspectionsEye" text="AI Code Review" description="ZeroGit AI Code Review" />
             <action id="GenerateCommitMessageMainMenu" class="com.zerofinance.zerogitdeploy.action.GenerateCommitMessageAction" icon="AllIcons.Actions.EditSource" text="Generate Commit Message" description="ZeroGit Generate Commit Message" />
             <action id="GitFlowGuidelineMainMenu" class="com.zerofinance.zerogitdeploy.action.GitFlowGuidelineAction" icon="AllIcons.General.Web" text="GitFlow Guideline" description="Open GitFlow Guideline in browser" />
         </group>
@@ -132,7 +132,7 @@
             <group id="ZeroPopupGitlabCiSubMenu" text="GitLab CI" popup="true" icon="AllIcons.Actions.Execute">
                 <action id="RunGitlabCiBaseExecCmdPopupMenu" class="com.zerofinance.zerogitdeploy.action.RunGitlabCiBaseExecCmdAction" icon="AllIcons.Actions.Execute" text="Run CI Command" description="Run a CI command from .gitlab-ci.yml" />
             </group>
-            <action id="AiCodeReviewPopupMenu" class="com.zerofinance.zerogitdeploy.action.AiCodeReviewAction" icon="AllIcons.General.InspectionsEye" text="AI Code Review" description="ZeroGit AI Code Review (staged)" />
+            <action id="AiCodeReviewPopupMenu" class="com.zerofinance.zerogitdeploy.action.AiCodeReviewAction" icon="AllIcons.General.InspectionsEye" text="AI Code Review" description="ZeroGit AI Code Review" />
             <action id="GenerateCommitMessagePopupMenu" class="com.zerofinance.zerogitdeploy.action.GenerateCommitMessageAction" icon="AllIcons.Actions.EditSource" text="Generate Commit Message" description="ZeroGit Generate Commit Message" />
             <action id="GitFlowGuidelinePopupMenu" class="com.zerofinance.zerogitdeploy.action.GitFlowGuidelineAction" icon="AllIcons.General.Web" text="GitFlow Guideline" description="Open GitFlow Guideline in browser" />
         </group>
@@ -143,7 +143,7 @@
             <!-- icon can see: https://intellij-icons.jetbrains.design/ -->
             <action class="com.zerofinance.zerogitdeploy.action.ZeroToolbarLabelAction" id="ZeroToolbarLabelAction" />
             <action id="GenerateCommitMessageToolbar" class="com.zerofinance.zerogitdeploy.action.GenerateCommitMessageAction" icon="AllIcons.Actions.EditSource" text="Generate Commit Message" description="ZeroGit Generate Commit Message" />
-            <action id="AiCodeReviewToolbar" class="com.zerofinance.zerogitdeploy.action.AiCodeReviewAction" icon="AllIcons.General.InspectionsEye" text="AI Code Review" description="ZeroGit AI Code Review (staged)" />
+            <action id="AiCodeReviewToolbar" class="com.zerofinance.zerogitdeploy.action.AiCodeReviewAction" icon="AllIcons.General.InspectionsEye" text="AI Code Review" description="ZeroGit AI Code Review" />
             <action id="MavenChangeToolbar" class="com.zerofinance.zerogitdeploy.action.MavenChangeAction" icon="AllIcons.Nodes.PpLib" text="Maven Change" description="ZeroGit Maven Change" />
             <action id="StartNewFeatureToolbar" class="com.zerofinance.zerogitdeploy.action.StartNewFeatureAction" icon="AllIcons.Vcs.Branch" text="Start New Feature" description="ZeroGit Start New Feature" />
             <action id="FinishFeatureToolbar" class="com.zerofinance.zerogitdeploy.action.FinishFeatureAction" icon="AllIcons.Vcs.Branch" text="Finish Feature" description="ZeroGit Finish Feature" />

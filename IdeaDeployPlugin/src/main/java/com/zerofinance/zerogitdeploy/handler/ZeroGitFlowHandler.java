@@ -343,13 +343,23 @@ public class ZeroGitFlowHandler {
     public void aiCodeReview() throws Exception {
         debugLog("command triggered", "AI Code Review");
         String rootPath = getRootPath();
+        String commitRange = StringUtils.trimToEmpty(Messages.showInputDialog(
+                "输入单个commit时只评审该提交；输入commit范围时评审该范围内的提交。留空则评审已暂存变更。",
+                "ZeroGit: AI Code Review",
+                Messages.getQuestionIcon(),
+                "",
+                null
+        ));
         CommandUtils.clearZeroGitScriptCache();
-        if (!gitRepoHasStagedChanges(rootPath)) {
+        if (StringUtils.isBlank(commitRange) && !gitRepoHasStagedChanges(rootPath)) {
             Messages.showWarningDialog(project, "请先执行 git add 后再运行 AI Code Review", "ZeroGit: AI Code Review");
             return;
         }
         String script = CommandUtils.processZeroGitScript(rootPath, "AiCodeReview.sh");
-        confirmAndRunInTerminal("AI Code Review", rootPath, script, Lists.newArrayList());
+        List<String> params = StringUtils.isBlank(commitRange)
+                ? Lists.newArrayList()
+                : Lists.newArrayList(commitRange);
+        confirmAndRunInTerminal("AI Code Review", rootPath, script, params);
     }
 
     public void runGitlabCiBaseExecCmd() throws Exception {
