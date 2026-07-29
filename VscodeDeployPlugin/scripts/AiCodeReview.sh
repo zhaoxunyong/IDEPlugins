@@ -11,13 +11,18 @@ if [ -f "$_VSDEP_PRE" ]; then
 fi
 unset _VSDEP_PRE
 
-# 本地对已暂存变更做 repo-aware AI code review（不发送飞书、不操作 git commit）。
-# 用法：./AiCodeReview.sh [模型名]   默认模型与 GenCommitMessage.sh 一致：gpt-5.4
+# 本地对已暂存变更或指定提交历史做 repo-aware AI code review（不发送飞书、不操作 git commit）。
+# 用法：./AiCodeReview.sh [提交范围]   模型固定为 gpt-5.6-terra
 
 #export PATH="/usr/local/bin:/usr/bin:~/.codex/bin:$PATH"
 export PATH="/usr/local/bin:/usr/bin:~/AppData/Roaming/npm:~/.nvm/versions/node/v22.22.0/bin:$PATH"
 
-modelName="${1:-gpt-5.4}"
+modelName="gpt-5.6-terra"
+commitRange="${1:-}"
+revision_args=()
+if [ -n "$commitRange" ]; then
+  read -r -a revision_args <<< "$commitRange"
+fi
 
 if ! command -v codex >/dev/null 2>&1; then
   echo "未检测到 codex 命令，请先安装并确保在 PATH 中可用"
@@ -75,21 +80,26 @@ if [ -z "$skill_found" ]; then
 fi
 unset skill_found _skill_dir _git_top codex_home _codex_u _skill_dirs
 
-if git diff --cached --quiet; then
-  echo "未检测到已暂存变更，请先执行 git add 后再运行本脚本"
-  exit 1
+if [ "${#revision_args[@]}" -eq 0 ]; then
+  if git diff --cached --quiet; then
+    echo "未检测到已暂存变更，请先执行 git add 后再运行本脚本"
+    exit 1
+  fi
+  echo "检测到已暂存变更，开始 repo-aware AI Code Review..."
+else
+  echo "检测到提交范围 ${commitRange}，开始 repo-aware AI Code Review..."
 fi
 
 GIT_TOP=$(git rev-parse --show-toplevel)
 PROJECT_NAME=$(basename "$GIT_TOP")
 TMP_WORK_DIR="$HOME/.codex/tmp/${PROJECT_NAME}/local-ai-code-review/$(date +%Y%m%d)/$$"
 mkdir -p "$TMP_WORK_DIR"
-echo "检测到已暂存变更，开始 repo-aware AI Code Review..."
 echo "[local-ai-review 调试] 临时工作目录: $TMP_WORK_DIR" >&2
 
 AI_CODE_REVIEW_TIMEOUT_SECONDS="${AI_CODE_REVIEW_TIMEOUT_SECONDS:-${MR_AI_REVIEW_TIMEOUT_SECONDS:-300}}"
 echo "[local-ai-review 调试] 使用超时时间: ${AI_CODE_REVIEW_TIMEOUT_SECONDS}s" >&2
 echo "[local-ai-review 调试] 使用模型: ${modelName}" >&2
+[ "${#revision_args[@]}" -eq 0 ] || echo "[local-ai-review 调试] 提交范围: ${commitRange}" >&2
 
 download_ai_review_risk_learnings() {
   local tmp_work_dir="$1"
@@ -123,6 +133,28 @@ append_ai_review_risk_learnings_section() {
   } >> "$prompt_file"
 }
 
+resolve_commit_ai_review_range() {
+  local requested_base_sha
+
+  case "${#revision_args[@]}" in
+    1)
+      COMMIT_REVIEW_HEAD_SHA=$(git rev-parse --verify "${revision_args[0]}^{commit}") || return
+      COMMIT_REVIEW_BASE_SHA=$(git rev-parse --verify "${COMMIT_REVIEW_HEAD_SHA}^") || return
+      ;;
+    2)
+      requested_base_sha=$(git rev-parse --verify "${revision_args[0]}^{commit}") || return
+      COMMIT_REVIEW_HEAD_SHA=$(git rev-parse --verify "${revision_args[1]}^{commit}") || return
+      COMMIT_REVIEW_BASE_SHA=$(git merge-base "$requested_base_sha" "$COMMIT_REVIEW_HEAD_SHA") || return
+      ;;
+    *)
+      echo "提交范围仅支持单个 commit 或 BASE HEAD 两个 commit" >&2
+      return 1
+      ;;
+  esac
+
+  COMMIT_REVIEW_DIFF_RANGE="${COMMIT_REVIEW_BASE_SHA}...${COMMIT_REVIEW_HEAD_SHA}"
+}
+
 build_local_ai_review_context() {
   local tmp_work_dir="$1"
   local context_file="$2"
@@ -130,8 +162,33 @@ build_local_ai_review_context() {
   local changed_lines_file="$tmp_work_dir/changed-lines.patch"
   local diff_stat_file="$tmp_work_dir/diff-stat.txt"
   local name_status_file="$tmp_work_dir/name-status.txt"
-  local head_sha=""
+  if [ "${#revision_args[@]}" -gt 0 ]; then
+    resolve_commit_ai_review_range || return
+    git diff --name-only "$COMMIT_REVIEW_DIFF_RANGE" > "$changed_files_file" || return
+    git diff --unified=0 "$COMMIT_REVIEW_DIFF_RANGE" > "$changed_lines_file" || return
+    git diff --stat "$COMMIT_REVIEW_DIFF_RANGE" > "$diff_stat_file" || return
+    git diff --name-status "$COMMIT_REVIEW_DIFF_RANGE" > "$name_status_file" || return
 
+    {
+      echo "Review source: Git commit diff"
+      echo "Repository: ${GIT_TOP}"
+      echo "BASE_SHA: ${COMMIT_REVIEW_BASE_SHA}"
+      echo "HEAD_SHA: ${COMMIT_REVIEW_HEAD_SHA}"
+      echo "Diff range: ${COMMIT_REVIEW_DIFF_RANGE}"
+      echo
+      echo "Changed files file: ${changed_files_file}"
+      echo "Changed lines patch file: ${changed_lines_file}"
+      echo
+      echo "Diff stat:"
+      cat "$diff_stat_file"
+      echo
+      echo "Name status:"
+      cat "$name_status_file"
+    } > "$context_file"
+    return
+  fi
+
+  local head_sha=""
   git diff --cached --name-only > "$changed_files_file"
   git diff --cached --unified=0 > "$changed_lines_file"
   git diff --cached --stat > "$diff_stat_file"
@@ -156,7 +213,37 @@ build_local_ai_review_context() {
   } > "$context_file"
 }
 
-build_local_ai_review_prompt() {
+build_commit_ai_review_prompt() {
+  local context_file="$1"
+  local prompt_file="$2"
+  local risk_learnings_file="${3:-}"
+
+  {
+    printf '%s\n' \
+      '使用 code-review-expert skills 对当前 Git 提交记录做 code review，用中文回复。' \
+      '' \
+      '你运行在本地仓库目录里。请做 repo-aware review：' \
+      '- 评审对象只限 BASE_SHA...HEAD_SHA 这一次 commit diff。' \
+      '- 可以读取仓库其它文件作为上下文，但 findings 必须只针对本次 commit diff 直接引入或暴露的问题。' \
+      '- 不要把历史存量问题、非本次 commit diff 修改行问题、暂存变更、未暂存变更或纯风格问题作为 finding 输出，也不要影响 VERDICT。' \
+      '- 如果上下文里发现旧代码风险，但本次 commit diff 没有改到相关逻辑，默认不要输出。' \
+      '- 允许执行只读分析命令：git diff、git show、git status、rg、sed、cat、find、wc。' \
+      '- 不要修改文件，不要安装依赖，不要联网，不要执行构建/测试，不要 push/commit。' \
+      '- 请优先查看 git diff --stat BASE_SHA...HEAD_SHA、git diff --name-status BASE_SHA...HEAD_SHA，再按风险选择文件深入审查。' \
+      '- 如果发现 P0 级别的严重问题 -> 结论为 FAIL，并在理由中说明原因。' \
+      '- 如果没有发现 P0 级别的严重问题 -> 结论为 PASS。' \
+      '- 如果发现 P1 级别的问题 -> 仍然判定为 PASS，但在理由中重点提醒用户关注这些问题是否需要修复，并建议用户在 MR Commit 中标注 P1 级别的问题是否需要解决。' \
+      '- 输出格式必须满足：必须包含且仅包含一行结论，形如「VERDICT: PASS」或「VERDICT: FAIL」（全大写，该行前后不要拼接其它文字；强烈建议放在输出的第一行）；其余行再输出详细说明，可以包含任意内容（包括 PASS/FAIL 等词）。' \
+      '' \
+      '以下是本次 review 的上下文：'
+  } > "$prompt_file"
+  cat "$context_file" >> "$prompt_file"
+  if [ -n "$risk_learnings_file" ]; then
+    append_ai_review_risk_learnings_section "$prompt_file" "$risk_learnings_file"
+  fi
+}
+
+build_staged_ai_review_prompt() {
   local context_file="$1"
   local prompt_file="$2"
   local risk_learnings_file="${3:-}"
@@ -170,10 +257,10 @@ build_local_ai_review_prompt() {
       '- 可以读取仓库其它文件作为上下文，但 findings 必须只针对本次已暂存 diff 新增/修改/删除直接引入或暴露的问题。' \
       '- 不要把历史存量问题、未暂存变更、非本次暂存修改行问题、纯风格问题作为 finding 输出，也不要影响 VERDICT。' \
       '- 本地工作区可能存在未暂存内容；查看本次变更文件的新版本时，优先用 git show :<path> 读取暂存区内容，避免把未暂存内容当作评审对象。' \
-      '- 如果上下文里发现旧代码风险，但本次暂存变更没有改到相关逻辑，默认不要输出。' \
-      '- 允许执行只读分析命令：git diff、git show、git status、rg、sed、cat、find、wc。' \
-      '- 不要修改文件，不要安装依赖，不要联网，不要 push/commit。' \
       '- 请优先查看 git diff --cached --stat、git diff --cached --name-status，再按风险选择文件深入审查。' \
+      '- 如果上下文里发现旧代码风险，但本次评审范围没有改到相关逻辑，默认不要输出。' \
+      '- 允许执行只读分析命令：git diff、git log、git show、git status、rg、sed、cat、find、wc。' \
+      '- 不要修改文件，不要安装依赖，不要联网，不要 push/commit。' \
       '- 如果发现 P0 级别的严重问题 -> 结论为 FAIL，并在理由中说明原因。' \
       '- 如果没有发现 P0 级别的严重问题 -> 结论为 PASS。' \
       '- 如果发现 P1 级别的问题 -> 仍然判定为 PASS，但在理由中重点提醒用户关注这些问题是否需要修复，并建议用户在 MR Commit 中标注 P1 级别的问题是否需要解决。' \
@@ -221,13 +308,17 @@ REVIEW_OUTPUT_FILE=$(mktemp -p "$TMP_WORK_DIR" review-content.XXXXXX.md)
 REVIEW_DEBUG_FILE=$(mktemp -p "$TMP_WORK_DIR" review-debug.XXXXXX.log)
 REVIEW_PROMPT_FILE=$(mktemp -p "$TMP_WORK_DIR" review-prompt.XXXXXX.txt)
 
-build_local_ai_review_context "$TMP_WORK_DIR" "$REVIEW_CONTEXT_FILE"
+build_local_ai_review_context "$TMP_WORK_DIR" "$REVIEW_CONTEXT_FILE" || exit $?
 risk_learnings_file=$(download_ai_review_risk_learnings "$TMP_WORK_DIR") || {
   echo "[local-ai-review] 无法读取或下载 AI review 风险库: ${AI_REVIEW_RISK_LEARNINGS_URL:-https://gitlab.zerofinance.net/dave.zhao/deployPlugin/-/raw/main/ai-review/ai-risk-learnings.md}" >&2
   exit 1
 }
 echo "[local-ai-review 调试] AI review 风险库: ${risk_learnings_file}" >&2
-build_local_ai_review_prompt "$REVIEW_CONTEXT_FILE" "$REVIEW_PROMPT_FILE" "$risk_learnings_file"
+if [ "${#revision_args[@]}" -gt 0 ]; then
+  build_commit_ai_review_prompt "$REVIEW_CONTEXT_FILE" "$REVIEW_PROMPT_FILE" "$risk_learnings_file"
+else
+  build_staged_ai_review_prompt "$REVIEW_CONTEXT_FILE" "$REVIEW_PROMPT_FILE" "$risk_learnings_file"
+fi
 echo "[local-ai-review 调试] REVIEW_CONTEXT_FILE: ${REVIEW_CONTEXT_FILE}" >&2
 
 WORKTREE_STATUS_BEFORE=$(git status --porcelain=v1)

@@ -1684,6 +1684,11 @@ async function gitRepoHasStagedChanges (rootPath) {
     }
 }
 
+function buildAiCodeReviewScriptArgs (commitRange) {
+    const normalizedCommitRange = String(commitRange || '').trim()
+    return normalizedCommitRange ? [normalizedCommitRange] : []
+}
+
 async function pickWorkspaceFolder () {
     const workspaceFolders = vscode.workspace.workspaceFolders || []
     if (workspaceFolders.length === 0) {
@@ -1789,7 +1794,16 @@ async function executeGitFlowCommand (commandId, resourceUri) {
     }
     debugLog('workspace git root', rootPath)
 
-    if (commandId === 'extension.GenerateCommitMessage' || commandId === 'extension.AiCodeReview') {
+    if (commandId === 'extension.AiCodeReview') {
+        const commitRange = await vscode.window.showInputBox({
+            ignoreFocusOut: true,
+            placeHolder: '例如：HEAD（单提交）、HEAD~3 HEAD（最近 3 个提交）',
+            prompt: '输入单个commit时只评审该提交；输入commit范围时评审该范围内的提交。留空则评审已暂存变更。'
+        })
+        scriptArgs.push(...buildAiCodeReviewScriptArgs(commitRange))
+    }
+
+    if (commandId === 'extension.GenerateCommitMessage' || (commandId === 'extension.AiCodeReview' && scriptArgs.length === 0)) {
         try {
             const hasStaged = await gitRepoHasStagedChanges(rootPath)
             if (!hasStaged) {
@@ -2062,5 +2076,6 @@ module.exports = {
     parseConfiguredGitMrAssignees,
     resolveGitMrAssigneeSelection,
     splitBaseExecCommands,
-    extractBaseExecCommandsFromGitlabCi
+    extractBaseExecCommandsFromGitlabCi,
+    buildAiCodeReviewScriptArgs
 }
