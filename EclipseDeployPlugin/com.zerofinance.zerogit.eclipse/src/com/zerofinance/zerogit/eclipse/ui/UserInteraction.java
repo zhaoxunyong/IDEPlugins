@@ -1,6 +1,7 @@
 package com.zerofinance.zerogit.eclipse.ui;
 
 import java.util.List;
+import java.util.Collections;
 
 import org.apache.commons.lang.StringUtils;
 import org.eclipse.jface.dialogs.Dialog;
@@ -29,6 +30,14 @@ public class UserInteraction {
 
     public String chooseValue(Shell shell, String title, String message, List<String> values, String defaultValue) {
         return chooseFromList(shell, title, message, values, defaultValue);
+    }
+
+    public List<String> chooseValues(Shell shell, String title, String message, List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return Collections.emptyList();
+        }
+        CheckboxSelectionDialog dialog = new CheckboxSelectionDialog(shell, title, message, values);
+        return dialog.open() == Window.OK ? dialog.getSelected() : Collections.<String>emptyList();
     }
 
     public String promptFeatureBranch(Shell shell, String group, String initialValue) {

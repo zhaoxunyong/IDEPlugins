@@ -14,6 +14,8 @@ public class ScriptResolver {
             "gitCheck.sh",
             "GenCommitMessage.sh",
             "AiCodeReview.sh",
+            "GetSkills.sh",
+            "UpdateSkills.sh",
             "MavenChange.sh",
             "StartNewFeature.sh",
             "FinishFeature.sh",

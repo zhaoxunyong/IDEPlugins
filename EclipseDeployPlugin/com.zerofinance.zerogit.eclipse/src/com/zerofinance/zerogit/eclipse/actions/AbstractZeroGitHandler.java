@@ -130,6 +130,14 @@ public abstract class AbstractZeroGitHandler extends AbstractHandler {
                 ZeroGitSettings.getGitHome());
     }
 
+    protected CommandResult runScriptNow(CommandRequest request) throws ExecutionException {
+        try {
+            return commandRunner.runScript(request);
+        } catch (Exception e) {
+            throw new ExecutionException("执行脚本失败。", e);
+        }
+    }
+
     protected boolean hasStagedChanges(String repoRoot) throws ExecutionException {
         try {
             return gitRepositoryService().hasStagedChanges(repoRoot);

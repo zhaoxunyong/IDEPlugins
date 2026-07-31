@@ -14,6 +14,10 @@
       categoryId="com.zerofinance.zerogit.eclipse.commands.category"
       name="AI Code Review"/>
     <command
+      id="com.zerofinance.zerogit.eclipse.commands.updateSkills"
+      categoryId="com.zerofinance.zerogit.eclipse.commands.category"
+      name="Update Skills"/>
+    <command
       id="com.zerofinance.zerogit.eclipse.commands.mavenChange"
       categoryId="com.zerofinance.zerogit.eclipse.commands.category"
       name="Maven Change"/>
@@ -71,6 +75,9 @@
     <handler
       class="com.zerofinance.zerogit.eclipse.actions.AiCodeReviewHandler"
       commandId="com.zerofinance.zerogit.eclipse.commands.aiCodeReview"/>
+    <handler
+      class="com.zerofinance.zerogit.eclipse.actions.UpdateSkillsHandler"
+      commandId="com.zerofinance.zerogit.eclipse.commands.updateSkills"/>
     <handler
       class="com.zerofinance.zerogit.eclipse.actions.MavenChangeHandler"
       commandId="com.zerofinance.zerogit.eclipse.commands.mavenChange"/>
@@ -161,12 +168,19 @@
             label="Run CI Command"/>
         </menu>
         <separator name="zerogit.groups"/>
-        <command
-          commandId="com.zerofinance.zerogit.eclipse.commands.aiCodeReview"
-          label="AI Code Review"/>
-        <command
-          commandId="com.zerofinance.zerogit.eclipse.commands.generateCommitMessage"
-          label="Generate Commit Message"/>
+        <menu
+          id="com.zerofinance.zerogit.eclipse.menu.aiTools"
+          label="AI Tools">
+          <command
+            commandId="com.zerofinance.zerogit.eclipse.commands.generateCommitMessage"
+            label="Generate Commit Message"/>
+          <command
+            commandId="com.zerofinance.zerogit.eclipse.commands.aiCodeReview"
+            label="AI Code Review"/>
+          <command
+            commandId="com.zerofinance.zerogit.eclipse.commands.updateSkills"
+            label="Update Skills"/>
+        </menu>
         <command
           commandId="com.zerofinance.zerogit.eclipse.commands.gitflowGuideline"
           label="GitFlow Guideline"/>
