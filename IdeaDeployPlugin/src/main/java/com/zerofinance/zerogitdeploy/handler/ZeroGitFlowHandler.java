@@ -23,6 +23,7 @@ import com.intellij.openapi.wm.ToolWindowManager;
 import com.intellij.terminal.JBTerminalWidget;
 import com.intellij.ui.content.Content;
 import com.intellij.ui.content.ContentManager;
+import com.intellij.ui.CheckBoxList;
 import com.zerofinance.zerogitdeploy.exception.DeployPluginException;
 import com.zerofinance.zerogitdeploy.setting.ZeroGitDeploySetting;
 import com.zerofinance.zerogitdeploy.setting.GitMrAssigneeSupport;
@@ -32,6 +33,7 @@ import com.zerofinance.zerogitdeploy.tools.ExecuteResult;
 import com.zerofinance.zerogitdeploy.tools.GitlabCiCommandOption;
 import com.zerofinance.zerogitdeploy.tools.GitlabCiCommandReader;
 import com.zerofinance.zerogitdeploy.tools.MessagesUtils;
+import com.zerofinance.zerogitdeploy.tools.SkillUpdateSupport;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.SystemUtils;
 import org.jetbrains.annotations.NotNull;
@@ -360,6 +362,55 @@ public class ZeroGitFlowHandler {
                 ? Lists.newArrayList()
                 : Lists.newArrayList(commitRange);
         confirmAndRunInTerminal("AI Code Review", rootPath, script, params);
+    }
+
+    public void updateSkills() throws Exception {
+        debugLog("command triggered", "Update Skills");
+        String rootPath = getRootPath();
+        CommandUtils.clearZeroGitScriptCache();
+        String listScript = CommandUtils.processZeroGitScript(rootPath, "GetSkills.sh");
+        ExecuteResult listResult = DeployCmdExecuter.exec(rootPath, listScript, Collections.<String>emptyList(), true);
+        if (listResult.getCode() != 0) {
+            throw new DeployPluginException("GetSkills.sh 执行失败，exitCode=" + listResult.getCode() + "，详情：" +
+                    StringUtils.defaultString(listResult.getResult(), "(no output)"));
+        }
+        List<SkillUpdateSupport.Skill> skills = SkillUpdateSupport.parse(listResult.getResult());
+        if (skills.isEmpty()) {
+            Messages.showWarningDialog(project, "GetSkills.sh 未返回可更新的 skill 列表。", "ZeroGit: Update Skills");
+            return;
+        }
+        List<SkillUpdateSupport.Skill> selected = chooseSkills(skills);
+        if (selected.isEmpty()) {
+            return;
+        }
+        String updateScript = CommandUtils.processZeroGitScript(rootPath, "UpdateSkills.sh");
+        confirmAndRunInTerminal("Update Skills", rootPath, updateScript, SkillUpdateSupport.buildArgs(selected));
+    }
+
+    private List<SkillUpdateSupport.Skill> chooseSkills(List<SkillUpdateSupport.Skill> skills) {
+        CheckBoxList<SkillUpdateSupport.Skill> list = new CheckBoxList<>();
+        for (SkillUpdateSupport.Skill skill : skills) {
+            list.addItem(skill, skill.toString(), false);
+        }
+        list.setVisibleRowCount(Math.min(12, skills.size()));
+        JScrollPane scrollPane = new JScrollPane(list);
+        scrollPane.setPreferredSize(new java.awt.Dimension(480, 300));
+        int result = JOptionPane.showConfirmDialog(
+                null,
+                scrollPane,
+                "选择要更新的 skills（可多选）",
+                JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.PLAIN_MESSAGE);
+        if (result != JOptionPane.OK_OPTION) {
+            return Collections.emptyList();
+        }
+        List<SkillUpdateSupport.Skill> selected = new ArrayList<>();
+        for (int index = 0; index < skills.size(); index++) {
+            if (list.isItemSelected(index)) {
+                selected.add(list.getItemAt(index));
+            }
+        }
+        return selected;
     }
 
     public void runGitlabCiBaseExecCmd() throws Exception {

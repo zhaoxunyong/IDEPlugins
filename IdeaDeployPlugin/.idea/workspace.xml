@@ -5,18 +5,16 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="2dd5e85f-3834-40d4-acbf-af10224ec20d" name="Changes" comment="Mod: Fixed an incompatible issue.">
+      <change beforePath="$PROJECT_DIR$/../EclipseDeployPlugin/com.zerofinance.zerogit.eclipse/plugin.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../EclipseDeployPlugin/com.zerofinance.zerogit.eclipse/plugin.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../EclipseDeployPlugin/com.zerofinance.zerogit.eclipse/src/com/zerofinance/zerogit/eclipse/actions/AbstractZeroGitHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/../EclipseDeployPlugin/com.zerofinance.zerogit.eclipse/src/com/zerofinance/zerogit/eclipse/actions/AbstractZeroGitHandler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../EclipseDeployPlugin/com.zerofinance.zerogit.eclipse/src/com/zerofinance/zerogit/eclipse/exec/ScriptResolver.java" beforeDir="false" afterPath="$PROJECT_DIR$/../EclipseDeployPlugin/com.zerofinance.zerogit.eclipse/src/com/zerofinance/zerogit/eclipse/exec/ScriptResolver.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../EclipseDeployPlugin/com.zerofinance.zerogit.eclipse/src/com/zerofinance/zerogit/eclipse/ui/UserInteraction.java" beforeDir="false" afterPath="$PROJECT_DIR$/../EclipseDeployPlugin/com.zerofinance.zerogit.eclipse/src/com/zerofinance/zerogit/eclipse/ui/UserInteraction.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gradlew" beforeDir="false" afterPath="$PROJECT_DIR$/gradlew" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pluginBuild.sh" beforeDir="false" afterPath="$PROJECT_DIR$/pluginBuild.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build.gradle.kts" beforeDir="false" afterPath="$PROJECT_DIR$/build.gradle.kts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/GitMergeRequest.sh" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/handler/ZeroGitFlowHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/handler/ZeroGitFlowHandler.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/tools/CommandUtils.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/tools/CommandUtils.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../VscodeDeployPlugin/scripts/FinishFeature.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../VscodeDeployPlugin/scripts/FinishFeature.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../VscodeDeployPlugin/scripts/FinishRelease.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../VscodeDeployPlugin/scripts/FinishRelease.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../VscodeDeployPlugin/scripts/RebaseFeature.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../VscodeDeployPlugin/scripts/RebaseFeature.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../VscodeDeployPlugin/scripts/StartNewFeature.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../VscodeDeployPlugin/scripts/StartNewFeature.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../VscodeDeployPlugin/scripts/StartNewRelease.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../VscodeDeployPlugin/scripts/StartNewRelease.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../VscodeDeployPlugin/scripts/gitCheck.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../VscodeDeployPlugin/scripts/gitCheck.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../VscodeDeployPlugin/src/extension.js" beforeDir="false" afterPath="$PROJECT_DIR$/../VscodeDeployPlugin/src/extension.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/META-INF/plugin.xml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/META-INF/plugin.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -84,16 +82,24 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
   </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;zhaoxunyong&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/zhaoxunyong/IDEPlugins.git&quot;,
+    &quot;accountId&quot;: &quot;523532a0-2f16-429c-8a14-dbe2b5f8aa77&quot;
+  }
+}</component>
   <component name="HighlightingSettingsPerFile">
     <setting file="file://$PROJECT_DIR$/build.gradle.kts" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/gradlew" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/gradlew.bat" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/pluginBuild.sh" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/settings.gradle.kts" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/handler/DependenciesDialogWrapper.java" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/handler/DeployPluginHandler.java" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/handler/MavenDependency.java" root0="FORCE_HIGHLIGHTING" />
-    <setting file="file://$PROJECT_DIR$/src/main/java/com/zerofinance/zerogitdeploy/tools/MavenUtils.java" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/src/main/resources/META-INF/plugin.xml" root0="FORCE_HIGHLIGHTING" />
   </component>
   <component name="InvalidFacetManager">
@@ -131,41 +137,45 @@
   &quot;associatedIndex&quot;: 8
 }</component>
   <component name="ProjectId" id="2BSy9PL19oYJTe6TyNWTZHLXihS" />
-  <component name="ProjectLevelVcsManager" settingsEditedManually="true">
+  <component name="ProjectLevelVcsManager">
     <ConfirmationsSetting value="1" id="Add" />
   </component>
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Gradle.IdeaDeployPlugin [assemble].executor": "Debug",
-    "Gradle.IdeaDeployPlugin [setupDependencies].executor": "Run",
-    "Gradle.IdeaDeployPlugin::works:Developer:workspace:IDEPlugins:IdeaDeployPlugin [setupDependencies].executor": "Run",
-    "Gradle.Run Plugin.executor": "Run",
-    "RunOnceActivity.OpenProjectViewOnStart": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "UI_DESIGNER_EDITOR_MODE.PaletteManager.STATE": "left",
-    "UI_DESIGNER_EDITOR_MODE.UIDesignerToolWindowManager.STATE": "right",
-    "UI_DESIGNER_EDITOR_MODE.UIDesignerToolWindowManager.WIDTH": "710",
-    "WebServerToolWindowFactoryState": "false",
-    "git-widget-placeholder": "main",
-    "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "D:/Developer/workspace/gitlab-flow-demo",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "project.structure.last.edited": "SDKs",
-    "project.structure.proportion": "0.15",
-    "project.structure.side.proportion": "0.2",
-    "settings.editor.selected.configurable": "project.propCompiler",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Gradle.IdeaDeployPlugin [assemble].executor&quot;: &quot;Debug&quot;,
+    &quot;Gradle.IdeaDeployPlugin [setupDependencies].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.IdeaDeployPlugin::works:Developer:workspace:IDEPlugins:IdeaDeployPlugin [setupDependencies].executor&quot;: &quot;Run&quot;,
+    &quot;Gradle.Run Plugin.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;UI_DESIGNER_EDITOR_MODE.PaletteManager.STATE&quot;: &quot;left&quot;,
+    &quot;UI_DESIGNER_EDITOR_MODE.UIDesignerToolWindowManager.STATE&quot;: &quot;right&quot;,
+    &quot;UI_DESIGNER_EDITOR_MODE.UIDesignerToolWindowManager.WIDTH&quot;: &quot;710&quot;,
+    &quot;WebServerToolWindowFactoryState&quot;: &quot;false&quot;,
+    &quot;codeWithMe.voiceChat.enabledByDefault&quot;: &quot;false&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;D:/Developer/workspace/gitlab-flow-demo&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;project.structure.last.edited&quot;: &quot;SDKs&quot;,
+    &quot;project.structure.proportion&quot;: &quot;0.15&quot;,
+    &quot;project.structure.side.proportion&quot;: &quot;0.2&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;project.propCompiler&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RebelAgentSelection">
     <selection>jr</selection>
   </component>
@@ -193,8 +203,11 @@
       </ExternalSystemSettings>
       <ExternalSystemDebugServerProcess>true</ExternalSystemDebugServerProcess>
       <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+      <ExternalSystemDebugDisabled>false</ExternalSystemDebugDisabled>
       <DebugAllEnabled>false</DebugAllEnabled>
       <RunAsTest>false</RunAsTest>
+      <GradleProfilingDisabled>false</GradleProfilingDisabled>
+      <GradleCoverageDisabled>false</GradleCoverageDisabled>
       <method v="2" />
     </configuration>
     <recent_temporary>
@@ -206,8 +219,8 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-jdk-9823dce3aa75-b114ca120d71-intellij.indexing.shared.core-IU-242.21829.142" />
-        <option value="bundled-js-predefined-d6986cc7102b-7c0b70fcd90d-JavaScript-IU-242.21829.142" />
+        <option value="bundled-jdk-30f59d01ecdd-37e91769500f-intellij.indexing.shared.core-IU-261.25134.95" />
+        <option value="bundled-js-predefined-d6986cc7102b-31caf2ab9e3c-JavaScript-IU-261.25134.95" />
       </set>
     </attachedChunks>
   </component>
@@ -256,6 +269,9 @@
       <workItem from="1772767906956" duration="11442000" />
       <workItem from="1772802226650" duration="75000" />
       <workItem from="1772802317680" duration="226000" />
+      <workItem from="1785376946409" duration="4000" />
+      <workItem from="1785483598870" duration="100000" />
+      <workItem from="1785484207207" duration="340000" />
     </task>
     <task id="LOCAL-00001" summary="Mod: Adjusting some tips.">
       <created>1656926991407</created>

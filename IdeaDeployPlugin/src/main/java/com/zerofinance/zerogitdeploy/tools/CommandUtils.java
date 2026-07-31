@@ -25,6 +25,8 @@ public final class CommandUtils {
             "MavenChange.sh",
             "GenCommitMessage.sh",
             "AiCodeReview.sh",
+            "GetSkills.sh",
+            "UpdateSkills.sh",
             "StartNewRelease.sh",
             "FinishRelease.sh",
             "StartNewHotfix.sh"
