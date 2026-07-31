@@ -34,6 +34,9 @@ const CONFIG_GIT_BASH = `${CONFIG_ROOT}.gitBash`
 const DEFAULT_SCRIPT_ROOT_URL = 'https://gitlab.zerofinance.net/dave.zhao/deployPlugin/-/raw/git-flow'
 const COMMAND_PREFIX = 'extension.'
 const COMMAND_RUN_GITLAB_CI_BASE_EXEC = 'extension.RunGitlabCiBaseExecCmd'
+const COMMAND_UPDATE_SKILLS = 'extension.UpdateSkills'
+const GET_SKILLS_SCRIPT = 'GetSkills.sh'
+const UPDATE_SKILLS_SCRIPT = 'UpdateSkills.sh'
 const GITFLOW_GUIDELINE_URL = 'https://v04jaasnl45.feishu.cn/wiki/Vg5PwK2smiPxGLk7w4Gc7tZanjb'
 const GITLAB_CI_FILE_NAME = '.gitlab-ci.yml'
 const GITLAB_CI_NOT_FOUND_MESSAGE = '项目中未找到.gitlab-ci.yml文件'
@@ -44,6 +47,7 @@ const gitCheckPath = tmpdir + '/' + gitCheckFile
 const gitFlowScriptByCommand = {
     'extension.GenerateCommitMessage': 'GenCommitMessage.sh',
     'extension.AiCodeReview': 'AiCodeReview.sh',
+    [COMMAND_UPDATE_SKILLS]: UPDATE_SKILLS_SCRIPT,
     'extension.StartNewFeature': 'StartNewFeature.sh',
     'extension.FinishFeature': 'FinishFeature.sh',
     'extension.RebaseFeature': 'RebaseFeature.sh',
@@ -1359,13 +1363,17 @@ function runScriptBySpawn (rootPath, scriptPath, scriptArgs, outputChannel) {
         child.stdout.on('data', (chunk) => {
             const text = chunk.toString()
             stdout += text
-            outputChannel.append(text)
+            if (outputChannel) {
+                outputChannel.append(text)
+            }
         })
 
         child.stderr.on('data', (chunk) => {
             const text = chunk.toString()
             stderr += text
-            outputChannel.append(text)
+            if (outputChannel) {
+                outputChannel.append(text)
+            }
         })
 
         child.on('error', (err) => {
@@ -1386,8 +1394,12 @@ function runScriptBySpawn (rootPath, scriptPath, scriptArgs, outputChannel) {
     })
 }
 
+async function runScriptCaptureOutput (rootPath, scriptPath, scriptArgs = []) {
+    return runScriptBySpawn(rootPath, scriptPath, scriptArgs, null)
+}
+
 function clearCacheFile () {
-    const allCacheFiles = [gitCheckPath]
+    const allCacheFiles = [gitCheckPath, tmpdir + '/' + GET_SKILLS_SCRIPT, tmpdir + '/' + UPDATE_SKILLS_SCRIPT]
     for (let command in gitFlowScriptByCommand) {
         allCacheFiles.push(tmpdir + '/' + gitFlowScriptByCommand[command])
     }
@@ -1689,6 +1701,137 @@ function buildAiCodeReviewScriptArgs (commitRange) {
     return normalizedCommitRange ? [normalizedCommitRange] : []
 }
 
+function parseSkillScope (value, fallbackGlobal = false) {
+    if (typeof value === 'boolean') {
+        return value
+    }
+    const normalized = String(value === undefined || value === null ? '' : value).trim().toLowerCase().replace(/\s+skills?$/, '')
+    if (['global', '全局', '全局skill', 'global-skill'].includes(normalized)) {
+        return true
+    }
+    if (['project', '项目', '项目级', '项目级别', 'project-skill'].includes(normalized)) {
+        return false
+    }
+    return fallbackGlobal
+}
+
+function addSkill (skills, seen, name, global) {
+    const normalizedName = String(name || '').trim()
+    if (!normalizedName) {
+        return
+    }
+    const key = `${normalizedName}\u0000${global ? 'global' : 'project'}`
+    if (seen.has(key)) {
+        return
+    }
+    seen.add(key)
+    skills.push({ name: normalizedName, global: !!global })
+}
+
+/**
+ * GetSkills.sh 可返回 JSON，也可返回每行一个 skill；行格式支持：
+ *   global: skill-name / project: skill-name / skill-name<TAB>global
+ */
+function parseSkillsOutput (outputText) {
+    const skills = []
+    const seen = new Set()
+    const addValue = (value, global) => {
+        if (Array.isArray(value)) {
+            value.forEach(item => {
+                if (typeof item === 'string') {
+                    addSkill(skills, seen, item, global)
+                } else if (item && typeof item === 'object') {
+                    addSkill(skills, seen, item.name || item.skill || item.label, parseSkillScope(item.global !== undefined ? item.global : (item.isGlobal !== undefined ? item.isGlobal : (item.scope !== undefined ? item.scope : (item.level !== undefined ? item.level : item.type))), global))
+                }
+            })
+            return
+        }
+        if (value && typeof value === 'object') {
+            Object.keys(value).forEach(key => addValue(value[key], parseSkillScope(key, global)))
+        }
+    }
+
+    const text = String(outputText || '').trim()
+    if (!text) {
+        return skills
+    }
+    try {
+        const parsed = JSON.parse(text)
+        if (Array.isArray(parsed)) {
+            addValue(parsed, false)
+        } else if (parsed && typeof parsed === 'object') {
+            const values = parsed.skills || parsed.items
+            if (values !== undefined) {
+                addValue(values, false)
+            } else if (parsed.name || parsed.skill || parsed.label) {
+                addSkill(skills, seen, parsed.name || parsed.skill || parsed.label, parseSkillScope(parsed.global !== undefined ? parsed.global : (parsed.isGlobal !== undefined ? parsed.isGlobal : (parsed.scope !== undefined ? parsed.scope : (parsed.level !== undefined ? parsed.level : parsed.type))), false))
+            } else {
+                addValue(parsed.global || parsed.globalSkills || parsed.globals, true)
+                addValue(parsed.project || parsed.projectSkills || parsed.projects, false)
+            }
+        }
+        if (skills.length > 0) {
+            return skills
+        }
+    } catch (_) {
+        // 非 JSON 输出按文本格式解析。
+    }
+
+    let currentGlobal = false
+    text.split(/\r?\n/).forEach(line => {
+        const raw = line.trim()
+        if (!raw || raw.startsWith('#')) {
+            return
+        }
+        const section = raw.match(/^(global(?:\s+skills?)?|project(?:\s+skills?)?|全局(?:\s*skills?)?|项目(?:级别)?(?:\s*skills?)?)\s*[:：]?\s*$/i)
+        if (section) {
+            currentGlobal = parseSkillScope(section[1])
+            return
+        }
+        const prefixed = raw.match(/^(global(?:\s+skills?)?|project(?:\s+skills?)?|全局(?:\s*skills?)?|项目(?:级别)?(?:\s*skills?)?)\s*[:：,\t ]+(.+)$/i)
+        if (prefixed) {
+            addSkill(skills, seen, prefixed[2], parseSkillScope(prefixed[1]))
+            return
+        }
+        const suffixed = raw.match(/^(.+?)\s*(?:\t+|\s{2,}|[|,])\s*(global(?:\s+skills?)?|project(?:\s+skills?)?|全局(?:\s*skills?)?|项目(?:级别)?(?:\s*skills?)?)$/i)
+        if (suffixed) {
+            addSkill(skills, seen, suffixed[1], parseSkillScope(suffixed[2]))
+            return
+        }
+        addSkill(skills, seen, raw.replace(/^[-*]\s+/, ''), currentGlobal)
+    })
+    return skills
+}
+
+function buildUpdateSkillsScriptArgs (skills) {
+    const selected = Array.isArray(skills) ? skills : []
+    const globalSkills = selected.filter(skill => skill && skill.global).map(skill => skill.name).filter(Boolean)
+    const projectSkills = selected.filter(skill => skill && !skill.global).map(skill => skill.name).filter(Boolean)
+    return [
+        ...(globalSkills.length > 0 ? ['--global', ...globalSkills] : []),
+        ...(projectSkills.length > 0 ? ['--project', ...projectSkills] : [])
+    ]
+}
+
+async function pickSkills (skills) {
+    const items = skills.map(skill => ({
+        label: skill.name,
+        description: skill.global ? '全局 skill' : '项目级 skill',
+        value: skill
+    }))
+    const selected = await vscode.window.showQuickPick(items, {
+        ignoreFocusOut: true,
+        canPickMany: true,
+        title: '选择要更新的 skills',
+        placeHolder: '可多选；列表已区分全局 skill 和项目级 skill'
+    })
+    if (!selected || selected.length === 0) {
+        vscode.window.showErrorMessage('请选择至少一个 skill，Update Skills 已取消。')
+        return null
+    }
+    return selected.map(item => item.value)
+}
+
 async function pickWorkspaceFolder () {
     const workspaceFolders = vscode.workspace.workspaceFolders || []
     if (workspaceFolders.length === 0) {
@@ -1708,7 +1851,7 @@ async function executeGitFlowCommand (commandId, resourceUri) {
     }
     debugLog('resolve command script', { commandId, scriptName })
     // FinishRelease/FinishHotfix 自己会从分支名解析 groupName，不需要先选 group。
-    const commandRequiresGroup = commandId !== 'extension.GenerateCommitMessage' && commandId !== 'extension.AiCodeReview' && commandId !== 'extension.FinishRelease' && commandId !== 'extension.FinishHotfix'
+    const commandRequiresGroup = commandId !== 'extension.GenerateCommitMessage' && commandId !== 'extension.AiCodeReview' && commandId !== COMMAND_UPDATE_SKILLS && commandId !== 'extension.FinishRelease' && commandId !== 'extension.FinishHotfix'
     const groupName = commandRequiresGroup ? await ensureGroupNameConfigured() : null
     if (commandRequiresGroup && !groupName) {
         return { executed: false, groupName: null }
@@ -1794,6 +1937,28 @@ async function executeGitFlowCommand (commandId, resourceUri) {
     }
     debugLog('workspace git root', rootPath)
 
+    if (commandId === COMMAND_UPDATE_SKILLS) {
+        const getSkillsPath = await resolveScriptPath(rootPath, GET_SKILLS_SCRIPT)
+        const skillsOutput = await runScriptCaptureOutput(rootPath, getSkillsPath)
+        const skills = parseSkillsOutput(skillsOutput.stdout)
+        if (skills.length === 0) {
+            throw new Error('GetSkills.sh 未返回可更新的 skill 列表。')
+        }
+        const selectedSkills = await pickSkills(skills)
+        if (!selectedSkills) {
+            return { executed: false, groupName }
+        }
+        scriptArgs.push(...buildUpdateSkillsScriptArgs(selectedSkills))
+        const updateSkillsPath = await resolveScriptPath(rootPath, UPDATE_SKILLS_SCRIPT)
+        const confirmedToRun = await confirmRunScript(commandId, rootPath, updateSkillsPath, scriptArgs)
+        if (!confirmedToRun) {
+            debugLog('update skills cancelled by user', { scriptArgs })
+            return { executed: false, groupName }
+        }
+        runScriptInTerminal(rootPath, updateSkillsPath, scriptArgs)
+        return { executed: true, groupName }
+    }
+
     if (commandId === 'extension.AiCodeReview') {
         const commitRange = await vscode.window.showInputBox({
             ignoreFocusOut: true,
@@ -1820,7 +1985,7 @@ async function executeGitFlowCommand (commandId, resourceUri) {
         }
     }
 
-    if (commandId !== 'extension.GenerateCommitMessage' && commandId !== 'extension.AiCodeReview' && commandId !== 'extension.MavenChange' && commandId !== 'extension.RebaseFeature') {
+    if (commandId !== 'extension.GenerateCommitMessage' && commandId !== 'extension.AiCodeReview' && commandId !== COMMAND_UPDATE_SKILLS && commandId !== 'extension.MavenChange' && commandId !== 'extension.RebaseFeature') {
         await gitCheck(rootPath)
     }
     const scriptPath = await resolveScriptPath(rootPath, scriptName)
@@ -2077,5 +2242,7 @@ module.exports = {
     resolveGitMrAssigneeSelection,
     splitBaseExecCommands,
     extractBaseExecCommandsFromGitlabCi,
-    buildAiCodeReviewScriptArgs
+    buildAiCodeReviewScriptArgs,
+    parseSkillsOutput,
+    buildUpdateSkillsScriptArgs
 }

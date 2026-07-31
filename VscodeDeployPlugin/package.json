@@ -2,7 +2,7 @@
     "name": "zerofinance-git",
     "displayName": "zerofinance-git",
     "description": "zerofinance-git",
-    "version": "2.0.9",
+    "version": "2.0.10",
     "publisher": "zerofinance",
     "repository": "https://github.com/zhaoxunyong/vs-code-git-plugin",
     "engines": {
@@ -22,6 +22,7 @@
         "onCommand:extension.FinishHotfix",
         "onCommand:extension.GenerateCommitMessage",
         "onCommand:extension.AiCodeReview",
+        "onCommand:extension.UpdateSkills",
         "onCommand:extension.GitFlowGuideline",
         "onCommand:extension.GitMergeRequest",
         "onCommand:extension.RunGitlabCiBaseExecCmd"
@@ -111,6 +112,10 @@
                 "title": "AI Code Review"
             },
             {
+                "command": "extension.UpdateSkills",
+                "title": "Update Skills"
+            },
+            {
                 "command": "extension.GitFlowGuideline",
                 "title": "GitFlow Guideline"
             },
@@ -165,11 +170,7 @@
                     "group": "5_gitlabci"
                 },
                 {
-                    "command": "extension.AiCodeReview",
-                    "group": "6_tools"
-                },
-                {
-                    "command": "extension.GenerateCommitMessage",
+                    "submenu": "zerogit.aiCodeReview.menu",
                     "group": "6_tools"
                 },
                 {
@@ -226,6 +227,20 @@
                     "command": "extension.RunGitlabCiBaseExecCmd",
                     "group": "0_run"
                 }
+            ],
+            "zerogit.aiCodeReview.menu": [
+                {
+                    "command": "extension.GenerateCommitMessage",
+                    "group": "0_commit"
+                },
+                {
+                    "command": "extension.AiCodeReview",
+                    "group": "1_review"
+                },
+                {
+                    "command": "extension.UpdateSkills",
+                    "group": "2_skills"
+                }
             ]
         },
         "submenus": [
@@ -252,6 +267,10 @@
             {
                 "id": "zerogit.gitlabci.menu",
                 "label": "GitLab CI"
+            },
+            {
+                "id": "zerogit.aiCodeReview.menu",
+                "label": "AI Tools"
             }
         ]
     },
