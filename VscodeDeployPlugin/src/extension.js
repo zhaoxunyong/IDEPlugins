@@ -1819,11 +1819,28 @@ async function pickSkills (skills) {
         description: skill.global ? '全局 skill' : '项目级 skill',
         value: skill
     }))
-    const selected = await vscode.window.showQuickPick(items, {
-        ignoreFocusOut: true,
-        canPickMany: true,
-        title: '选择要更新的 skills',
-        placeHolder: '可多选；列表已区分全局 skill 和项目级 skill'
+    const selected = await new Promise(resolve => {
+        const quickPick = vscode.window.createQuickPick()
+        quickPick.ignoreFocusOut = true
+        quickPick.canSelectMany = true
+        quickPick.title = '选择要更新的 skills'
+        quickPick.placeholder = '默认全选；可取消不需要更新的 skill'
+        quickPick.items = items
+        quickPick.selectedItems = items
+        const disposables = [
+            quickPick.onDidAccept(() => {
+                disposables.forEach(disposable => disposable.dispose())
+                quickPick.hide()
+                quickPick.dispose()
+                resolve(quickPick.selectedItems)
+            }),
+            quickPick.onDidHide(() => {
+                disposables.forEach(disposable => disposable.dispose())
+                quickPick.dispose()
+                resolve(null)
+            })
+        ]
+        quickPick.show()
     })
     if (!selected || selected.length === 0) {
         vscode.window.showErrorMessage('请选择至少一个 skill，Update Skills 已取消。')

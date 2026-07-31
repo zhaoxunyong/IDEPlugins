@@ -43,6 +43,7 @@ final class CheckboxSelectionDialog extends Dialog {
         viewer.setContentProvider(ArrayContentProvider.getInstance());
         viewer.setLabelProvider(new LabelProvider());
         viewer.setInput(values);
+        viewer.setAllChecked(true);
         GridData tableData = new GridData(SWT.FILL, SWT.FILL, true, true);
         tableData.widthHint = 480;
         tableData.heightHint = 300;

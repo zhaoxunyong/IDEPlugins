@@ -390,7 +390,7 @@ public class ZeroGitFlowHandler {
     private List<SkillUpdateSupport.Skill> chooseSkills(List<SkillUpdateSupport.Skill> skills) {
         CheckBoxList<SkillUpdateSupport.Skill> list = new CheckBoxList<>();
         for (SkillUpdateSupport.Skill skill : skills) {
-            list.addItem(skill, skill.toString(), false);
+            list.addItem(skill, skill.toString(), true);
         }
         list.setVisibleRowCount(Math.min(12, skills.size()));
         JScrollPane scrollPane = new JScrollPane(list);
@@ -398,7 +398,7 @@ public class ZeroGitFlowHandler {
         int result = JOptionPane.showConfirmDialog(
                 null,
                 scrollPane,
-                "选择要更新的 skills（可多选）",
+                "选择要更新的 skills（默认全选，可取消不需要更新的 skill）",
                 JOptionPane.OK_CANCEL_OPTION,
                 JOptionPane.PLAIN_MESSAGE);
         if (result != JOptionPane.OK_OPTION) {
