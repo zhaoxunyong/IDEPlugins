@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 
-# 模拟 GetSkills.sh 返回的 skill 列表。
-# global: git-commit
-# project: feature-shard-writer
+# 模拟 GetSkills.sh 返回的 skill 动作列表。
 cat <<'EOF'
-project: feature-shard-writer
+update project feature-shard-writer
+delete global feature-doc-writer
 EOF

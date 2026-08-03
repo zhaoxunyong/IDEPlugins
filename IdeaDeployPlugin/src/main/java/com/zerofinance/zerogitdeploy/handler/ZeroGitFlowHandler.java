@@ -366,7 +366,7 @@ public class ZeroGitFlowHandler {
 
     public void updateSkills() throws Exception {
         debugLog("command triggered", "Update Skills");
-        String rootPath = getRootPath();
+        String rootPath = CommandUtils.getRootProjectPath(project.getBasePath());
         CommandUtils.clearZeroGitScriptCache();
         String listScript = CommandUtils.processZeroGitScript(rootPath, "GetSkills.sh");
         ExecuteResult listResult = DeployCmdExecuter.exec(rootPath, listScript, Collections.<String>emptyList(), true);
@@ -398,7 +398,7 @@ public class ZeroGitFlowHandler {
         int result = JOptionPane.showConfirmDialog(
                 null,
                 scrollPane,
-                "选择要更新的 skills（默认全选，可取消不需要更新的 skill）",
+                "选择要执行的 Skills（动作由 GetSkills.sh 配置，默认全选）",
                 JOptionPane.OK_CANCEL_OPTION,
                 JOptionPane.PLAIN_MESSAGE);
         if (result != JOptionPane.OK_OPTION) {

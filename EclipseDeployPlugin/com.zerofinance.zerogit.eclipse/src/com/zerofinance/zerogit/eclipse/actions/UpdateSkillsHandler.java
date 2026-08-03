@@ -39,7 +39,7 @@ public class UpdateSkillsHandler extends AbstractZeroGitHandler {
         List<String> selectedLabels = ui().chooseValues(
                 shell(event),
                 "ZeroGit: Update Skills",
-                "请选择要更新的 skills（默认全选，可取消不需要更新的 skill）",
+                "请选择要执行的 Skills（动作由 GetSkills.sh 配置，默认全选）",
                 labels);
         if (selectedLabels.isEmpty()) {
             return null;

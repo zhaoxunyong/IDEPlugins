@@ -4,9 +4,9 @@ import org.apache.commons.lang.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 
 /** 解析 GetSkills.sh 输出并构造 UpdateSkills.sh 参数。 */
 public final class SkillUpdateSupport {
@@ -15,15 +15,21 @@ public final class SkillUpdateSupport {
 
     public static final class Skill {
         private final String name;
+        private final String action;
         private final boolean global;
 
-        public Skill(String name, boolean global) {
+        public Skill(String name, String action, boolean global) {
             this.name = name;
+            this.action = action;
             this.global = global;
         }
 
         public String getName() {
             return name;
+        }
+
+        public String getAction() {
+            return action;
         }
 
         public boolean isGlobal() {
@@ -32,7 +38,8 @@ public final class SkillUpdateSupport {
 
         @Override
         public String toString() {
-            return (global ? "[全局] " : "[项目级] ") + name;
+            return ("update".equals(action) ? "Update" : "Delete") +
+                    " · " + (global ? "全局 skill" : "项目级 skill") + " · " + name;
         }
     }
 
@@ -41,63 +48,66 @@ public final class SkillUpdateSupport {
             return Collections.emptyList();
         }
         List<Skill> result = new ArrayList<>();
-        Set<String> seen = new HashSet<>();
-        String currentScope = "project";
-        for (String line : output.split("\\R")) {
-            String value = StringUtils.trimToEmpty(line);
+        Map<String, String> actions = new HashMap<>();
+        String[] lines = output.split("\\R");
+        for (int index = 0; index < lines.length; index++) {
+            String value = StringUtils.trimToEmpty(lines[index]);
             if (value.isEmpty() || value.startsWith("#")) {
                 continue;
             }
-            String lower = value.toLowerCase();
-            if (lower.matches("global\\s*skills?[:：]?")) {
-                currentScope = "global";
-                continue;
+            String[] fields = value.split("\\s+");
+            String action = fields[0];
+            if (!"update".equals(action) && !"delete".equals(action)) {
+                throw invalid(index, "动作无效: " + action);
             }
-            if (lower.matches("project(?:\\s+level)?\\s*skills?[:：]?")) {
-                currentScope = "project";
-                continue;
+            if (fields.length < 2 || (!"global".equals(fields[1]) && !"project".equals(fields[1]))) {
+                throw invalid(index, "作用域无效: " + (fields.length < 2 ? "" : fields[1]));
             }
-            int separator = value.indexOf(':');
-            if (separator < 0) {
-                separator = value.indexOf('：');
+            if (fields.length < 3) {
+                throw invalid(index, "缺少 skill");
             }
-            if (separator > 0) {
-                String scope = value.substring(0, separator).trim().toLowerCase();
-                if (scope.equals("global") || scope.equals("全局")) {
-                    currentScope = "global";
-                    value = value.substring(separator + 1).trim();
-                } else if (scope.equals("project") || scope.equals("项目") || scope.equals("项目级")) {
-                    currentScope = "project";
-                    value = value.substring(separator + 1).trim();
+            String scope = fields[1];
+            for (int field = 2; field < fields.length; field++) {
+                String name = fields[field];
+                if (!name.matches("[a-zA-Z0-9][a-zA-Z0-9._-]*")) {
+                    throw invalid(index, "skill 名称无效: " + name);
                 }
-            }
-            value = value.replaceFirst("^[-*]\\s+", "").trim();
-            if (!value.isEmpty()) {
-                String key = currentScope + "\\u0000" + value;
-                if (seen.add(key)) {
-                    result.add(new Skill(value, "global".equals(currentScope)));
+                String key = scope + "\u0000" + name;
+                String existingAction = actions.get(key);
+                if (existingAction != null && !existingAction.equals(action)) {
+                    throw invalid(index, "skill 动作冲突: " + name);
+                }
+                if (existingAction == null) {
+                    actions.put(key, action);
+                    result.add(new Skill(name, action, "global".equals(scope)));
                 }
             }
         }
         return result;
     }
 
+    private static IllegalArgumentException invalid(int lineIndex, String message) {
+        return new IllegalArgumentException("GetSkills.sh 第 " + (lineIndex + 1) + " 行" + message);
+    }
+
     public static List<String> buildArgs(List<Skill> skills) {
         List<String> args = new ArrayList<>();
-        appendScopeArgs(args, skills, true);
-        appendScopeArgs(args, skills, false);
+        appendArgs(args, skills, "update", true);
+        appendArgs(args, skills, "update", false);
+        appendArgs(args, skills, "delete", true);
+        appendArgs(args, skills, "delete", false);
         return args;
     }
 
-    private static void appendScopeArgs(List<String> args, List<Skill> skills, boolean global) {
-        boolean addedScope = false;
+    private static void appendArgs(List<String> args, List<Skill> skills, String action, boolean global) {
+        boolean addedGroup = false;
         for (Skill skill : skills) {
-            if (skill.isGlobal() != global) {
+            if (!action.equals(skill.getAction()) || skill.isGlobal() != global) {
                 continue;
             }
-            if (!addedScope) {
-                args.add(global ? "--global" : "--project");
-                addedScope = true;
+            if (!addedGroup) {
+                args.add("--" + action + "-" + (global ? "global" : "project"));
+                addedGroup = true;
             }
             args.add(skill.getName());
         }

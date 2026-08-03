@@ -1701,130 +1701,68 @@ function buildAiCodeReviewScriptArgs (commitRange) {
     return normalizedCommitRange ? [normalizedCommitRange] : []
 }
 
-function parseSkillScope (value, fallbackGlobal = false) {
-    if (typeof value === 'boolean') {
-        return value
-    }
-    const normalized = String(value === undefined || value === null ? '' : value).trim().toLowerCase().replace(/\s+skills?$/, '')
-    if (['global', '全局', '全局skill', 'global-skill'].includes(normalized)) {
-        return true
-    }
-    if (['project', '项目', '项目级', '项目级别', 'project-skill'].includes(normalized)) {
-        return false
-    }
-    return fallbackGlobal
-}
-
-function addSkill (skills, seen, name, global) {
-    const normalizedName = String(name || '').trim()
-    if (!normalizedName) {
-        return
-    }
-    const key = `${normalizedName}\u0000${global ? 'global' : 'project'}`
-    if (seen.has(key)) {
-        return
-    }
-    seen.add(key)
-    skills.push({ name: normalizedName, global: !!global })
-}
-
-/**
- * GetSkills.sh 可返回 JSON，也可返回每行一个 skill；行格式支持：
- *   global: skill-name / project: skill-name / skill-name<TAB>global
- */
+/** 解析 GetSkills.sh 输出的 action scope skills... 严格协议。 */
 function parseSkillsOutput (outputText) {
     const skills = []
-    const seen = new Set()
-    const addValue = (value, global) => {
-        if (Array.isArray(value)) {
-            value.forEach(item => {
-                if (typeof item === 'string') {
-                    addSkill(skills, seen, item, global)
-                } else if (item && typeof item === 'object') {
-                    addSkill(skills, seen, item.name || item.skill || item.label, parseSkillScope(item.global !== undefined ? item.global : (item.isGlobal !== undefined ? item.isGlobal : (item.scope !== undefined ? item.scope : (item.level !== undefined ? item.level : item.type))), global))
-                }
-            })
-            return
-        }
-        if (value && typeof value === 'object') {
-            Object.keys(value).forEach(key => addValue(value[key], parseSkillScope(key, global)))
-        }
-    }
-
-    const text = String(outputText || '').trim()
-    if (!text) {
-        return skills
-    }
-    try {
-        const parsed = JSON.parse(text)
-        if (Array.isArray(parsed)) {
-            addValue(parsed, false)
-        } else if (parsed && typeof parsed === 'object') {
-            const values = parsed.skills || parsed.items
-            if (values !== undefined) {
-                addValue(values, false)
-            } else if (parsed.name || parsed.skill || parsed.label) {
-                addSkill(skills, seen, parsed.name || parsed.skill || parsed.label, parseSkillScope(parsed.global !== undefined ? parsed.global : (parsed.isGlobal !== undefined ? parsed.isGlobal : (parsed.scope !== undefined ? parsed.scope : (parsed.level !== undefined ? parsed.level : parsed.type))), false))
-            } else {
-                addValue(parsed.global || parsed.globalSkills || parsed.globals, true)
-                addValue(parsed.project || parsed.projectSkills || parsed.projects, false)
-            }
-        }
-        if (skills.length > 0) {
-            return skills
-        }
-    } catch (_) {
-        // 非 JSON 输出按文本格式解析。
-    }
-
-    let currentGlobal = false
-    text.split(/\r?\n/).forEach(line => {
+    const actions = new Map()
+    String(outputText || '').split(/\r?\n/).forEach((line, index) => {
         const raw = line.trim()
         if (!raw || raw.startsWith('#')) {
             return
         }
-        const section = raw.match(/^(global(?:\s+skills?)?|project(?:\s+skills?)?|全局(?:\s*skills?)?|项目(?:级别)?(?:\s*skills?)?)\s*[:：]?\s*$/i)
-        if (section) {
-            currentGlobal = parseSkillScope(section[1])
-            return
+        const [action, scope, ...names] = raw.split(/\s+/)
+        const lineNumber = index + 1
+        if (!['update', 'delete'].includes(action)) {
+            throw new Error(`GetSkills.sh 第 ${lineNumber} 行动作无效: ${action}`)
         }
-        const prefixed = raw.match(/^(global(?:\s+skills?)?|project(?:\s+skills?)?|全局(?:\s*skills?)?|项目(?:级别)?(?:\s*skills?)?)\s*[:：,\t ]+(.+)$/i)
-        if (prefixed) {
-            addSkill(skills, seen, prefixed[2], parseSkillScope(prefixed[1]))
-            return
+        if (!['global', 'project'].includes(scope)) {
+            throw new Error(`GetSkills.sh 第 ${lineNumber} 行作用域无效: ${scope || ''}`)
         }
-        const suffixed = raw.match(/^(.+?)\s*(?:\t+|\s{2,}|[|,])\s*(global(?:\s+skills?)?|project(?:\s+skills?)?|全局(?:\s*skills?)?|项目(?:级别)?(?:\s*skills?)?)$/i)
-        if (suffixed) {
-            addSkill(skills, seen, suffixed[1], parseSkillScope(suffixed[2]))
-            return
+        if (names.length === 0) {
+            throw new Error(`GetSkills.sh 第 ${lineNumber} 行缺少 skill`)
         }
-        addSkill(skills, seen, raw.replace(/^[-*]\s+/, ''), currentGlobal)
+        names.forEach(name => {
+            if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(name)) {
+                throw new Error(`GetSkills.sh 第 ${lineNumber} 行 skill 名称无效: ${name}`)
+            }
+            const key = `${scope}\u0000${name}`
+            const existingAction = actions.get(key)
+            if (existingAction && existingAction !== action) {
+                throw new Error(`GetSkills.sh 第 ${lineNumber} 行 skill 动作冲突: ${name}`)
+            }
+            if (!existingAction) {
+                actions.set(key, action)
+                skills.push({ name, action, global: scope === 'global' })
+            }
+        })
     })
     return skills
 }
 
 function buildUpdateSkillsScriptArgs (skills) {
     const selected = Array.isArray(skills) ? skills : []
-    const globalSkills = selected.filter(skill => skill && skill.global).map(skill => skill.name).filter(Boolean)
-    const projectSkills = selected.filter(skill => skill && !skill.global).map(skill => skill.name).filter(Boolean)
-    return [
-        ...(globalSkills.length > 0 ? ['--global', ...globalSkills] : []),
-        ...(projectSkills.length > 0 ? ['--project', ...projectSkills] : [])
-    ]
+    const args = []
+    ;[['update', true], ['update', false], ['delete', true], ['delete', false]].forEach(([action, global]) => {
+        const names = selected.filter(skill => skill && skill.action === action && skill.global === global).map(skill => skill.name).filter(Boolean)
+        if (names.length > 0) {
+            args.push(`--${action}-${global ? 'global' : 'project'}`, ...names)
+        }
+    })
+    return args
 }
 
 async function pickSkills (skills) {
     const items = skills.map(skill => ({
         label: skill.name,
-        description: skill.global ? '全局 skill' : '项目级 skill',
+        description: `${skill.action === 'update' ? 'Update' : 'Delete'} · ${skill.global ? '全局 skill' : '项目级 skill'}`,
         value: skill
     }))
     const selected = await new Promise(resolve => {
         const quickPick = vscode.window.createQuickPick()
         quickPick.ignoreFocusOut = true
         quickPick.canSelectMany = true
-        quickPick.title = '选择要更新的 skills'
-        quickPick.placeholder = '默认全选；可取消不需要更新的 skill'
+        quickPick.title = '选择要执行的 Skills'
+        quickPick.placeholder = '动作来自 GetSkills.sh，默认全选'
         quickPick.items = items
         quickPick.selectedItems = items
         const disposables = [
