@@ -237,3 +237,5 @@ for (( i=0; i < ${#TARGET_DESTS[@]}; i++ )); do
 done
 
 log "执行完成；备份位置: $RUN_BACKUP_ROOT"
+
+rm -fr "$PROJECT_ROOT/ralph/scripts/run_codex_openspec_loop.sh" >/dev/null 2>&1
