@@ -37,6 +37,7 @@
 
     <change-notes><![CDATA[
     <ul>
+        <li>2.0.12 : Fixed some issues. </li>
         <li>2.0.11 : Fixed some issues. </li>
         <li>2.0.10 : Added "AI Tools" action. </li>
         <li>2.0.9 : Fixed some issues. </li>

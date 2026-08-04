@@ -366,7 +366,7 @@ public class ZeroGitFlowHandler {
 
     public void updateSkills() throws Exception {
         debugLog("command triggered", "Update Skills");
-        String rootPath = CommandUtils.getRootProjectPath(project.getBasePath());
+        String rootPath = getRootPath();
         CommandUtils.clearZeroGitScriptCache();
         String listScript = CommandUtils.processZeroGitScript(rootPath, "GetSkills.sh");
         ExecuteResult listResult = DeployCmdExecuter.exec(rootPath, listScript, Collections.<String>emptyList(), true);
