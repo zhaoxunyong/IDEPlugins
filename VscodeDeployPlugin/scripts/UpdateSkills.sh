@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # 按 GetSkills.sh 配置更新或备份删除全局/项目级 skills。
-set -Eeuo pipefail
+set -Eeo pipefail
 
 SOURCE_REPO="${SKILLS_TEMPLATE_REPO:-http://gitlab.zerofinance.net/commons/skills-templates.git}"
 PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)"
