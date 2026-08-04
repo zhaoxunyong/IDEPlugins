@@ -355,3 +355,5 @@ if [ -f "$_VSDEP_POST" ]; then
   fi
 fi
 unset _VSDEP_POST
+
+[ "$INITIAL_REMOTE_TAG_EXISTS" -eq 0 ] || exit 1
