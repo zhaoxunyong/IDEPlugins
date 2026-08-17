@@ -13,13 +13,11 @@ unset _VSDEP_PRE
 
 groupName="${1:-}"
 assignee="${2:-}"
-target_branch="${3:-}"
 
 if [[ -z "$groupName" ]]; then
-  echo "Usage: $0 <groupName> [assignee] [target-branch]" >&2
-  echo "  groupName: 与扩展 zerofinanceGit.groupNames 一致，用于默认目标分支 develop-<groupName>" >&2
+  echo "Usage: $0 <groupName> [assignee]" >&2
+  echo "  groupName: 与扩展 zerofinanceGit.groupNames 一致；spd 默认目标分支为 main，其他为 develop-<groupName>" >&2
   echo "  assignee:  GitLab 用户名，作为 push option merge_request.assign；可省略或留空表示不指定指派人" >&2
-  echo "  target-branch: 可选，省略则为 develop-<groupName>" >&2
   exit 1
 fi
 
@@ -42,7 +40,9 @@ if [[ "$current_branch" == "HEAD" || -z "${current_branch//[$'\r\n\t ']}" ]]; th
   exit 1
 fi
 
-if [[ -z "$target_branch" ]]; then
+if [[ "$groupName" == "spd" ]]; then
+  target_branch="main"
+else
   target_branch="develop-${groupName}"
 fi
 
