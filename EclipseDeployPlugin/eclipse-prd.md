@@ -146,9 +146,9 @@ Eclipse 插件不破坏该扩展机制，与 IDEA / VS Code 在脚本层面一�
 | Start New Feature | `StartNewFeature.sh` | 后台 Job + Console | 选择 group，输入 `feature/<group>/001-desc`，通过 `gitCheck` 后执行 |
 | Finish Feature | `FinishFeature.sh` | 后台 Job + Console | 先确认已 MR 到 `develop-<group>`，再从本地 feature 列表中选择分支 |
 | Rebase Feature | `RebaseFeature.sh` | 后台 Job + Console | 不跑 `gitCheck`；要求当前分支必须为 `feature/<group>/...` |
-| Start New Release | `StartNewRelease.sh` | 后台 Job + Console | 先确认提测时机；版本建议基于全部远程 tag / release / hotfix 推导 |
+| Start New Release | `StartNewRelease.sh` | 后台 Job + Console | 先确认提测时机；若发现依赖里有 `-SNAPSHOT` 会二次确认；版本建议基于全部远程 tag / release / hotfix 推导 |
 | Finish Release | `FinishRelease.sh` | 后台 Job + Console | 不先选 group；先确认 Maintainer 权限与上线完成，再选择 release 分支；执行后解析剩余 release/hotfix 分支提示 |
-| Start New Hotfix | `StartNewHotfix.sh` | 后台 Job + Console | 先确认主干回合情况；必须基于最新生产 tag 创建 |
+| Start New Hotfix | `StartNewHotfix.sh` | 后台 Job + Console | 先确认主干回合情况；若发现依赖里有 `-SNAPSHOT` 会二次确认；必须基于最新生产 tag 创建 |
 | Finish Hotfix | `FinishRelease.sh` | 后台 Job + Console | 不先选 group；流程同 Finish Release，但目标分支为 hotfix |
 
 ---
@@ -221,6 +221,7 @@ Eclipse 插件不破坏该扩展机制，与 IDEA / VS Code 在脚本层面一�
 ### 6.8 Start New Release
 
 - 先确认“是否已执行 FinishFeature、是否准备提测”
+- 若依赖或插件版本中存在 `-SNAPSHOT`，会额外弹窗确认
 - 建议版本基于“全部远程带日期 tag + 所有 group 的远程 release/hotfix 分支”计算最大 SemVer，按 **minor + 1（patch 清零）** 建议，并避开当前 group 已存在的版本
 - `StartNewRelease.sh` 在 Maven 项目中会自动：
   - 创建 `release/<group>/X.Y.Z`
@@ -245,6 +246,7 @@ Eclipse 插件不破坏该扩展机制，与 IDEA / VS Code 在脚本层面一�
 ### 6.10 Start New Hotfix
 
 - 必须先确认上线后的代码已及时回合到 `main/develop/release/hotfix`
+- 若依赖或插件版本中存在 `-SNAPSHOT`，会额外弹窗确认
 - 必须先找到最新生产 tag，找不到则直接中断
 - 创建前会再次确认“即将基于哪个 tag 创建 hotfix”
 - 脚本实际执行 `git switch -c <hotfix> <baseTag>`
@@ -317,7 +319,7 @@ Eclipse 插件不破坏该扩展机制，与 IDEA / VS Code 在脚本层面一�
 - `com.zerofinance.zerogit.eclipse`：插件主工程
   - `actions`：14 个命令 Handler（统一继承 `AbstractZeroGitHandler`）
   - `exec`：`ScriptResolver`、`ZeroGitCommandRunner`、`BashCommandBuilder`、`CommandRequest/CommandResult`
-  - `flow`：`ZeroGitFlowService`（脚本参数构造、分支名校验）、`SkillUpdateSupport`、`FinishReleaseOutputParser`
+  - `flow`：`ZeroGitFlowService`（脚本参数构造、分支名校验）、`PomSnapshotSupport`（pom 依赖/插件 SNAPSHOT 检测）、`SkillUpdateSupport`、`FinishReleaseOutputParser`
   - `git`：`GitRepositoryService`、`GitVersionChecker`、`GitVersionSupport`、`VersionService`
   - `settings`：`ZeroGitPreferencePage`、`ZeroGitSettings`、`PreferenceConstants`
   - `ui`：`UserInteraction` 及 Topmost 对话框组件

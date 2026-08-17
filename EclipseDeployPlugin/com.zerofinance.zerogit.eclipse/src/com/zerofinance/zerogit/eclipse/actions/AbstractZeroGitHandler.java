@@ -38,6 +38,7 @@ import com.zerofinance.zerogit.eclipse.exec.CommandResult;
 import com.zerofinance.zerogit.eclipse.exec.ScriptResolver;
 import com.zerofinance.zerogit.eclipse.exec.ZeroGitCommandRunner;
 import com.zerofinance.zerogit.eclipse.git.GitVersionChecker;
+import com.zerofinance.zerogit.eclipse.flow.PomSnapshotSupport;
 import com.zerofinance.zerogit.eclipse.flow.ZeroGitFlowService;
 import com.zerofinance.zerogit.eclipse.git.GitRepositoryService;
 import com.zerofinance.zerogit.eclipse.settings.ZeroGitSettings;
@@ -136,6 +137,14 @@ public abstract class AbstractZeroGitHandler extends AbstractHandler {
         } catch (Exception e) {
             throw new ExecutionException("执行脚本失败。", e);
         }
+    }
+
+    /** Start New Release / Hotfix：当前仓库树任意 pom.xml 含 -SNAPSHOT 依赖/插件版本时需用户确认，取消则中断。 */
+    protected boolean confirmPomSnapshotIfPresent(Shell shell, String repoRoot) {
+        if (!PomSnapshotSupport.containsSnapshot(new File(repoRoot))) {
+            return true;
+        }
+        return ui().confirm(shell, "ZeroGit", "pom.xml中有SNAPSHOT版本依赖，请确认。");
     }
 
     protected boolean hasStagedChanges(String repoRoot) throws ExecutionException {

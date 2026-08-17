@@ -23,6 +23,9 @@ public class StartNewHotfixHandler extends AbstractZeroGitHandler {
                 "请确认上线后是否有及时合并代码到 main/develop/release/hotfix 分支？hotfix会基于最新的生产环境tag来创建。")) {
             return null;
         }
+        if (!confirmPomSnapshotIfPresent(shell(event), repoRoot)) {
+            return null;
+        }
 
         HotfixBaseTagInfo latestTag = latestHotfixBaseTag(repoRoot);
         if (latestTag == null) {

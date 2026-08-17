@@ -26,6 +26,9 @@ public class StartNewReleaseHandler extends AbstractZeroGitHandler {
                         + "2. 后续无需再次打release分支，直接在release分支上进行bug的修复。如需升级maven版本，执行MavenChange操作即可。")) {
             return null;
         }
+        if (!confirmPomSnapshotIfPresent(shell(event), repoRoot)) {
+            return null;
+        }
 
         VersionService versionService = new VersionService();
         List<String> releaseBranches = listReleaseBranches(repoRoot, group);
