@@ -326,7 +326,8 @@ Eclipse 插件不破坏该扩展机制，与 IDEA / VS Code 在脚本层面一�
 - `com.zerofinance.zerogit.eclipse.feature`：Feature 工程
 - `com.zerofinance.zerogit.eclipse.updatesite`：更新站点工程
 - `com.zerofinance.zerogit.eclipse.tests`：测试工程（`SkillUpdateSupportTest`、`VersionServiceTest`）
-- `scripts/`：仅包含构建辅助脚本（`check-plugin-export-packages.sh`、`run-pde-tests.sh`），不是业务脚本基线；业务脚本仍以仓库根目录同名脚本 / 远程脚本为主
+- `scripts/`：仅包含构建辅助脚本（`check-plugin-export-packages.sh`、`export-plugin.sh`），不是业务脚本基线；业务脚本仍以仓库根目录同名脚本 / 远程脚本为主
+- `export-plugin.sh`：导出安装包脚本，基于本地 Eclipse/STS 编译插件与 feature，发布 p2 update site 并打包 zip；用法：`ECLIPSE_HOME=/path/to/eclipse ./scripts/export-plugin.sh [版本号]`
 
 ---
 

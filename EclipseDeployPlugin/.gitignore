@@ -11,3 +11,4 @@ target/
 bin/
 transaction-logs/
 .DS_Store
+build/
