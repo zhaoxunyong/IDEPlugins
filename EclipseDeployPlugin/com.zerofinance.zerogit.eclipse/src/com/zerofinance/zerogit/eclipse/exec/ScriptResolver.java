@@ -22,6 +22,7 @@ public class ScriptResolver {
             "RebaseFeature.sh",
             "GitMergeRequest.sh",
             "StartNewRelease.sh",
+            "GetHotfixBranch.sh",
             "FinishRelease.sh",
             "StartNewHotfix.sh");
 

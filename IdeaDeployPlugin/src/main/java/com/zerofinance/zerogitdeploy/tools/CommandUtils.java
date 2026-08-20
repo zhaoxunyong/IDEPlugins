@@ -28,6 +28,7 @@ public final class CommandUtils {
             "GetSkills.sh",
             "UpdateSkills.sh",
             "StartNewRelease.sh",
+            "GetHotfixBranch.sh",
             "FinishRelease.sh",
             "StartNewHotfix.sh"
     );

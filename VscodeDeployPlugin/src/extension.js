@@ -37,6 +37,7 @@ const COMMAND_RUN_GITLAB_CI_BASE_EXEC = 'extension.RunGitlabCiBaseExecCmd'
 const COMMAND_UPDATE_SKILLS = 'extension.UpdateSkills'
 const GET_SKILLS_SCRIPT = 'GetSkills.sh'
 const UPDATE_SKILLS_SCRIPT = 'UpdateSkills.sh'
+const GET_HOTFIX_BRANCH_SCRIPT = 'GetHotfixBranch.sh'
 const GITFLOW_GUIDELINE_URL = 'https://v04jaasnl45.feishu.cn/wiki/Vg5PwK2smiPxGLk7w4Gc7tZanjb'
 const GITLAB_CI_FILE_NAME = '.gitlab-ci.yml'
 const GITLAB_CI_NOT_FOUND_MESSAGE = '项目中未找到.gitlab-ci.yml文件'
@@ -586,80 +587,38 @@ async function askStartHotfixName (rootPath, groupName) {
     const branchPrefix = `hotfix/${groupName}/`
     const conflictPrefix = `release/${groupName}/`
     const semverRule = /^\d+\.\d+\.\d+$/
-    await gitFetchOriginPrune(rootPath)
-    const latestHotfixTag = await getLatestRemoteReleaseOrHotfixTagContext(rootPath)
-    if (!latestHotfixTag) {
-        vscode.window.showErrorMessage(`未找到以 -YYYYMMDDHHmm 结尾的远程 release/hotfix tag，Start Hotfix 已中断。`)
-        return null
-    }
-    const remoteVersionsInGroup = await getRemoteReleaseHotfixVersions(rootPath, groupName, { skipFetch: true })
-    const remoteVersionsAllGroups = await getAllRemoteReleaseHotfixVersions(rootPath, { skipFetch: true })
-    const maxVersion = getMaxSemverVersion([latestHotfixTag.version, ...remoteVersionsAllGroups])
-    // hotfix：递增尾号（patch），与 release 的 minor 递增区分
-    let suggestedVersion = incrementSemverPatch(maxVersion)
-    if (!suggestedVersion) {
-        vscode.window.showErrorMessage(`最新生产 tag ${latestHotfixTag.tagName} 无法解析出有效版本，Start Hotfix 已中断。`)
-        return null
-    }
-    suggestedVersion = findNextAvailableVersion(
-        suggestedVersion,
-        new Set(remoteVersionsInGroup),
-        incrementSemverPatch
+    const getHotfixBranchPath = await resolveScriptPath(rootPath, GET_HOTFIX_BRANCH_SCRIPT)
+    const hotfixInfo = parseHotfixBranchOutput(
+        (await runScriptCaptureOutput(rootPath, getHotfixBranchPath, [groupName])).stdout
     )
-    const hotfixBranches = await getHotfixBranches(rootPath, groupName, { skipFetch: true })
-    const releaseBranches = await getReleaseBranches(rootPath, groupName, { skipFetch: true })
+    const [hotfixBranches, releaseBranches] = await Promise.all([
+        getHotfixBranches(rootPath, groupName, { skipFetch: true }),
+        getReleaseBranches(rootPath, groupName, { skipFetch: true })
+    ])
     const hotfixVersions = new Set(extractBranchVersions(hotfixBranches, branchPrefix))
     const releaseVersions = new Set(extractBranchVersions(releaseBranches, conflictPrefix))
-
-    // 用于 prompt 展示：只看远程、release/hotfix 不限制 groupName
-    const [remoteReleaseBranches, remoteHotfixBranches] = await Promise.all([
-        getAllReleaseBranches(rootPath, { includeLocal: false, skipFetch: true }),
-        getAllHotfixBranches(rootPath, { includeLocal: false, skipFetch: true })
-    ])
-    const latestReleaseVersion = remoteReleaseBranches.length > 0
-        ? remoteReleaseBranches[0].slice(remoteReleaseBranches[0].lastIndexOf('/') + 1)
-        : null
-    const latestHotfixVersion = remoteHotfixBranches.length > 0
-        ? remoteHotfixBranches[0].slice(remoteHotfixBranches[0].lastIndexOf('/') + 1)
-        : null
-    const latestTagText = latestHotfixTag ? `${latestHotfixTag.tagName}` : '无'
-    const latestReleaseText = latestReleaseVersion || '无'
-    const latestHotfixText = latestHotfixVersion || '无'
-
     const prompt = [
-        `1. 最新的tag：${latestTagText}`,
-        `2. 最新的release：${latestReleaseText}`,
-        `3. 最新的hotfix：${latestHotfixText}`,
-        `建议 hotfix 版本：${suggestedVersion}。请输入 hotfix 版本。`
+        `1. 最新的tag：${hotfixInfo.baseTag}`,
+        `2. 最新的release：${hotfixInfo.latestReleaseVersion || '无'}`,
+        `3. 最新的hotfix：${hotfixInfo.latestHotfixVersion || '无'}`,
+        `建议 hotfix 版本：${hotfixInfo.hotfixName.slice(branchPrefix.length)}。请输入 hotfix 版本。`
     ].join('\n')
-
     const fullHotfixName = await vscode.window.showInputBox({
         ignoreFocusOut: true,
         placeHolder: 'Please input hotfix name',
         prompt,
-        value: `${branchPrefix}${suggestedVersion}`,
+        value: hotfixInfo.hotfixName,
         validateInput: function (text) {
             const value = (text || '').trim()
-            if (!value.startsWith(branchPrefix)) {
-                return `Branch name must start with "${branchPrefix}".`
-            }
+            if (!value.startsWith(branchPrefix)) return `Branch name must start with "${branchPrefix}".`
             const hotfixVersion = value.slice(branchPrefix.length).trim()
-            if (!hotfixVersion) {
-                return 'Please input hotfix version after the prefix.'
-            }
-            if (!semverRule.test(hotfixVersion)) {
-                return 'Hotfix version must follow SemVer format (e.g. 1.0.0).'
-            }
-            if (hotfixVersions.has(hotfixVersion)) {
-                return `Hotfix version already exists: ${hotfixVersion}`
-            }
-            if (releaseVersions.has(hotfixVersion)) {
-                return `Version conflict: release/${groupName}/${hotfixVersion} already exists`
-            }
+            if (!hotfixVersion) return 'Please input hotfix version after the prefix.'
+            if (!semverRule.test(hotfixVersion)) return 'Hotfix version must follow SemVer format (e.g. 1.0.0).'
+            if (hotfixVersions.has(hotfixVersion)) return `Hotfix version already exists: ${hotfixVersion}`
+            if (releaseVersions.has(hotfixVersion)) return `Version conflict: release/${groupName}/${hotfixVersion} already exists`
             return ''
         }
     })
-
     if (!fullHotfixName) {
         vscode.window.showErrorMessage('Please input hotfix name, task aborted.')
         return null
@@ -670,9 +629,26 @@ async function askStartHotfixName (rootPath, groupName) {
         vscode.window.showErrorMessage('Please input valid hotfix name after the prefix, task aborted.')
         return null
     }
+    return { hotfixName: `${branchPrefix}${hotfixVersion}`, baseTag: hotfixInfo.baseTag }
+}
+
+function parseHotfixBranchOutput (outputText) {
+    const values = {}
+    String(outputText || '').split(/\r?\n/).forEach(line => {
+        const separator = line.indexOf('=')
+        if (separator <= 0) return
+        values[line.slice(0, separator).trim()] = line.slice(separator + 1).trim()
+    })
+    if (!/^hotfix\/[^/]+\/\d+\.\d+\.\d+$/.test(values.hotfixName || '') || !values.baseTag) {
+        throw new Error('GetHotfixBranch.sh 返回了无效结果。')
+    }
     return {
-        hotfixName: `${branchPrefix}${hotfixVersion}`,
-        baseTag: latestHotfixTag.tagName
+        hotfixName: values.hotfixName,
+        baseTag: values.baseTag,
+        latestReleaseVersion: values.latestReleaseVersion,
+        latestHotfixVersion: values.latestHotfixVersion,
+        latestReleaseBranch: values.latestReleaseBranch,
+        latestHotfixBranch: values.latestHotfixBranch
     }
 }
 
@@ -924,17 +900,6 @@ function incrementSemverMinor (versionText) {
     const minor = versionParts[1]
     // minor 累计，patch 重置为 0
     return `${major}.${minor + 1}.0`
-}
-
-function incrementSemverPatch (versionText) {
-    const versionParts = parseSemverVersion(versionText)
-    if (!versionParts) {
-        return null
-    }
-    const major = versionParts[0]
-    const minor = versionParts[1]
-    const patch = versionParts[2]
-    return `${major}.${minor}.${patch + 1}`
 }
 
 function findNextAvailableVersion (baseVersion, existingVersions, incrementFn = incrementSemverMinor) {
@@ -2198,6 +2163,7 @@ module.exports = {
     splitBaseExecCommands,
     extractBaseExecCommandsFromGitlabCi,
     buildAiCodeReviewScriptArgs,
+    parseHotfixBranchOutput,
     parseSkillsOutput,
     buildUpdateSkillsScriptArgs
 }

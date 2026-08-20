@@ -518,34 +518,31 @@ public class ZeroGitFlowHandler {
             if (!confirmPomSnapshotIfPresent(rootPath)) {
                 return;
             }
-            gitFetchOriginPrune(rPath);
-            HotfixTagSelector.HotfixBaseTagInfo latestTag = getLatestRemoteHotfixBaseTag(rPath);
-            if (latestTag == null) {
-                throw new DeployPluginException("未找到以 -YYYYMMDDHHmm 结尾的远程 release/hotfix tag，Start New Hotfix 已中断。");
+            String getBranchScript = CommandUtils.processZeroGitScript(rPath, "GetHotfixBranch.sh");
+            ExecuteResult branchResult = DeployCmdExecuter.exec(
+                    rPath,
+                    getBranchScript,
+                    Lists.newArrayList(groupName),
+                    true);
+            if (branchResult.getCode() != 0) {
+                throw new DeployPluginException(branchResult.getResult());
             }
+            Map<String, String> hotfixInfo = parseHotfixBranchOutput(branchResult.getResult());
+            String suggested = hotfixInfo.get("hotfixName");
+            String baseTag = hotfixInfo.get("baseTag");
             List<String> releases = listReleaseBranches(rPath, groupName, true, true);
             List<String> hotfixes = listHotfixBranches(rPath, groupName, true, true);
-            List<String> remoteReleasesInGroup = listReleaseBranches(rPath, groupName, false, true);
-            List<String> remoteHotfixesInGroup = listHotfixBranches(rPath, groupName, false, true);
-            List<String> remoteReleasesAll = listAllReleaseBranches(rPath, false, true);
-            List<String> remoteHotfixesAll = listAllHotfixBranches(rPath, false, true);
-            String maxVersion = getMaxSemverVersion(latestTag.getVersion(), remoteReleasesAll, remoteHotfixesAll);
-            // hotfix：递增尾号（patch），与 release 的 minor 递增区分
-            String suggested = findNextAvailableVersion(nextPatch(maxVersion), remoteReleasesInGroup, remoteHotfixesInGroup, this::nextPatch);
             String prefix = "hotfix/" + groupName + "/";
-            String latestReleaseVersion = remoteReleasesAll.isEmpty() ? "无" : extractVersion(remoteReleasesAll.get(0));
-            String latestHotfixVersion = remoteHotfixesAll.isEmpty() ? "无" : extractVersion(remoteHotfixesAll.get(0));
             String value = Messages.showInputDialog(
                     "请输入 Hotfix 分支（SemVer）\n"
-                            + "1. 最新的 tag：" + latestTag.getTagName() + "\n"
-                            + "2. 最新的 release：" + latestReleaseVersion + "\n"
-                            + "3. 最新的 hotfix：" + latestHotfixVersion + "\n"
-                            + "建议 hotfix 版本：" + suggested + "。请输入 hotfix 版本。",
+                            + "1. 最新的 tag：" + baseTag + "\n"
+                            + "2. 最新的 release：" + StringUtils.defaultIfEmpty(hotfixInfo.get("latestReleaseVersion"), "无") + "\n"
+                            + "3. 最新的 hotfix：" + StringUtils.defaultIfEmpty(hotfixInfo.get("latestHotfixVersion"), "无") + "\n"
+                            + "建议 hotfix 版本：" + suggested.substring(prefix.length()) + "。请输入 hotfix 版本。",
                     "ZeroGit: Start New Hotfix",
                     Messages.getInformationIcon(),
-                    prefix + suggested,
-                    nonEmptyValidator()
-            );
+                    suggested,
+                    nonEmptyValidator());
             if (StringUtils.isBlank(value)) {
                 return;
             }
@@ -556,11 +553,11 @@ public class ZeroGitFlowHandler {
             ensureSemver(version, "Hotfix 版本格式无效，必须是 X.Y.Z");
             ensureVersionNotExists(version, hotfixes, "hotfix");
             ensureVersionNotExists(version, releases, "release");
-            if (!yes("即将基于生产 Tag " + latestTag.getTagName() + " 创建新的 hotfix：\n" + value + "\n\n请确认新生成的 hotfix 是否正确？", "ZeroGit: Start New Hotfix")) {
+            if (!yes("即将基于生产 Tag " + baseTag + " 创建新的 hotfix：\n" + value + "\n\n请确认新生成的 hotfix 是否正确？", "ZeroGit: Start New Hotfix")) {
                 return;
             }
 
-            confirmAndRunInTerminal("Start New Hotfix", rPath, script, Lists.newArrayList(groupName, value, latestTag.getTagName()));
+            confirmAndRunInTerminal("Start New Hotfix", rPath, script, Lists.newArrayList(groupName, value, baseTag));
         });
     }
 
@@ -1213,10 +1210,6 @@ public class ZeroGitFlowHandler {
         return sortBySemverDesc(uniqueNormalizedBranches(splitLines(result.getResult()), "origin/"));
     }
 
-    private @Nullable HotfixTagSelector.HotfixBaseTagInfo getLatestRemoteHotfixBaseTag(String rootPath) throws Exception {
-        return HotfixTagSelector.pickLatestDatedRemoteTag(listRemoteReleaseOrHotfixTagRefs(rootPath));
-    }
-
     private List<String> listRemoteReleaseOrHotfixTagRefs(String rootPath) throws Exception {
         execGitArgs(rootPath, "fetch", "origin", "--tags", "--prune");
         ExecuteResult remoteResult = execGitArgs(rootPath, "ls-remote", "--tags", "--refs", "origin");
@@ -1289,6 +1282,23 @@ public class ZeroGitFlowHandler {
         if (!SEMVER_PATTERN.matcher(version).matches()) {
             throw new DeployPluginException(error);
         }
+    }
+
+    private Map<String, String> parseHotfixBranchOutput(String output) {
+        Map<String, String> values = new HashMap<>();
+        for (String line : StringUtils.defaultString(output).split("\\R")) {
+            int separator = line.indexOf('=');
+            if (separator > 0) {
+                values.put(line.substring(0, separator).trim(), line.substring(separator + 1).trim());
+            }
+        }
+        String hotfixName = values.get("hotfixName");
+        if (StringUtils.isBlank(hotfixName)
+                || !Pattern.matches("^hotfix/[^/]+/\\d+\\.\\d+\\.\\d+$", hotfixName)
+                || StringUtils.isBlank(values.get("baseTag"))) {
+            throw new DeployPluginException("GetHotfixBranch.sh 返回了无效结果。");
+        }
+        return values;
     }
 
     private void ensureVersionNotExists(String version, List<String> branches, String type) {
