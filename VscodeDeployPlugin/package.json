@@ -2,7 +2,7 @@
     "name": "zerofinance-git",
     "displayName": "zerofinance-git",
     "description": "zerofinance-git",
-    "version": "2.0.12",
+    "version": "2.0.13",
     "publisher": "zerofinance",
     "repository": "https://github.com/zhaoxunyong/vs-code-git-plugin",
     "engines": {

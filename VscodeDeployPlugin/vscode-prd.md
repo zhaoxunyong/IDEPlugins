@@ -1,6 +1,6 @@
 # `zerofinance-git` VS Code 插件产品说明（当前实现）
 
-本文档按 `VscodeDeployPlugin` 当前代码与脚本能力同步更新，基线为仓库当前实现（校对日期：2026-08-17，对应插件版本 `2.0.12`）。  
+本文档按 `VscodeDeployPlugin` 当前代码与脚本能力同步更新，基线为仓库当前实现（校对日期：2026-08-17，对应插件版本 `2.0.13`）。  
 旧版文档中“仅 7 个 Git Flow 命令、以 IDEA 重构为目标”的表述已不再准确；当前 VS Code 插件已经是完整的 ZeroGit 工具集。
 
 ---
@@ -106,7 +106,7 @@
   - 输入弹窗同时展示“最新 tag / 最新 release / 最新 hotfix”作为参考
 - `Start New Hotfix`
   - 必须先找到最新生产 tag
-  - 在“最新生产 tag + 所有 group 的远程 release/hotfix 分支”里找全局最大 SemVer
+  - 在“全部 `release/`、`hotfix/`、`v` 前缀的远程 tag + 所有 group 的远程 release/hotfix 分支”里找全局最大 SemVer
   - 在此基础上执行 **patch + 1**
   - 再避开当前 group 已存在的 release/hotfix 版本冲突
 
@@ -304,7 +304,7 @@
 
 ## 9. 与旧版文档相比的关键更新
 
-这次同步（2.0.7 → 2.0.12）重点纠正了以下过期内容：
+这次同步（2.0.7 → 2.0.13）重点纠正了以下过期内容：
 
 1. 已是 **14 个功能入口**（新增 `Update Skills`），不再是“13 个”或“7 个命令”
 2. `AI Code Review` 支持指定提交范围（单提交 / commit 范围 / 留空=已暂存变更）

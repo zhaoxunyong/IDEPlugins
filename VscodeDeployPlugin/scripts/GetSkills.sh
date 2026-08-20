@@ -37,4 +37,5 @@ update global feature-implementation-alignment-review
 update global entropy-governor
 update global feature-shard-writer
 update global architecture-shard-writer
+update global architecture-doc-writer
 EOF
