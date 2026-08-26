@@ -43,14 +43,14 @@ consider_version() {
   fi
 }
 
-declare -A remote_tags
-while IFS= read -r tagName; do
-  remote_tags[$tagName]=1
-done < <(git ls-remote --tags --refs origin 'refs/tags/release/*' 'refs/tags/hotfix/*' 'refs/tags/v*' | sed 's#.*refs/tags/##')
+remote_tags=$(git ls-remote --tags --refs origin 'refs/tags/release/*' 'refs/tags/hotfix/*' 'refs/tags/v*' | sed 's#.*refs/tags/##')
+remote_tag_exists() {
+  printf '%s\n' "$remote_tags" | grep -Fqx "$1"
+}
 latestTag=""
 while IFS= read -r tagName; do
   [ -z "$tagName" ] && continue
-  [ -n "${remote_tags[$tagName]:-}" ] || continue
+  remote_tag_exists "$tagName" || continue
   if [ -z "$latestTag" ] && [[ "$tagName" =~ ^(release|hotfix)/[^/]+/([0-9]+\.[0-9]+\.[0-9]+)-[0-9]{12}$ ]]; then
     latestTag=$tagName
   fi

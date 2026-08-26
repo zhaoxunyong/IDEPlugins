@@ -29,13 +29,15 @@
 # EOF
 
 cat <<'EOF'
+delete global session-handoff-guard
 update global ralph-loop-generator
 update global multi-agents-collaboration
 update global multi-agents-openspec-apply
-update global session-handoff-guard
 update global feature-implementation-alignment-review
 update global entropy-governor
 update global feature-shard-writer
 update global architecture-shard-writer
 update global architecture-doc-writer
+update global multi-agents-continue
+update global check-diff-config
 EOF

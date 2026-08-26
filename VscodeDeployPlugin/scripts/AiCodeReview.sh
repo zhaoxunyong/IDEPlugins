@@ -11,7 +11,7 @@ if [ -f "$_VSDEP_PRE" ]; then
 fi
 unset _VSDEP_PRE
 
-# 本地对已暂存变更或指定提交历史做 repo-aware AI code review（不发送飞书、不操作 git commit）。
+# 本地对已暂存变更或指定提交历史做 repo-aware AI code review（不发送飞书、不创建真实 git commit）。
 # 用法：./AiCodeReview.sh [提交范围]   模型固定为 gpt-5.6-terra
 
 #export PATH="/usr/local/bin:/usr/bin:~/.codex/bin:$PATH"
@@ -20,8 +20,11 @@ export PATH="/usr/local/bin:/usr/bin:~/AppData/Roaming/npm:~/.nvm/versions/node/
 modelName="gpt-5.6-terra"
 commitRange="${1:-}"
 revision_args=()
+is_staged_review=0
 if [ -n "$commitRange" ]; then
   read -r -a revision_args <<< "$commitRange"
+else
+  is_staged_review=1
 fi
 
 if ! command -v codex >/dev/null 2>&1; then
@@ -80,14 +83,40 @@ if [ -z "$skill_found" ]; then
 fi
 unset skill_found _skill_dir _git_top codex_home _codex_u _skill_dirs
 
-if [ "${#revision_args[@]}" -eq 0 ]; then
+if [ "$is_staged_review" -eq 1 ]; then
   if git diff --cached --quiet; then
     echo "未检测到已暂存变更，请先执行 git add 后再运行本脚本"
     exit 1
   fi
-  echo "检测到已暂存变更，开始 repo-aware AI Code Review..."
 else
   echo "检测到提交范围 ${commitRange}，开始 repo-aware AI Code Review..."
+fi
+
+create_staged_review_revision() {
+  local base_sha
+  local staged_tree
+
+  base_sha=$(git rev-parse --verify HEAD^{commit}) || {
+    echo "当前仓库没有可用 HEAD，暂存变更将使用 staged 专用评审流程。" >&2
+    return 1
+  }
+  staged_tree=$(git write-tree) || {
+    echo "无法从暂存区创建评审快照，请先解决冲突暂存项。" >&2
+    return 1
+  }
+  STAGED_REVIEW_HEAD_SHA=$(printf '%s\n' 'staged review snapshot' | git -c user.name='AI Review Snapshot' -c user.email='ai-review@localhost' commit-tree "$staged_tree" -p "$base_sha") || {
+    echo "无法创建暂存变更评审快照。" >&2
+    return 1
+  }
+  revision_args=("HEAD" "$STAGED_REVIEW_HEAD_SHA")
+}
+
+if [ "$is_staged_review" -eq 1 ]; then
+  if create_staged_review_revision; then
+    echo "检测到已暂存变更，已创建临时提交快照，开始 repo-aware AI Code Review..."
+  else
+    echo "检测到已暂存变更，开始 staged repo-aware AI Code Review..."
+  fi
 fi
 
 GIT_TOP=$(git rev-parse --show-toplevel)
@@ -99,7 +128,7 @@ echo "[local-ai-review 调试] 临时工作目录: $TMP_WORK_DIR" >&2
 AI_CODE_REVIEW_TIMEOUT_SECONDS="${AI_CODE_REVIEW_TIMEOUT_SECONDS:-${MR_AI_REVIEW_TIMEOUT_SECONDS:-300}}"
 echo "[local-ai-review 调试] 使用超时时间: ${AI_CODE_REVIEW_TIMEOUT_SECONDS}s" >&2
 echo "[local-ai-review 调试] 使用模型: ${modelName}" >&2
-[ "${#revision_args[@]}" -eq 0 ] || echo "[local-ai-review 调试] 提交范围: ${commitRange}" >&2
+[ "$is_staged_review" -eq 1 ] || echo "[local-ai-review 调试] 提交范围: ${commitRange}" >&2
 
 download_ai_review_risk_learnings() {
   local tmp_work_dir="$1"
@@ -170,7 +199,11 @@ build_local_ai_review_context() {
     git diff --name-status "$COMMIT_REVIEW_DIFF_RANGE" > "$name_status_file" || return
 
     {
-      echo "Review source: Git commit diff"
+      if [ "$is_staged_review" -eq 1 ]; then
+        echo "Review source: staged changes temporary commit diff"
+      else
+        echo "Review source: Git commit diff"
+      fi
       echo "Repository: ${GIT_TOP}"
       echo "BASE_SHA: ${COMMIT_REVIEW_BASE_SHA}"
       echo "HEAD_SHA: ${COMMIT_REVIEW_HEAD_SHA}"
