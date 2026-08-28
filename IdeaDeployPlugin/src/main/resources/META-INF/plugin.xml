@@ -32,11 +32,13 @@
         <li>12. Finish Hotfix</li>
         <li>13. GitLab CI</li>
         <li>14. GitFlow Guideline</li>
+        <li>15. Codex GPT&lt;-&gt;DeepSeek</li>
     </ul>
     ]]></description>
 
     <change-notes><![CDATA[
     <ul>
+        <li>2.0.14 : Added "Codex GPT&lt;-&gt;DeepSeek" action. </li>
         <li>2.0.13 : Fixed some issues. </li>
         <li>2.0.12 : Fixed some issues. </li>
         <li>2.0.11 : Fixed some issues. </li>
@@ -113,6 +115,7 @@
                 <action id="GenerateCommitMessageMainMenu" class="com.zerofinance.zerogitdeploy.action.GenerateCommitMessageAction" icon="AllIcons.Actions.EditSource" text="Generate Commit Message" description="ZeroGit Generate Commit Message" />
                 <action id="AiCodeReviewMainMenu" class="com.zerofinance.zerogitdeploy.action.AiCodeReviewAction" icon="AllIcons.General.InspectionsEye" text="AI Code Review" description="ZeroGit AI Code Review" />
                 <action id="UpdateSkillsMainMenu" class="com.zerofinance.zerogitdeploy.action.UpdateSkillsAction" icon="AllIcons.Actions.Execute" text="Update Skills" description="ZeroGit Update Skills" />
+                <action id="ToggleCodexGptDeepSeekMainMenu" class="com.zerofinance.zerogitdeploy.action.ToggleCodexGptDeepSeekAction" icon="AllIcons.Actions.Execute" text="Codex GPT&lt;-&gt;DeepSeek" description="切换 Codex GPT 与 DeepSeek 模型" />
             </group>
             <action id="GitFlowGuidelineMainMenu" class="com.zerofinance.zerogitdeploy.action.GitFlowGuidelineAction" icon="AllIcons.General.Web" text="GitFlow Guideline" description="Open GitFlow Guideline in browser" />
         </group>
@@ -147,6 +150,7 @@
                 <action id="GenerateCommitMessagePopupMenu" class="com.zerofinance.zerogitdeploy.action.GenerateCommitMessageAction" icon="AllIcons.Actions.EditSource" text="Generate Commit Message" description="ZeroGit Generate Commit Message" />
                 <action id="AiCodeReviewPopupMenu" class="com.zerofinance.zerogitdeploy.action.AiCodeReviewAction" icon="AllIcons.General.InspectionsEye" text="AI Code Review" description="ZeroGit AI Code Review" />
                 <action id="UpdateSkillsPopupMenu" class="com.zerofinance.zerogitdeploy.action.UpdateSkillsAction" icon="AllIcons.Actions.Execute" text="Update Skills" description="ZeroGit Update Skills" />
+                <action id="ToggleCodexGptDeepSeekPopupMenu" class="com.zerofinance.zerogitdeploy.action.ToggleCodexGptDeepSeekAction" icon="AllIcons.Actions.Execute" text="Codex GPT&lt;-&gt;DeepSeek" description="切换 Codex GPT 与 DeepSeek 模型" />
             </group>
             <action id="GitFlowGuidelinePopupMenu" class="com.zerofinance.zerogitdeploy.action.GitFlowGuidelineAction" icon="AllIcons.General.Web" text="GitFlow Guideline" description="Open GitFlow Guideline in browser" />
         </group>
@@ -160,6 +164,7 @@
                 <action id="GenerateCommitMessageToolbar" class="com.zerofinance.zerogitdeploy.action.GenerateCommitMessageAction" icon="AllIcons.Actions.EditSource" text="Generate Commit Message" description="ZeroGit Generate Commit Message" />
                 <action id="AiCodeReviewToolbar" class="com.zerofinance.zerogitdeploy.action.AiCodeReviewAction" icon="AllIcons.General.InspectionsEye" text="AI Code Review" description="ZeroGit AI Code Review" />
                 <action id="UpdateSkillsToolbar" class="com.zerofinance.zerogitdeploy.action.UpdateSkillsAction" icon="AllIcons.Actions.Execute" text="Update Skills" description="ZeroGit Update Skills" />
+                <action id="ToggleCodexGptDeepSeekToolbar" class="com.zerofinance.zerogitdeploy.action.ToggleCodexGptDeepSeekAction" icon="AllIcons.Actions.Execute" text="Codex GPT&lt;-&gt;DeepSeek" description="切换 Codex GPT 与 DeepSeek 模型" />
             </group>
             <action id="MavenChangeToolbar" class="com.zerofinance.zerogitdeploy.action.MavenChangeAction" icon="AllIcons.Nodes.PpLib" text="Maven Change" description="ZeroGit Maven Change" />
             <action id="StartNewFeatureToolbar" class="com.zerofinance.zerogitdeploy.action.StartNewFeatureAction" icon="AllIcons.Vcs.Branch" text="Start New Feature" description="ZeroGit Start New Feature" />

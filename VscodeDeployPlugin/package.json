@@ -2,7 +2,7 @@
     "name": "zerofinance-git",
     "displayName": "zerofinance-git",
     "description": "zerofinance-git",
-    "version": "2.0.13",
+    "version": "2.0.14",
     "publisher": "zerofinance",
     "repository": "https://github.com/zhaoxunyong/vs-code-git-plugin",
     "engines": {
@@ -23,6 +23,7 @@
         "onCommand:extension.GenerateCommitMessage",
         "onCommand:extension.AiCodeReview",
         "onCommand:extension.UpdateSkills",
+        "onCommand:extension.ToggleCodexGptDeepSeek",
         "onCommand:extension.GitFlowGuideline",
         "onCommand:extension.GitMergeRequest",
         "onCommand:extension.RunGitlabCiBaseExecCmd"
@@ -114,6 +115,10 @@
             {
                 "command": "extension.UpdateSkills",
                 "title": "Update Skills"
+            },
+            {
+                "command": "extension.ToggleCodexGptDeepSeek",
+                "title": "Codex GPT↔DeepSeek"
             },
             {
                 "command": "extension.GitFlowGuideline",
@@ -240,6 +245,10 @@
                 {
                     "command": "extension.UpdateSkills",
                     "group": "2_skills"
+                },
+                {
+                    "command": "extension.ToggleCodexGptDeepSeek",
+                    "group": "3_codex-model"
                 }
             ]
         },
