@@ -1,4 +1,5 @@
 const path = require('path')
+const os = require('os')
 const vscode = require('vscode')
 const myPlugin = require('./myPlugin')
 const { pomXmlContainsSnapshot } = require('./pomSnapshot')
@@ -35,9 +36,12 @@ const DEFAULT_SCRIPT_ROOT_URL = 'https://gitlab.zerofinance.net/dave.zhao/deploy
 const COMMAND_PREFIX = 'extension.'
 const COMMAND_RUN_GITLAB_CI_BASE_EXEC = 'extension.RunGitlabCiBaseExecCmd'
 const COMMAND_UPDATE_SKILLS = 'extension.UpdateSkills'
+const COMMAND_TOGGLE_CODEX_MODEL = 'extension.ToggleCodexGptDeepSeek'
 const GET_SKILLS_SCRIPT = 'GetSkills.sh'
 const UPDATE_SKILLS_SCRIPT = 'UpdateSkills.sh'
 const GET_HOTFIX_BRANCH_SCRIPT = 'GetHotfixBranch.sh'
+const CODEX_MODEL_TOGGLE_SCRIPT = 'CodexGptDeepSeek.sh'
+const DEEPSEEK_CODEX_SETUP_URL = 'https://api-docs.deepseek.com/zh-cn/quick_start/agent_integrations/codex'
 const GITFLOW_GUIDELINE_URL = 'https://v04jaasnl45.feishu.cn/wiki/Vg5PwK2smiPxGLk7w4Gc7tZanjb'
 const GITLAB_CI_FILE_NAME = '.gitlab-ci.yml'
 const GITLAB_CI_NOT_FOUND_MESSAGE = '项目中未找到.gitlab-ci.yml文件'
@@ -1507,6 +1511,31 @@ function activate (context) {
                 const msg = err && err.message ? err.message : String(err)
                 debugLog('gitlab ci command failed', { msg })
                 await showErrorWithCopy(msg, buildErrorDetails(err))
+            }
+        })
+    )
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand(COMMAND_TOGGLE_CODEX_MODEL, async () => {
+            const modelsJson = path.join(os.homedir(), '.codex', 'models.json')
+            if (!fs.existsSync(modelsJson)) {
+                const action = await vscode.window.showWarningMessage(
+                    '未检测到 ~/.codex/models.json，请先参考 DeepSeek 文档进行初始化。',
+                    '打开初始化文档'
+                )
+                if (action === '打开初始化文档') {
+                    await vscode.env.openExternal(vscode.Uri.parse(DEEPSEEK_CODEX_SETUP_URL))
+                }
+                return
+            }
+
+            try {
+                const scriptPath = path.join(tmpdir, CODEX_MODEL_TOGGLE_SCRIPT)
+                await myPlugin.downloadScripts(`${getRootUrl()}/${CODEX_MODEL_TOGGLE_SCRIPT}`, scriptPath)
+                const result = await runScriptCaptureOutput(tmpdir, scriptPath)
+                vscode.window.showInformationMessage((result.stdout || 'Codex 模型已切换。').trim())
+            } catch (err) {
+                await showErrorWithCopy('Codex 模型切换失败。', buildErrorDetails(err))
             }
         })
     )
