@@ -1,6 +1,0 @@
-#支持的文件后缀（可以在check_diff_config.py中变更）：".yaml", ".yml", ".properties", ".env", ".conf", ".ini", ".ts", ".js"
-#项目gitlab地址 配置gitlab地址 文件过滤(StartWith规则，用|分割多个规则) 排除规则(Python正则表达式，用|分割多个规则)
-#当check_diff_config.py传参跟本文件冲突时，以此文档内容为准
-https://gitlab.zerofinance.net/x-wallet/x-wallet-webapp https://gitlab.zerofinance.net/hk-cash/k8s-prod-config/x-wallet-webapp env.ts Constants.locationSelect
-https://gitlab.zerofinance.net/x-wallet/x-wallet-app https://gitlab.zerofinance.net/hk-cash/k8s-prod-config/xpayApp Constants.js
-https://gitlab.zerofinance.net/hk-cash/hkcash-parent https://gitlab.zerofinance.net/hk-cash/k8s-prod-config/hkcash-server application
