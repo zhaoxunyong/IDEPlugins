@@ -11,7 +11,7 @@ if [ -f "$_VSDEP_PRE" ]; then
 fi
 unset _VSDEP_PRE
 
-export PATH="/usr/local/bin:/usr/bin:$JAVA_HOME/bin:$MVN_HOME/bin:$PATH"
+export PATH="/usr/bin:/usr/local/bin:$JAVA_HOME/bin:$MVN_HOME/bin:$PATH"
 
 git config pull.rebase false
 
