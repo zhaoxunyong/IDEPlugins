@@ -210,7 +210,7 @@ Eclipse 插件不破坏该扩展机制，与 IDEA / VS Code 在脚本层面一�
 
 - 默认选择排序后的第一个包含 `flatten-maven-plugin` 的 API 模块
 - 可在同一窗口输入 `artifactId` 或 `groupId:artifactId`；输入非空时优先使用手工输入
-- 未手工输入时，插件以 `--module <modulePath> [<modulePath> ...]` 传给 `GetApiVersion.sh`
+- 未手工输入时，插件以 `--module <modulePath>` 传给 `GetApiVersion.sh`
 - 不选 group、不跑 `gitCheck`
 - 脚本参数：`[apiArtifactName]`
 

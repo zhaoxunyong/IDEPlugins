@@ -28,13 +28,12 @@ public class GetApiVersionHandler extends AbstractZeroGitHandler {
     public Object execute(ExecutionEvent event) throws ExecutionException {
         IProject project = requireProject(event);
         String repoRoot = requireRepositoryRoot(event);
-        UserInteraction.SelectionInput selection = ui().chooseValuesOrManualInput(
+        UserInteraction.SelectionInput selection = ui().chooseValueOrManualInput(
                 shell(event),
                 "ZeroGit: Get API Version",
                 "选择要查询版本的 API 模块（默认选择第一个）",
                 findFlattenMavenModules(repoRoot),
-                "或手动输入 artifactId 或 groupId:artifactId（输入后优先）",
-                false);
+                "或手动输入 artifactId 或 groupId:artifactId（输入后优先）");
         if (selection == null) {
             return null;
         }
@@ -43,7 +42,7 @@ public class GetApiVersionHandler extends AbstractZeroGitHandler {
             args.add(selection.getManualInput());
         } else if (!selection.getSelectedValues().isEmpty()) {
             args.add("--module");
-            args.addAll(selection.getSelectedValues());
+            args.add(selection.getSelectedValues().get(0));
         } else {
             ui().showError(shell(event), "ZeroGit: Get API Version", "请选择至少一个 API 模块，或输入 Maven 坐标。");
             return null;

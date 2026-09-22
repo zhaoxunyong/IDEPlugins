@@ -45,6 +45,21 @@ public class UserInteraction {
         return dialog.open() == Window.OK ? new SelectionInput(dialog.getSelected(), dialog.getManualInput()) : null;
     }
 
+    /**
+     * 選擇單一值或手動輸入內容。
+     *
+     * @param shell 視窗 Shell
+     * @param title 對話框標題
+     * @param message 選擇提示
+     * @param values 可選值
+     * @param manualInputMessage 手動輸入提示
+     * @return 使用者選擇或輸入內容；取消時回傳 null
+     */
+    public SelectionInput chooseValueOrManualInput(Shell shell, String title, String message, List<String> values, String manualInputMessage) {
+        SingleSelectionDialog dialog = new SingleSelectionDialog(shell, title, message, values, manualInputMessage);
+        return dialog.open() == Window.OK ? new SelectionInput(dialog.getSelected(), dialog.getManualInput()) : null;
+    }
+
     public static final class SelectionInput {
         private final List<String> selectedValues;
         private final String manualInput;
