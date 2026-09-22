@@ -705,29 +705,6 @@ async function showModalYesNoDialog (message) {
     return !!selectedAction && selectedAction.title === yesAction.title
 }
 
-async function confirmGeneratedHotfix (hotfixName, baseTag) {
-    return showModalYesNoDialog(`即将基于生产 tag ${baseTag} 创建新的 hotfix：\n${hotfixName}\n\n请确认新生成的 hotfix 是否正确？`)
-}
-
-async function confirmRunScript (commandId, rootPath, scriptPath, scriptArgs) {
-    const scriptName = path.basename(scriptPath)
-    const argsText = Array.isArray(scriptArgs) && scriptArgs.length > 0 ? scriptArgs.join(' ') : '(无)'
-    const messageLines = [
-        '即将在终端中执行以下脚本：',
-        '',
-        `命令：${commandId.replace(COMMAND_PREFIX, '')}`,
-        `工作目录：${normalizePath(rootPath)}`,
-        `脚本：${scriptName}`,
-        `参数：${argsText}`,
-        '',
-        '是否继续执行？'
-    ]
-    const yesAction = { title: 'Yes' }
-    const noAction = { title: 'No', isCloseAffordance: true }
-    const selectedAction = await vscode.window.showWarningMessage(messageLines.join('\n'), { modal: true }, yesAction, noAction)
-    return !!selectedAction && selectedAction.title === yesAction.title
-}
-
 async function getReleaseBranches (rootPath, groupName, options = {}) {
     const { includeLocal = true, skipFetch = false } = options
     const releasePrefix = `release/${groupName}/`
@@ -1111,11 +1088,11 @@ async function askStartNewApiKind () {
     return selected ? selected.value : null
 }
 
-async function askStartNewApiVersion (rootPath, getApiVersionPath, modulePath, publicationKind) {
+async function askStartNewApiVersion (rootPath, startNewApiPath, modulePath, publicationKind) {
     const moduleArgument = toRelativeModulePath(rootPath, modulePath)
     let suggestedVersion
     try {
-        const result = await runScriptCaptureOutput(rootPath, getApiVersionPath, ['--suggest', moduleArgument, publicationKind])
+        const result = await runScriptCaptureOutput(rootPath, startNewApiPath, ['--suggest', moduleArgument, publicationKind])
         suggestedVersion = String(result.stdout || '').trim().split(/\r?\n/).pop()
     } catch (err) {
         await showErrorWithCopy('获取 API 建议版本失败。', buildExecErrorMessage(err))
@@ -2000,11 +1977,6 @@ async function executeGitFlowCommand (commandId, resourceUri) {
         }
         scriptArgs.push(...buildUpdateSkillsScriptArgs(selectedSkills))
         const updateSkillsPath = await resolveScriptPath(rootPath, UPDATE_SKILLS_SCRIPT)
-        const confirmedToRun = await confirmRunScript(commandId, rootPath, updateSkillsPath, scriptArgs)
-        if (!confirmedToRun) {
-            debugLog('update skills cancelled by user', { scriptArgs })
-            return { executed: false, groupName }
-        }
         runScriptInTerminal(rootPath, updateSkillsPath, scriptArgs)
         return { executed: true, groupName }
     }
@@ -2080,10 +2052,6 @@ async function executeGitFlowCommand (commandId, resourceUri) {
         if (!hotfixInfo) {
             return { executed: false, groupName }
         }
-        const confirmedHotfix = await confirmGeneratedHotfix(hotfixInfo.hotfixName, hotfixInfo.baseTag)
-        if (!confirmedHotfix) {
-            return { executed: false, groupName }
-        }
         scriptArgs.push(hotfixInfo.hotfixName)
         scriptArgs.push(hotfixInfo.baseTag)
     }
@@ -2122,10 +2090,6 @@ async function executeGitFlowCommand (commandId, resourceUri) {
             return { executed: false, groupName }
         }
         scriptArgs.push(mavenVersion)
-        const confirmedToRun = await confirmRunScript(commandId, mavenRootPath, scriptPath, scriptArgs)
-        if (!confirmedToRun) {
-            return { executed: false, groupName }
-        }
         runScriptInTerminal(mavenRootPath, scriptPath, scriptArgs)
         return { executed: true, groupName }
     }
@@ -2146,10 +2110,6 @@ async function executeGitFlowCommand (commandId, resourceUri) {
         }
     }
     if (commandId === 'extension.StartNewApi') {
-        const getApiVersionPath = normalizePath(path.join(path.dirname(scriptPath), GET_API_VERSION_SCRIPT))
-        if (!fs.existsSync(getApiVersionPath)) {
-            await myPlugin.downloadScripts(`${getRootUrl()}/${GET_API_VERSION_SCRIPT}`, getApiVersionPath)
-        }
         const modulePaths = await confirmStartNewApiModules(rootPath)
         if (!modulePaths) {
             return { executed: false, groupName }
@@ -2158,18 +2118,13 @@ async function executeGitFlowCommand (commandId, resourceUri) {
         if (!publicationKind) {
             return { executed: false, groupName }
         }
-        const version = await askStartNewApiVersion(rootPath, getApiVersionPath, modulePaths[0], publicationKind)
+        const version = await askStartNewApiVersion(rootPath, scriptPath, modulePaths[0], publicationKind)
         if (!version) {
             return { executed: false, groupName }
         }
         scriptArgs.push('--publish')
         for (const modulePath of modulePaths) {
             scriptArgs.push(toRelativeModulePath(rootPath, modulePath), version)
-        }
-        const confirmedToRun = await confirmRunScript(commandId, rootPath, scriptPath, scriptArgs)
-        if (!confirmedToRun) {
-            debugLog('script execution cancelled by user', { commandId, scriptPath, scriptArgs })
-            return { executed: false, groupName }
         }
         runScriptInTerminal(rootPath, scriptPath, scriptArgs)
         return { executed: true, groupName }
@@ -2181,11 +2136,6 @@ async function executeGitFlowCommand (commandId, resourceUri) {
         }
         scriptArgs.length = 0
         scriptArgs.push(selectedReleaseBranch)
-        const confirmedToRun = await confirmRunScript(commandId, rootPath, scriptPath, scriptArgs)
-        if (!confirmedToRun) {
-            debugLog('script execution cancelled by user', { commandId, scriptPath, scriptArgs })
-            return { executed: false, groupName }
-        }
         await runFinishReleaseScript(rootPath, scriptPath, scriptArgs)
         return { executed: true, groupName }
     }
@@ -2196,18 +2146,8 @@ async function executeGitFlowCommand (commandId, resourceUri) {
         }
         scriptArgs.length = 0
         scriptArgs.push(selectedHotfixBranch)
-        const confirmedToRun = await confirmRunScript(commandId, rootPath, scriptPath, scriptArgs)
-        if (!confirmedToRun) {
-            debugLog('script execution cancelled by user', { commandId, scriptPath, scriptArgs })
-            return { executed: false, groupName }
-        }
         await runFinishReleaseScript(rootPath, scriptPath, scriptArgs)
         return { executed: true, groupName }
-    }
-    const confirmedToRun = await confirmRunScript(commandId, rootPath, scriptPath, scriptArgs)
-    if (!confirmedToRun) {
-        debugLog('script execution cancelled by user', { commandId, scriptPath, scriptArgs })
-        return { executed: false, groupName }
     }
     runScriptInTerminal(rootPath, scriptPath, scriptArgs)
     return { executed: true, groupName }

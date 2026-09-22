@@ -216,7 +216,7 @@ public class ZeroGitFlowHandler {
             if (!FEATURE_SUFFIX_PATTERN.matcher(suffix).matches()) {
                 throw new DeployPluginException("Feature 后缀格式必须为 数字-描述，例如 001-login。");
             }
-            confirmAndRunInTerminal("Start New Feature", rPath, script, Lists.newArrayList(groupName, input));
+            runInTerminalAndNotify("Start New Feature", rPath, script, Lists.newArrayList(groupName, input));
         });
     }
 
@@ -236,7 +236,7 @@ public class ZeroGitFlowHandler {
             if (StringUtils.isBlank(selected)) {
                 return;
             }
-            confirmAndRunInTerminal("Finish Feature", rPath, script, Lists.newArrayList(groupName, selected));
+            runInTerminalAndNotify("Finish Feature", rPath, script, Lists.newArrayList(groupName, selected));
         });
     }
 
@@ -250,7 +250,7 @@ public class ZeroGitFlowHandler {
             if (!currentBranch.startsWith(requiredPrefix)) {
                 throw new DeployPluginException("当前分支不是 " + requiredPrefix + " 开头，无法 Rebase Feature。");
             }
-            confirmAndRunInTerminal("Rebase Feature", rPath, script, Lists.newArrayList(groupName, currentBranch));
+            runInTerminalAndNotify("Rebase Feature", rPath, script, Lists.newArrayList(groupName, currentBranch));
         });
     }
 
@@ -280,7 +280,7 @@ public class ZeroGitFlowHandler {
                 Messages.showErrorDialog(project, GitMrAssigneeSupport.getMissingGitMrAssigneeMessage(), "ZeroGit: Merge Request");
                 return;
             }
-            confirmAndRunInTerminal("Merge Request", rPath, script, Lists.newArrayList(groupName, normalizedAssignee));
+            runInTerminalAndNotify("Merge Request", rPath, script, Lists.newArrayList(groupName, normalizedAssignee));
         });
     }
 
@@ -327,7 +327,7 @@ public class ZeroGitFlowHandler {
             if ("snapshot".equals(changeType) && !StringUtils.endsWithIgnoreCase(mavenVersion, "-SNAPSHOT")) {
                 throw new DeployPluginException("Snapshot 版本必须以 -SNAPSHOT 结尾。");
             }
-            confirmAndRunInTerminal("Maven Change", rPath, script, Lists.newArrayList(groupName, mavenVersion));
+            runInTerminalAndNotify("Maven Change", rPath, script, Lists.newArrayList(groupName, mavenVersion));
         });
     }
 
@@ -347,10 +347,9 @@ public class ZeroGitFlowHandler {
             if (StringUtils.isBlank(publicationKind)) {
                 return;
             }
-            String getVersionScript = CommandUtils.processZeroGitScript(rPath, "GetApiVersion.sh");
             String firstModulePath = modulePaths.get(0);
             ExecuteResult versionResult = DeployCmdExecuter.exec(
-                    rPath, getVersionScript, Lists.newArrayList("--suggest", firstModulePath, publicationKind), true);
+                    rPath, script, Lists.newArrayList("--suggest", firstModulePath, publicationKind), true);
             if (versionResult.getCode() != 0) {
                 throw new DeployPluginException("获取 API 建议版本失败：" + StringUtils.defaultString(versionResult.getResult()));
             }
@@ -373,7 +372,7 @@ public class ZeroGitFlowHandler {
                 args.add(modulePath);
                 args.add(normalizedVersion);
             }
-            confirmAndRunInTerminal("Start New Api", rPath, script, args);
+            runInTerminalAndNotify("Start New Api", rPath, script, args);
         });
     }
 
@@ -443,7 +442,7 @@ public class ZeroGitFlowHandler {
                 return lines[index].trim();
             }
         }
-        throw new DeployPluginException("GetApiVersion.sh 未返回建议版本。");
+        throw new DeployPluginException("StartNewApi.sh 未返回建议版本。");
     }
 
     public void getApiVersion() throws Exception {
@@ -455,7 +454,7 @@ public class ZeroGitFlowHandler {
         }
         CommandUtils.clearZeroGitScriptCache();
         String script = CommandUtils.processZeroGitScript(rootPath, "GetApiVersion.sh");
-        confirmAndRunInTerminal("Get API Version", rootPath, script, args);
+        runInTerminalAndNotify("Get API Version", rootPath, script, args);
     }
 
     private List<String> chooseGetApiVersionArgs(String rootPath) {
@@ -503,7 +502,7 @@ public class ZeroGitFlowHandler {
             return;
         }
         String script = CommandUtils.processZeroGitScript(rootPath, "GenCommitMessage.sh");
-        confirmAndRunInTerminal("Generate Commit Message", rootPath, script, Lists.newArrayList());
+        runInTerminalAndNotify("Generate Commit Message", rootPath, script, Lists.newArrayList());
     }
 
     public void aiCodeReview() throws Exception {
@@ -525,7 +524,7 @@ public class ZeroGitFlowHandler {
         List<String> params = StringUtils.isBlank(commitRange)
                 ? Lists.newArrayList()
                 : Lists.newArrayList(commitRange);
-        confirmAndRunInTerminal("AI Code Review", rootPath, script, params);
+        runInTerminalAndNotify("AI Code Review", rootPath, script, params);
     }
 
     public void updateSkills() throws Exception {
@@ -548,7 +547,7 @@ public class ZeroGitFlowHandler {
             return;
         }
         String updateScript = CommandUtils.processZeroGitScript(rootPath, "UpdateSkills.sh");
-        confirmAndRunInTerminal("Update Skills", rootPath, updateScript, SkillUpdateSupport.buildArgs(selected));
+        runInTerminalAndNotify("Update Skills", rootPath, updateScript, SkillUpdateSupport.buildArgs(selected));
     }
 
     private List<SkillUpdateSupport.Skill> chooseSkills(List<SkillUpdateSupport.Skill> skills) {
@@ -585,7 +584,7 @@ public class ZeroGitFlowHandler {
         if (selected == null) {
             return;
         }
-        confirmAndRunRawCommandInTerminal("Run CI Command", rootPath, selected.getCommand());
+        runRawCommandInTerminalAndNotify("Run CI Command", rootPath, selected.getCommand());
     }
 
     public void startNewRelease() throws Exception {
@@ -652,7 +651,7 @@ public class ZeroGitFlowHandler {
             ensureVersionNotExists(version, releases, "release");
             ensureVersionNotExists(version, hotfixes, "hotfix");
 
-            confirmAndRunInTerminal(commandName, rPath, script, Lists.newArrayList(groupName, value));
+            runInTerminalAndNotify(commandName, rPath, script, Lists.newArrayList(groupName, value));
         });
     }
 
@@ -675,7 +674,7 @@ public class ZeroGitFlowHandler {
                 return;
             }
             List<String> params = Lists.newArrayList(selected);
-            confirmAndRunSyncAsync("Finish Release", rPath, script, params, "release");
+            runSyncAsync("Finish Release", rPath, script, params, "release");
         });
     }
 
@@ -725,11 +724,7 @@ public class ZeroGitFlowHandler {
             ensureSemver(version, "Hotfix 版本格式无效，必须是 X.Y.Z");
             ensureVersionNotExists(version, hotfixes, "hotfix");
             ensureVersionNotExists(version, releases, "release");
-            if (!yes("即将基于生产 Tag " + baseTag + " 创建新的 hotfix：\n" + value + "\n\n请确认新生成的 hotfix 是否正确？", "ZeroGit: Start New Hotfix")) {
-                return;
-            }
-
-            confirmAndRunInTerminal("Start New Hotfix", rPath, script, Lists.newArrayList(groupName, value, baseTag));
+            runInTerminalAndNotify("Start New Hotfix", rPath, script, Lists.newArrayList(groupName, value, baseTag));
         });
     }
 
@@ -752,7 +747,7 @@ public class ZeroGitFlowHandler {
                 return;
             }
             List<String> params = Lists.newArrayList(selected);
-            confirmAndRunSyncAsync("Finish Hotfix", rPath, script, params, "hotfix");
+            runSyncAsync("Finish Hotfix", rPath, script, params, "hotfix");
         });
     }
 
@@ -1037,12 +1032,7 @@ public class ZeroGitFlowHandler {
         }
     }
 
-    private void confirmAndRunInTerminal(String commandName, String rootPath, String script, List<String> params) throws IOException {
-        String message = buildConfirmMessage(commandName, rootPath, script, params);
-        if (!yes(message, "ZeroGit Confirm")) {
-            debugLog("script execution cancelled by user", commandName);
-            return;
-        }
+    private void runInTerminalAndNotify(String commandName, String rootPath, String script, List<String> params) throws IOException {
         debugLog("send command to terminal", toBashCommand(rootPath, script, params));
         runInTerminal(rootPath, script, params);
         MessagesUtils.showMessage(project,
@@ -1051,7 +1041,7 @@ public class ZeroGitFlowHandler {
                 NotificationType.INFORMATION);
     }
 
-    private void confirmAndRunRawCommandInTerminal(String commandName, String rootPath, String rawCommand) throws IOException {
+    private void runRawCommandInTerminalAndNotify(String commandName, String rootPath, String rawCommand) throws IOException {
         debugLog("send raw command to terminal", toRawBashCommand(rootPath, rawCommand));
         runRawCommandInTerminal(rootPath, rawCommand);
         MessagesUtils.showMessage(project,
@@ -1060,12 +1050,7 @@ public class ZeroGitFlowHandler {
                 NotificationType.INFORMATION);
     }
 
-    private void confirmAndRunSyncAsync(String commandName, String rootPath, String script, List<String> params, String branchType) {
-        String message = buildConfirmMessage(commandName, rootPath, script, params);
-        if (!yes(message, "ZeroGit Confirm")) {
-            debugLog("script execution cancelled by user", commandName);
-            return;
-        }
+    private void runSyncAsync(String commandName, String rootPath, String script, List<String> params, String branchType) {
         ToolWindow toolWindow = ToolWindowManager.getInstance(project).getToolWindow(DeployCmdExecuter.PLUGIN_ID);
         if (toolWindow == null) {
             throw new DeployPluginException("ToolWindow not found: " + DeployCmdExecuter.PLUGIN_ID);
@@ -1249,10 +1234,6 @@ public class ZeroGitFlowHandler {
         String actualCommand = buildCdCommand(rootPath) + " && " + rawCommand;
         sb.append(" -lc ").append(quote(actualCommand, false));
         return sb.toString();
-    }
-
-    private String buildConfirmMessage(String cmd, String rootPath, String script, List<String> params) {
-        return "命令: " + cmd + "\n工作目录: " + rootPath + "\n脚本: " + script + "\n参数: " + String.join(" ", params) + "\n\n确认执行？";
     }
 
     private GitlabCiCommandOption chooseGitlabCiCommand(List<GitlabCiCommandOption> options) {

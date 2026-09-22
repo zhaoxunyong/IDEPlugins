@@ -52,13 +52,6 @@ public class StartNewHotfixHandler extends AbstractZeroGitHandler {
             ui().showError(shell(event), "ZeroGit: Start New Hotfix", validationMessage);
             return null;
         }
-        if (!ui().confirm(
-                shell(event),
-                "ZeroGit: Start New Hotfix",
-                "即将基于生产 Tag " + baseTag + " 创建新的 hotfix：\n" + branchName + "\n\n请确认新生成的 hotfix 是否正确？")) {
-            return null;
-        }
-
         runScriptJob(
                 shell(event),
                 "Start New Hotfix",

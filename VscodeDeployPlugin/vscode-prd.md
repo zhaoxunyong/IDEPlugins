@@ -194,7 +194,11 @@
 - 不选择分组；只读展示全部包含 `flatten-maven-plugin` 的 API 模块，确认后全部发布
 - 仅以第一个模块获取建议版本并输入一次，全部模块复用该版本
 - 调用 `StartNewApi.sh --publish <modulePath> <version> [<modulePath> <version> ...]` 统一发布
-- 执行前会将 `GetApiVersion.sh` 解析到与 `StartNewApi.sh` 相同的脚本目录
+- 发布确认中的上一版本：release 取最新正式版本，snapshot 取最新 SNAPSHOT 版本
+- 多个 API 模块使用同一版本号时，确认前仅以第一个模块查询版本与 Nexus 占用；脚本以一次 Maven reactor 构建并上传，上传后仍逐模块回读制品完整性
+- 批量发布确认页会列出全部模块且只确认一次；版本占用二次校验失败直接中止，不再二次确认；脚本会在构建上传前打印 Maven 命令并显示处理中提示
+- 唯一 Maven `clean deploy` 使用 `-Dmaven.test.skip=true -Dspotbugs.skip=true -Djacoco.skip=true -Dpmd.skip=true`
+- 建议版本由同一个 `StartNewApi.sh --suggest` 生成，不依赖 `GetApiVersion.sh`
 
 ### 6.7 Get API Version
 

@@ -38,7 +38,7 @@ public class StartNewApiHandler extends AbstractZeroGitHandler {
         List<String> args = new ArrayList<String>();
         args.add("--publish");
         String firstModulePath = modulePaths.get(0);
-        CommandResult versionResult = runScriptNow(buildRequest(repoRoot, "GetApiVersion.sh", Arrays.asList("--suggest", firstModulePath, publicationKind)));
+        CommandResult versionResult = runScriptNow(buildRequest(repoRoot, "StartNewApi.sh", Arrays.asList("--suggest", firstModulePath, publicationKind)));
         if (!versionResult.isSuccess()) {
             throw new ExecutionException("获取 API 建议版本失败：" + versionResult.getOutput());
         }
@@ -116,6 +116,6 @@ public class StartNewApiHandler extends AbstractZeroGitHandler {
                 return lines[index].trim();
             }
         }
-        throw new ExecutionException("GetApiVersion.sh 未返回建议版本。");
+        throw new ExecutionException("StartNewApi.sh 未返回建议版本。");
     }
 }

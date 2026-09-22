@@ -53,15 +53,7 @@ public class UpdateSkillsHandler extends AbstractZeroGitHandler {
             }
         }
         List<String> args = SkillUpdateSupport.buildArgs(selected);
-        if (!ui().confirm(shell(event), "ZeroGit Confirm", buildConfirmation(repoRoot, args))) {
-            return null;
-        }
         runScriptJob(shell(event), "Update Skills", project, buildRequest(repoRoot, "UpdateSkills.sh", args), false);
         return null;
-    }
-
-    private String buildConfirmation(String repoRoot, List<String> args) {
-        return "即将在项目中执行 UpdateSkills.sh：\n\n工作目录：" + repoRoot +
-                "\n参数：" + (args.isEmpty() ? "(无)" : String.join(" ", args)) + "\n\n是否继续执行？";
     }
 }
