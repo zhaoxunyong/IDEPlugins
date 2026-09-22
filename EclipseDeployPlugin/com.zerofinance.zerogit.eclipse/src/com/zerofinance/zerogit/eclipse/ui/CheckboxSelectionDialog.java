@@ -15,19 +15,33 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
+import org.eclipse.swt.widgets.Text;
 
 final class CheckboxSelectionDialog extends Dialog {
     private final String title;
     private final String message;
     private final List<String> values;
+    private final String manualInputMessage;
+    private final boolean selectAllByDefault;
     private CheckboxTableViewer viewer;
+    private Text manualInput;
     private List<String> selected = Collections.emptyList();
 
     CheckboxSelectionDialog(Shell parentShell, String title, String message, List<String> values) {
+        this(parentShell, title, message, values, null, true);
+    }
+
+    CheckboxSelectionDialog(Shell parentShell, String title, String message, List<String> values, String manualInputMessage) {
+        this(parentShell, title, message, values, manualInputMessage, true);
+    }
+
+    CheckboxSelectionDialog(Shell parentShell, String title, String message, List<String> values, String manualInputMessage, boolean selectAllByDefault) {
         super(parentShell);
         this.title = title;
         this.message = message;
         this.values = values;
+        this.manualInputMessage = manualInputMessage;
+        this.selectAllByDefault = selectAllByDefault;
     }
 
     @Override
@@ -43,11 +57,21 @@ final class CheckboxSelectionDialog extends Dialog {
         viewer.setContentProvider(ArrayContentProvider.getInstance());
         viewer.setLabelProvider(new LabelProvider());
         viewer.setInput(values);
-        viewer.setAllChecked(true);
+        viewer.setAllChecked(selectAllByDefault);
+        if (!selectAllByDefault && !values.isEmpty()) {
+            viewer.setChecked(values.get(0), true);
+        }
         GridData tableData = new GridData(SWT.FILL, SWT.FILL, true, true);
         tableData.widthHint = 480;
         tableData.heightHint = 300;
         viewer.getTable().setLayoutData(tableData);
+        if (manualInputMessage != null) {
+            Label manualInputLabel = new Label(area, SWT.WRAP);
+            manualInputLabel.setText(manualInputMessage);
+            manualInputLabel.setLayoutData(new GridData(SWT.FILL, SWT.TOP, true, false));
+            manualInput = new Text(area, SWT.BORDER);
+            manualInput.setLayoutData(new GridData(SWT.FILL, SWT.TOP, true, false));
+        }
         return area;
     }
 
@@ -70,5 +94,9 @@ final class CheckboxSelectionDialog extends Dialog {
 
     List<String> getSelected() {
         return selected;
+    }
+
+    String getManualInput() {
+        return manualInput == null ? "" : manualInput.getText().trim();
     }
 }

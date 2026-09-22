@@ -2,7 +2,7 @@
     "name": "zerofinance-git",
     "displayName": "zerofinance-git",
     "description": "zerofinance-git",
-    "version": "2.0.14",
+    "version": "2.0.16",
     "publisher": "zerofinance",
     "repository": "https://github.com/zhaoxunyong/vs-code-git-plugin",
     "engines": {
@@ -13,10 +13,13 @@
     ],
     "activationEvents": [
         "onCommand:extension.MavenChange",
+        "onCommand:extension.StartNewApi",
+        "onCommand:extension.GetApiVersion",
         "onCommand:extension.StartNewFeature",
         "onCommand:extension.FinishFeature",
         "onCommand:extension.RebaseFeature",
         "onCommand:extension.StartNewRelease",
+        "onCommand:extension.StartNewReleaseNew",
         "onCommand:extension.FinishRelease",
         "onCommand:extension.StartNewHotfix",
         "onCommand:extension.FinishHotfix",
@@ -74,7 +77,15 @@
         "commands": [
             {
                 "command": "extension.MavenChange",
-                "title": "Maven Change"
+                "title": "Maven Change(Old)"
+            },
+            {
+                "command": "extension.StartNewApi",
+                "title": "Start New Api(New)"
+            },
+            {
+                "command": "extension.GetApiVersion",
+                "title": "Get API Version"
             },
             {
                 "command": "extension.StartNewFeature",
@@ -90,7 +101,11 @@
             },
             {
                 "command": "extension.StartNewRelease",
-                "title": "Start New Release"
+                "title": "Start New Release(Old)"
+            },
+            {
+                "command": "extension.StartNewReleaseNew",
+                "title": "Start New Release(New)"
             },
             {
                 "command": "extension.FinishRelease",
@@ -187,6 +202,14 @@
                 {
                     "command": "extension.MavenChange",
                     "group": "0_maven"
+                },
+                {
+                    "command": "extension.StartNewApi",
+                    "group": "1_startNewApi"
+                },
+                {
+                    "command": "extension.GetApiVersion",
+                    "group": "2_apiVersion"
                 }
             ],
             "zerogit.feature.menu": [
@@ -213,8 +236,12 @@
                     "group": "0_start"
                 },
                 {
+                    "command": "extension.StartNewReleaseNew",
+                    "group": "1_startNew"
+                },
+                {
                     "command": "extension.FinishRelease",
-                    "group": "1_finish"
+                    "group": "2_finish"
                 }
             ],
             "zerogit.hotfix.menu": [

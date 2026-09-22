@@ -40,6 +40,29 @@ public class UserInteraction {
         return dialog.open() == Window.OK ? dialog.getSelected() : Collections.<String>emptyList();
     }
 
+    public SelectionInput chooseValuesOrManualInput(Shell shell, String title, String message, List<String> values, String manualInputMessage, boolean selectAllByDefault) {
+        CheckboxSelectionDialog dialog = new CheckboxSelectionDialog(shell, title, message, values, manualInputMessage, selectAllByDefault);
+        return dialog.open() == Window.OK ? new SelectionInput(dialog.getSelected(), dialog.getManualInput()) : null;
+    }
+
+    public static final class SelectionInput {
+        private final List<String> selectedValues;
+        private final String manualInput;
+
+        private SelectionInput(List<String> selectedValues, String manualInput) {
+            this.selectedValues = selectedValues;
+            this.manualInput = manualInput;
+        }
+
+        public List<String> getSelectedValues() {
+            return selectedValues;
+        }
+
+        public String getManualInput() {
+            return manualInput;
+        }
+    }
+
     public String promptFeatureBranch(Shell shell, String group, String initialValue) {
         String prefix = "feature/" + StringUtils.trimToEmpty(group) + "/";
         return openTextInputDialog(

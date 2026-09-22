@@ -1,6 +1,6 @@
 # `zerofinance-git` VS Code 插件产品说明（当前实现）
 
-本文档按 `VscodeDeployPlugin` 当前代码与脚本能力同步更新，基线为仓库当前实现（校对日期：2026-08-17，对应插件版本 `2.0.14`）。  
+本文档按 `VscodeDeployPlugin` 当前代码与脚本能力同步更新，基线为仓库当前实现（校对日期：2026-09-22，对应插件版本 `2.0.16`）。
 旧版文档中“仅 7 个 Git Flow 命令、以 IDEA 重构为目标”的表述已不再准确；当前 VS Code 插件已经是完整的 ZeroGit 工具集。
 
 ---
@@ -12,22 +12,23 @@
 - **定位**：在 VS Code 中统一执行 ZeroGit / Git Flow / Maven / GitLab CI 辅助流程。
 - **核心原则**：插件本身负责配置、校验、分支/版本选择、脚本下载与执行；Git 流程逻辑尽量落在 Shell 脚本中，保持跨 IDE 一致。
 
-当前版本的能力是以下 **14 个入口**：
+当前版本的能力是以下 **15 个入口**：
 
 1. `Generate Commit Message`
 2. `AI Code Review`
 3. `Update Skills`
-4. `Maven Change`
-5. `Start New Feature`
-6. `Finish Feature`
-7. `Rebase Feature`
-8. `Merge Request`
-9. `Start New Release`
-10. `Finish Release`
-11. `Start New Hotfix`
-12. `Finish Hotfix`
-13. `Run CI Command`
-14. `GitFlow Guideline`
+4. `Maven Change(Old)`
+5. `Get API Version`
+6. `Start New Feature`
+7. `Finish Feature`
+8. `Rebase Feature`
+9. `Merge Request`
+10. `Start New Release`
+11. `Finish Release`
+12. `Start New Hotfix`
+13. `Finish Hotfix`
+14. `Run CI Command`
+15. `GitFlow Guideline`
 
 ---
 
@@ -47,7 +48,7 @@
 - `Pre_<ScriptName>.sh`
 - `Post_<ScriptName>.sh`
 
-这套钩子机制已存在于 `gitCheck.sh`、`StartNewRelease.sh`、`StartNewHotfix.sh`、`MavenChange.sh`、`GitMergeRequest.sh`、`GenCommitMessage.sh`、`AiCodeReview.sh` 等脚本中。
+这套钩子机制已存在于 `gitCheck.sh`、`ReadyToRelease.sh`、`StartNewHotfix.sh`、`StartNewApi.sh`、`GitMergeRequest.sh`、`GenCommitMessage.sh`、`AiCodeReview.sh` 等脚本中。
 
 ### 2.3 Bash 约束
 
@@ -127,7 +128,9 @@
 | `extension.GenerateCommitMessage` | Generate Commit Message | `GenCommitMessage.sh` | 仅对已暂存变更运行；依赖本机 `codex` 命令；默认模型 `gpt-5.4`；只生成 message，不自动 commit |
 | `extension.AiCodeReview` | AI Code Review | `AiCodeReview.sh` | 支持输入提交范围（单个 commit / commit 范围），留空则评审已暂存变更；依赖本机 `codex` 命令；要求已安装 `code-review-expert` skill；只做 review，不自动 commit |
 | `extension.UpdateSkills` | Update Skills | `GetSkills.sh` + `UpdateSkills.sh` | 先执行 `GetSkills.sh` 列出全局/项目级 skill 及其 update/delete 动作；弹窗展示（默认全选）；再执行 `UpdateSkills.sh` 统一更新或删除 |
-| `extension.MavenChange` | Maven Change | `MavenChange.sh` | 选择 Maven 子项目、选择 `release/snapshot`、输入版本号；`release` 会校验 Nexus2 中是否已存在该版本，并执行 `mvn deploy` |
+| `extension.MavenChange` | Maven Change(Old) | `MavenChange.sh` | 选择 Maven 子项目、版本类型和目标版本后发布 |
+| `extension.StartNewApi` | Start New Api(New) | `StartNewApi.sh` | 只读展示全部 API 模块，逐个确认版本后一次调用脚本发布 |
+| `extension.GetApiVersion` | Get API Version | `GetApiVersion.sh` | 默认选择第一个 API 模块；手工输入 Maven 坐标时以输入为准 |
 | `extension.GitMergeRequest` | Merge Request | `GitMergeRequest.sh` | 通过 GitLab push options 创建 MR；默认目标分支 `develop-<group>`；要求用户选择或输入 assignee |
 | `extension.RunGitlabCiBaseExecCmd` | Run CI Command | 直接解析 `.gitlab-ci.yml` | 从 `BASE_EXEC_CMD` 候选中选一条，在终端执行原始命令 |
 | `extension.GitFlowGuideline` | GitFlow Guideline | Feishu 链接 | 打开团队 GitFlow 指南 |
@@ -145,7 +148,8 @@
 | `extension.StartNewFeature` | Start New Feature | `StartNewFeature.sh` | 终端 | 选择 group，输入 `feature/<group>/001-desc`，通过 `gitCheck` 后执行 |
 | `extension.FinishFeature` | Finish Feature | `FinishFeature.sh` | 终端 | 先确认已 MR 到 `develop-<group>`，再从本地 feature 列表中选择分支 |
 | `extension.RebaseFeature` | Rebase Feature | `RebaseFeature.sh` | 终端 | 不跑 `gitCheck`；要求当前分支必须是 `feature/<group>/...` |
-| `extension.StartNewRelease` | Start New Release | `StartNewRelease.sh` | 终端 | 先确认提测时机；若发现依赖里有 `-SNAPSHOT` 会二次确认；建议版本按全部远程 tag / release / hotfix 推导 |
+| `extension.StartNewRelease` | Start New Release(Old) | `StartNewRelease.sh` | 终端 | 先确认提测时机；创建提测分支并更新 Maven RC 版本 |
+| `extension.StartNewReleaseNew` | Start New Release(New) | `ReadyToRelease.sh` | 终端 | 流程同旧版；仅创建并推送提测分支 |
 | `extension.FinishRelease` | Finish Release | `FinishRelease.sh` | 同步执行并解析输出 | 不先选 group；先确认 Maintainer 权限与上线完成，再选择 release 分支；执行后解析剩余 release/hotfix 分支提示；脚本对“标签已存在”返回失败状态 |
 | `extension.StartNewHotfix` | Start New Hotfix | `StartNewHotfix.sh` | 终端 | 先确认主干是否已及时回合；若依赖里有 `-SNAPSHOT` 会二次确认；必须基于最新生产 tag 创建 |
 | `extension.FinishHotfix` | Finish Hotfix | `FinishRelease.sh` | 同步执行并解析输出 | 不先选 group；流程同 Finish Release，但目标分支为 hotfix |
@@ -180,19 +184,26 @@
 - 若当前分支没有可推送提交，会自动创建一个空提交触发 MR
 - 脚本参数：`[groupName, assignee]`
 
-### 6.5 Maven Change
+### 6.5 Maven Change(Old)
 
-- 插件会尝试从当前选择目录向上找到最近的有效 Maven 项目
-- 若从仓库根触发且存在多个 Maven 子项目，会先弹窗选择子项目
-- `snapshot`：自动建议 `patch + 1` 后追加 `-SNAPSHOT`
-- `release`：
-  - 当前版本必须是 `-SNAPSHOT` 或 `-RCN`
-  - `-SNAPSHOT` 会建议变为 `-RC1`
-  - `-RCN` 会建议变为 `-RC(N+1)`
-  - 会先访问 Nexus2 校验版本是否已存在
-- 脚本参数：`[groupName, mavenVersion]`
+- 插件选择分组、Maven 子项目、`release` / `snapshot` 和目标版本
+- 调用 `MavenChange.sh`，脚本参数：`[groupName, mavenVersion]`
 
-### 6.6 AI Code Review
+### 6.6 Start New Api(New)
+
+- 不选择分组；只读展示全部包含 `flatten-maven-plugin` 的 API 模块，确认后全部发布
+- 仅以第一个模块获取建议版本并输入一次，全部模块复用该版本
+- 调用 `StartNewApi.sh --publish <modulePath> <version> [<modulePath> <version> ...]` 统一发布
+- 执行前会将 `GetApiVersion.sh` 解析到与 `StartNewApi.sh` 相同的脚本目录
+
+### 6.7 Get API Version
+
+- 默认选择排序后的第一个包含 `flatten-maven-plugin` 的 API 模块
+- 可在同一窗口输入 `artifactId` 或 `groupId:artifactId`；输入非空时优先使用手工输入
+- 未手工输入时，插件以 `--module <modulePath>` 传给 `GetApiVersion.sh`
+- 不选择分组
+
+### 6.7 AI Code Review
 
 - 支持输入提交范围（2.0.9 起）：
   - 单个 commit（如 `HEAD`）：只评审该提交
@@ -202,7 +213,7 @@
 - 不选 group、不跑 `gitCheck`
 - 脚本参数：`[commitRange]`（留空时不传参）
 
-### 6.7 Update Skills
+### 6.8 Update Skills
 
 - 先执行 `GetSkills.sh` 拉取可更新/删除的 skill 列表
 - `GetSkills.sh` 输出为严格协议，每行：`<action> <scope> <skill...>`
@@ -214,19 +225,14 @@
 - 不选 group、不跑 `gitCheck`
 - 脚本参数：由 `buildUpdateSkillsScriptArgs` 构造
 
-### 6.8 Start New Release
+### 6.9 Start New Release
 
 - 先弹出“是否已执行 FinishFeature、是否准备提测”的确认
-- 若仓库中的依赖或插件版本引用包含 `-SNAPSHOT`，会提示用户确认
-- 建议版本基于“全部远程带日期 tag + 所有 group 的远程 release/hotfix 分支”计算最大 SemVer，按 **minor + 1（patch 归零）** 建议，并避开当前 group 已存在的版本
-- `StartNewRelease.sh` 在 Maven 项目中会自动：
-  - 创建 `release/<group>/X.Y.Z`
-  - 将 `pom.xml` 版本改为 `X.Y.Z-RC1`
-  - 自动提交 `chore: set version to X.Y.Z-RC1`
-  - push 到远端并设置 upstream
+- `Start New Release(Old)` 调用 `StartNewRelease.sh`，创建提测分支并更新 Maven RC 版本
+- `Start New Release(New)` 调用 `ReadyToRelease.sh`，只创建并推送 `release/<group>/X.Y.Z` 提测分支
 - 脚本参数：`[groupName, fullReleaseName]`
 
-### 6.9 Finish Release
+### 6.10 Finish Release
 
 - 不需要先选择 group
 - 只允许在确认“有 Maintainer 权限，且此功能仅用于处理 CICD 自动 merge 冲突”后继续
@@ -235,7 +241,7 @@
 - 脚本对“标签已存在”场景会返回失败状态，插件按失败处理
 - 脚本参数：`[selectedReleaseBranch]`
 
-### 6.10 Start New Hotfix
+### 6.11 Start New Hotfix
 
 - 必须先确认主干回合情况
 - 若仓库中的依赖或插件版本引用包含 `-SNAPSHOT`，会提示用户确认
@@ -243,7 +249,7 @@
 - 脚本会执行 `git switch -c <hotfix> <baseTag>`
 - 脚本参数：`[groupName, fullHotfixName, baseTag]`
 
-### 6.11 Finish Hotfix
+### 6.12 Finish Hotfix
 
 - 与 Finish Release 共用 `FinishRelease.sh`
 - 不需要先选择 group
@@ -258,7 +264,8 @@
 - `Generate Commit Message`
 - `AI Code Review`
 - `Update Skills`
-- `Maven Change`
+- `Maven Change(Old)`
+- `Start New Api(New)`
 - `Rebase Feature`
 
 `gitCheck.sh` 当前检查项：
@@ -293,9 +300,9 @@
 其中：
 
 - `Feature` 子菜单包含 `Start New Feature`、`Finish Feature`、`Rebase Feature`、`Merge Request`
-- `Release` 子菜单包含 `Start New Release`、`Finish Release`
+- `Release` 子菜单包含 `Start New Release(Old)`、`Start New Release(New)`、`Finish Release`
 - `Hotfix` 子菜单包含 `Start New Hotfix`、`Finish Hotfix`
-- `Maven` 子菜单包含 `Maven Change`
+- `Maven` 子菜单包含 `Maven Change(Old)`、`Start New Api(New)`、`Get API Version`
 - `GitLab CI` 子菜单包含 `Run CI Command`
 - `AI Tools` 子菜单包含 `Generate Commit Message`、`AI Code Review`、`Update Skills`
 - `GitFlow Guideline` 直接挂在 `ZeroGit` 主菜单底部
@@ -304,12 +311,12 @@
 
 ## 9. 与旧版文档相比的关键更新
 
-这次同步（2.0.7 → 2.0.14）重点纠正了以下过期内容：
+这次同步（2.0.16 → 2.0.16）重点纠正了以下过期内容：
 
-1. 已是 **14 个功能入口**（新增 `Update Skills`），不再是“13 个”或“7 个命令”
+1. 已是 **15 个功能入口**（新增 `Get API Version`）
 2. `AI Code Review` 支持指定提交范围（单提交 / commit 范围 / 留空=已暂存变更）
 3. 新增 `Update Skills`：`GetSkills.sh` 严格协议解析 + 默认全选 + `UpdateSkills.sh` 统一 update/delete
 4. 菜单新增 `AI Tools` 子菜单，AI 相关操作统一收纳到底部
-5. `Start New Release` 建议版本改为基于“全部远程 tag + 远程 release/hotfix 分支”计算，修复仅用最新标签导致的版本跳跃
+5. `Maven Change(Old)` 的人工确认与 API 制品发布收口到脚本；`Start New Release` 仅创建并推送提测分支
 6. `FinishRelease.sh` 对“标签已存在”返回失败状态
 7. `groupNames` / `groupName` 动态配置与每次执行前选择、`gitMrAssignees`、`gitBash`、`Run CI Command` 等既有能力保持不变

@@ -15,22 +15,23 @@
   - Eclipse 插件（`Require-Bundle`：`org.eclipse.ui`、`org.eclipse.core.resources`、`org.eclipse.core.commands`、`org.eclipse.ui.console`、`org.yaml.snakeyaml` 等）
   - 复用与 IDEA / VS Code 相同的 ZeroGit Shell 脚本体系
 
-当前能力由以下 **14 个入口**构成：
+当前能力由以下 **15 个入口**构成：
 
 1. `Generate Commit Message`
 2. `AI Code Review`
 3. `Update Skills`
-4. `Maven Change`
-5. `Start New Feature`
-6. `Finish Feature`
-7. `Rebase Feature`
-8. `Merge Request`
-9. `Start New Release`
-10. `Finish Release`
-11. `Start New Hotfix`
-12. `Finish Hotfix`
-13. `Run CI Command`
-14. `GitFlow Guideline`
+4. `Maven Change(Old)`
+5. `Get API Version`
+6. `Start New Feature`
+7. `Finish Feature`
+8. `Rebase Feature`
+9. `Merge Request`
+10. `Start New Release`
+11. `Finish Release`
+12. `Start New Hotfix`
+13. `Finish Hotfix`
+14. `Run CI Command`
+15. `GitFlow Guideline`
 
 ---
 
@@ -134,7 +135,9 @@ Eclipse 插件不破坏该扩展机制，与 IDEA / VS Code 在脚本层面一�
 | Generate Commit Message | `GenCommitMessage.sh` | 只针对已暂存变更运行；依赖本机 `codex`；默认模型 `gpt-5.4`；只生成 message，不自动 commit |
 | AI Code Review | `AiCodeReview.sh` | 支持输入提交范围（单个 commit / commit 范围），留空则只评审已暂存变更；依赖本机 `codex`；要求 `code-review-expert` skill 已安装 |
 | Update Skills | `GetSkills.sh` + `UpdateSkills.sh` | 先执行 `GetSkills.sh` 列出全局/项目级 skill 及其 update/delete 动作；弹窗展示（默认全选）；再执行 `UpdateSkills.sh` 统一更新或删除 |
-| Maven Change | `MavenChange.sh` | 从当前选择目录向上定位最近的有效 Maven 项目；选择 `release/snapshot`、输入版本；`release` 会校验 Nexus2 并执行 `mvn deploy` |
+| Maven Change(Old) | `MavenChange.sh` | 从当前选择目录向上定位最近的有效 Maven 项目；选择 `release/snapshot`、输入版本；`release` 会校验 Nexus2 并执行 `mvn deploy` |
+| Start New Api(New) | `StartNewApi.sh` | 只读展示全部 API 模块，逐个确认版本后一次调用脚本发布 |
+| Get API Version | `GetApiVersion.sh` | 默认选择第一个 API 模块；手工输入 Maven 坐标时以输入为准 |
 | Merge Request | `GitMergeRequest.sh` | 通过 GitLab push options 创建 MR；默认目标分支 `develop-<group>`；assignee 可从候选中选择或手填 |
 | Run CI Command | 直接解析 `.gitlab-ci.yml` | 从 `BASE_EXEC_CMD` 候选中选择一条命令，在 Console 中执行 |
 | GitFlow Guideline | Feishu 链接 | 浏览器打开团队 GitFlow 指南 |
@@ -146,7 +149,8 @@ Eclipse 插件不破坏该扩展机制，与 IDEA / VS Code 在脚本层面一�
 | Start New Feature | `StartNewFeature.sh` | 后台 Job + Console | 选择 group，输入 `feature/<group>/001-desc`，通过 `gitCheck` 后执行 |
 | Finish Feature | `FinishFeature.sh` | 后台 Job + Console | 先确认已 MR 到 `develop-<group>`，再从本地 feature 列表中选择分支 |
 | Rebase Feature | `RebaseFeature.sh` | 后台 Job + Console | 不跑 `gitCheck`；要求当前分支必须为 `feature/<group>/...` |
-| Start New Release | `StartNewRelease.sh` | 后台 Job + Console | 先确认提测时机；若发现依赖里有 `-SNAPSHOT` 会二次确认；版本建议基于全部远程 tag / release / hotfix 推导 |
+| Start New Release(Old) | `StartNewRelease.sh` | 后台 Job + Console | 先确认提测时机；创建提测分支并更新 Maven RC 版本 |
+| Start New Release(New) | `ReadyToRelease.sh` | 后台 Job + Console | 流程同旧版；仅创建并推送提测分支 |
 | Finish Release | `FinishRelease.sh` | 后台 Job + Console | 不先选 group；先确认 Maintainer 权限与上线完成，再选择 release 分支；执行后解析剩余 release/hotfix 分支提示 |
 | Start New Hotfix | `StartNewHotfix.sh` | 后台 Job + Console | 先确认主干回合情况；若发现依赖里有 `-SNAPSHOT` 会二次确认；必须基于最新生产 tag 创建 |
 | Finish Hotfix | `FinishRelease.sh` | 后台 Job + Console | 不先选 group；流程同 Finish Release，但目标分支为 hotfix |
@@ -183,7 +187,7 @@ Eclipse 插件不破坏该扩展机制，与 IDEA / VS Code 在脚本层面一�
 - 默认目标分支 `develop-<group>`
 - 脚本参数：`[groupName, assignee]`
 
-### 6.5 Maven Change
+### 6.5 Maven Change(Old)
 
 - 从当前选择目录向上定位最近的有效 Maven 项目（含 `pom.xml`），而不是简单使用整个 Git 仓库根
 - `release` / `snapshot` 两种模式均通过对话框选择
@@ -196,7 +200,21 @@ Eclipse 插件不破坏该扩展机制，与 IDEA / VS Code 在脚本层面一�
   - 脚本会调用 Nexus2 检查版本是否已存在
 - 脚本参数：`[groupName, mavenVersion]`
 
-### 6.6 AI Code Review
+### 6.6 Start New Api(New)
+
+- 不选择分组；只读展示全部包含 `flatten-maven-plugin` 的 API 模块，确认后全部发布
+- 仅以第一个模块获取建议版本并输入一次，全部模块复用该版本
+- 调用 `StartNewApi.sh --publish <modulePath> <version> [<modulePath> <version> ...]` 统一发布
+
+### 6.7 Get API Version
+
+- 默认选择排序后的第一个包含 `flatten-maven-plugin` 的 API 模块
+- 可在同一窗口输入 `artifactId` 或 `groupId:artifactId`；输入非空时优先使用手工输入
+- 未手工输入时，插件以 `--module <modulePath> [<modulePath> ...]` 传给 `GetApiVersion.sh`
+- 不选 group、不跑 `gitCheck`
+- 脚本参数：`[apiArtifactName]`
+
+### 6.7 AI Code Review
 
 - 支持输入提交范围：
   - 单个 commit（如 `HEAD`）：只评审该提交
@@ -206,7 +224,7 @@ Eclipse 插件不破坏该扩展机制，与 IDEA / VS Code 在脚本层面一�
 - 不选 group、不跑 `gitCheck`
 - 脚本参数：`[commitRange]`（留空时不传参）
 
-### 6.7 Update Skills
+### 6.8 Update Skills
 
 - 先执行 `GetSkills.sh` 拉取可更新/删除的 skill 列表
 - `GetSkills.sh` 输出为严格协议，每行：`<action> <scope> <skill...>`
@@ -223,12 +241,13 @@ Eclipse 插件不破坏该扩展机制，与 IDEA / VS Code 在脚本层面一�
 - 先确认“是否已执行 FinishFeature、是否准备提测”
 - 若依赖或插件版本中存在 `-SNAPSHOT`，会额外弹窗确认
 - 建议版本基于“全部远程带日期 tag + 所有 group 的远程 release/hotfix 分支”计算最大 SemVer，按 **minor + 1（patch 清零）** 建议，并避开当前 group 已存在的版本
-- `StartNewRelease.sh` 在 Maven 项目中会自动：
+- `Start New Release(Old)` 调用 `StartNewRelease.sh`，在 Maven 项目中会自动：
   - 创建 `release/<group>/X.Y.Z`
   - 将 `pom.xml` 改为 `X.Y.Z-RC1`
   - 自动提交 `chore: set version to X.Y.Z-RC1`
   - push 到远端并设置 upstream
 - 脚本参数：`[groupName, fullReleaseName]`
+- `Start New Release(New)` 调用 `ReadyToRelease.sh`，流程相同但只创建并推送提测分支
 
 ### 6.9 Finish Release
 
@@ -268,7 +287,9 @@ Eclipse 插件不破坏该扩展机制，与 IDEA / VS Code 在脚本层面一�
 - `Generate Commit Message`
 - `AI Code Review`
 - `Update Skills`
-- `Maven Change`
+- `Maven Change(Old)`
+- `Start New Api(New)`
+- `Get API Version`
 - `Rebase Feature`
 
 其余 ZeroGit 主流程（Start/Finish Feature、Start/Finish Release、Start/Finish Hotfix、Merge Request）都会在后台 Job 中先执行 `gitCheck.sh`。当前检查内容：
@@ -291,9 +312,9 @@ Eclipse 插件不破坏该扩展机制，与 IDEA / VS Code 在脚本层面一�
 
 - 项目 / 编辑器右键菜单（`popup:org.eclipse.ui.popup.any`）下的 `ZeroGit`
 - 菜单结构：
-  - `Maven`：`Maven Change`
+  - `Maven`：`Maven Change(Old)`、`Start New Api(New)`、`Get API Version`
   - `Feature`：`Start New Feature`、`Finish Feature`、`Rebase Feature`、`Merge Request`
-  - `Release`：`Start New Release`、`Finish Release`
+  - `Release`：`Start New Release(Old)`、`Start New Release(New)`、`Finish Release`
   - `Hotfix`：`Start New Hotfix`、`Finish Hotfix`
   - `GitLab CI`：`Run CI Command`
   - 分隔线

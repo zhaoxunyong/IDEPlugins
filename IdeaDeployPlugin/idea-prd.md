@@ -1,6 +1,6 @@
 # `zerofinance-git` IntelliJ IDEA 插件产品说明（当前实现）
 
-本文档按 `IdeaDeployPlugin` 当前代码同步更新，基线为仓库当前实现（校对日期：2026-08-17，对应插件版本 `2.0.14`）。  
+本文档按 `IdeaDeployPlugin` 当前代码同步更新，基线为仓库当前实现（校对日期：2026-09-22，对应插件版本 `2.0.16`）。  
 旧版文档把 IDEA 插件描述成“待对齐 VS Code 的 7 个命令重构目标”，这一说法已经过期；当前 IDEA 插件已经落地为完整的 ZeroGit 工具集。
 
 ---
@@ -16,22 +16,23 @@
   - IntelliJ Platform `2022.1`
   - 依赖 `org.jetbrains.plugins.terminal`
 
-当前能力由以下 **14 个入口**构成：
+当前能力由以下 **15 个入口**构成：
 
 1. `Generate Commit Message`
 2. `AI Code Review`
 3. `Update Skills`
-4. `Maven Change`
-5. `Start New Feature`
-6. `Finish Feature`
-7. `Rebase Feature`
-8. `Merge Request`
-9. `Start New Release`
-10. `Finish Release`
-11. `Start New Hotfix`
-12. `Finish Hotfix`
-13. `Run CI Command`
-14. `GitFlow Guideline`
+4. `Maven Change(Old)`
+5. `Get API Version`
+6. `Start New Feature`
+7. `Finish Feature`
+8. `Rebase Feature`
+9. `Merge Request`
+10. `Start New Release`
+11. `Finish Release`
+12. `Start New Hotfix`
+13. `Finish Hotfix`
+14. `Run CI Command`
+15. `GitFlow Guideline`
 
 ---
 
@@ -133,7 +134,9 @@
 | Generate Commit Message | `GenCommitMessage.sh` | 只针对已暂存变更运行；依赖本机 `codex`；默认模型 `gpt-5.4`；只生成 message，不自动 commit |
 | AI Code Review | `AiCodeReview.sh` | 支持输入提交范围（单个 commit / commit 范围），留空则只评审已暂存变更；依赖本机 `codex`；要求 `code-review-expert` skill 已安装 |
 | Update Skills | `GetSkills.sh` + `UpdateSkills.sh` | 先执行 `GetSkills.sh` 列出全局/项目级 skill 及其 update/delete 动作；弹窗展示（默认全选）；再执行 `UpdateSkills.sh` 统一更新或删除 |
-| Maven Change | `MavenChange.sh` | 选择 Maven 子项目、选择 `release/snapshot`、输入版本；`release` 会检查 Nexus2 并执行 `mvn deploy` |
+| Maven Change(Old) | `MavenChange.sh` | 选择 Maven 子项目、选择 `release/snapshot`、输入版本；`release` 会检查 Nexus2 并执行 `mvn deploy` |
+| Start New Api(New) | `StartNewApi.sh` | 只读展示全部 API 模块，逐个确认版本后一次调用脚本发布 |
+| Get API Version | `GetApiVersion.sh` | 默认选择第一个 API 模块；手工输入 Maven 坐标时以输入为准 |
 | Merge Request | `GitMergeRequest.sh` | 通过 GitLab push options 创建 MR；默认目标分支 `develop-<group>`；assignee 可从候选中选择或手填 |
 | Run CI Command | 直接解析 `.gitlab-ci.yml` | 从 `BASE_EXEC_CMD` 候选中选择一条命令，在 Terminal 中执行 |
 | GitFlow Guideline | Feishu 链接 | 浏览器打开团队 GitFlow 指南 |
@@ -145,7 +148,8 @@
 | Start New Feature | `StartNewFeature.sh` | IDEA Terminal | 选择 group，输入 `feature/<group>/001-desc`，通过 `gitCheck` 后执行 |
 | Finish Feature | `FinishFeature.sh` | IDEA Terminal | 先确认已 MR 到 `develop-<group>`，再从本地 feature 列表中选择分支 |
 | Rebase Feature | `RebaseFeature.sh` | IDEA Terminal | 不跑 `gitCheck`；要求当前分支必须为 `feature/<group>/...` |
-| Start New Release | `StartNewRelease.sh` | IDEA Terminal | 先确认提测时机；若发现依赖里有 `-SNAPSHOT` 会二次确认；版本建议基于全部远程 tag / release / hotfix 推导 |
+| Start New Release(Old) | `StartNewRelease.sh` | IDEA Terminal | 先确认提测时机；创建提测分支并更新 Maven RC 版本 |
+| Start New Release(New) | `ReadyToRelease.sh` | IDEA Terminal | 流程同旧版；仅创建并推送提测分支 |
 | Finish Release | `FinishRelease.sh` | 同步执行 + Tool Window Console | 不先选 group；先确认 Maintainer 权限与上线完成，再选择 release 分支；执行后解析剩余 release/hotfix 分支提示；脚本对“标签已存在”返回失败状态 |
 | Start New Hotfix | `StartNewHotfix.sh` | IDEA Terminal | 先确认主干回合情况；若发现依赖里有 `-SNAPSHOT` 会二次确认；必须基于最新生产 tag 创建 |
 | Finish Hotfix | `FinishRelease.sh` | 同步执行 + Tool Window Console | 不先选 group；流程同 Finish Release，但目标分支为 hotfix |
@@ -182,7 +186,7 @@
 - 默认目标分支 `develop-<group>`
 - 脚本参数：`[groupName, assignee]`
 
-### 6.5 Maven Change
+### 6.5 Maven Change(Old)
 
 - 插件会从当前路径向上定位最近的有效 Maven 项目，而不是简单使用整个 Git 仓库根
 - `release` / `snapshot` 两种模式均通过对话框选择
@@ -195,7 +199,21 @@
   - 脚本会调用 Nexus2 检查版本是否已存在
 - 脚本参数：`[groupName, mavenVersion]`
 
-### 6.6 AI Code Review
+### 6.6 Start New Api(New)
+
+- 不选择分组；只读展示全部包含 `flatten-maven-plugin` 的 API 模块，确认后全部发布
+- 仅以第一个模块获取建议版本并输入一次，全部模块复用该版本
+- 调用 `StartNewApi.sh --publish <modulePath> <version> [<modulePath> <version> ...]` 统一发布
+
+### 6.7 Get API Version
+
+- 默认选择排序后的第一个包含 `flatten-maven-plugin` 的 API 模块
+- 可在同一窗口输入 `artifactId` 或 `groupId:artifactId`；输入非空时优先使用手工输入
+- 未手工输入时，插件以 `--module <modulePath>` 传给 `GetApiVersion.sh`
+- 不选 group、不跑 `gitCheck`
+- 脚本参数：`[apiArtifactName]`
+
+### 6.7 AI Code Review
 
 - 支持输入提交范围（2.0.9 起）：
   - 单个 commit（如 `HEAD`）：只评审该提交
@@ -205,7 +223,7 @@
 - 不选 group、不跑 `gitCheck`
 - 脚本参数：`[commitRange]`（留空时不传参）
 
-### 6.7 Update Skills
+### 6.8 Update Skills
 
 - 先执行 `GetSkills.sh` 拉取可更新/删除的 skill 列表
 - `GetSkills.sh` 输出为严格协议，每行：`<action> <scope> <skill...>`
@@ -217,19 +235,20 @@
 - 不选 group、不跑 `gitCheck`
 - 脚本参数：由 `SkillUpdateSupport.buildArgs` 构造
 
-### 6.8 Start New Release
+### 6.9 Start New Release
 
 - 先确认“是否已执行 FinishFeature、是否准备提测”
 - 若依赖或插件版本中存在 `-SNAPSHOT`，会额外弹窗确认
 - 建议版本基于“全部远程带日期 tag + 所有 group 的远程 release/hotfix 分支”计算最大 SemVer，按 **minor + 1（patch 清零）** 建议，并避开当前 group 已存在的版本
-- `StartNewRelease.sh` 在 Maven 项目中会自动：
+- `Start New Release(Old)` 调用 `StartNewRelease.sh`，在 Maven 项目中会自动：
   - 创建 `release/<group>/X.Y.Z`
   - 将 `pom.xml` 改为 `X.Y.Z-RC1`
   - 自动提交 `chore: set version to X.Y.Z-RC1`
   - push 到远端并设置 upstream
 - 脚本参数：`[groupName, fullReleaseName]`
+- `Start New Release(New)` 调用 `ReadyToRelease.sh`，流程相同但只创建并推送提测分支
 
-### 6.9 Finish Release
+### 6.10 Finish Release
 
 - 不需要先选择 group
 - 必须先确认：
@@ -241,7 +260,7 @@
 - 脚本对“标签已存在”场景会返回失败状态，插件按失败处理
 - 脚本参数：`[selectedReleaseBranch]`
 
-### 6.10 Start New Hotfix
+### 6.11 Start New Hotfix
 
 - 必须先确认上线后的代码已及时回合到 `main/develop/release/hotfix`
 - 若依赖或插件版本中存在 `-SNAPSHOT`，会额外弹窗确认
@@ -250,7 +269,7 @@
 - 脚本实际执行 `git switch -c <hotfix> <baseTag>`
 - 脚本参数：`[groupName, fullHotfixName, baseTag]`
 
-### 6.11 Finish Hotfix
+### 6.12 Finish Hotfix
 
 - 与 Finish Release 共用 `FinishRelease.sh`
 - 不需要先选择 group
@@ -266,7 +285,8 @@ IDEA 插件中，以下命令不会先跑 `gitCheck`：
 - `Generate Commit Message`
 - `AI Code Review`
 - `Update Skills`
-- `Maven Change`
+- `Maven Change(Old)`
+- `Start New Api(New)`
 - `Rebase Feature`
 
 其余 ZeroGit 主流程都会先执行 `gitCheck.sh`。当前检查内容：
@@ -311,7 +331,7 @@ IDEA 插件中，以下命令不会先跑 `gitCheck`：
 
 ## 9. 与旧版文档相比的关键更新
 
-本次同步（2.0.7 → 2.0.14）修正了以下过期信息：
+本次同步（2.0.7 → 2.0.16）修正了以下过期信息：
 
 1. IDEA 插件已是 **14 个功能入口**（新增 `Update Skills`），不是“13 个”，更不是“待实现的 7 命令对齐项目”
 2. `AI Code Review` 支持指定提交范围（单提交 / commit 范围 / 留空=已暂存变更）

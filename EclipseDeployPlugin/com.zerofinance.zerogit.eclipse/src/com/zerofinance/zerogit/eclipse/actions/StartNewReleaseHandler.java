@@ -20,10 +20,8 @@ public class StartNewReleaseHandler extends AbstractZeroGitHandler {
 
         if (!ui().confirm(
                 shell(event),
-                "ZeroGit: Start New Release",
-                "确认好准备提测了吗？是否已执行FinishFeature删除本地多余的feature分支？\n\n"
-                        + "1. StartNewRelease只能在提测时执行一次，maven项目会自动更新pom.xml版本，并打上-RC1后缀。\n"
-                        + "2. 后续无需再次打release分支，直接在release分支上进行bug的修复。如需升级maven版本，执行MavenChange操作即可。")) {
+                "ZeroGit: " + commandTitle(),
+                "确认好准备提测了吗？是否已执行FinishFeature删除本地多余的feature分支？")) {
             return null;
         }
         if (!confirmPomSnapshotIfPresent(shell(event), repoRoot)) {
@@ -46,7 +44,7 @@ public class StartNewReleaseHandler extends AbstractZeroGitHandler {
         String latestHotfixVersion = hotfixBranches.isEmpty() ? "无" : hotfixBranches.get(0);
         String branchName = ui().promptText(
                 shell(event),
-                "ZeroGit: Start New Release",
+                "ZeroGit: " + commandTitle(),
                 "请输入 Release 分支（SemVer）\n"
                         + "1. 最新的 tag：" + latestTagText + "\n"
                         + "2. 最新的 release：" + latestReleaseVersion + "\n"
@@ -59,17 +57,25 @@ public class StartNewReleaseHandler extends AbstractZeroGitHandler {
 
         String validationMessage = flowService().validateReleaseBranchName(group, branchName);
         if (validationMessage != null) {
-            ui().showError(shell(event), "ZeroGit: Start New Release", validationMessage);
+            ui().showError(shell(event), "ZeroGit: " + commandTitle(), validationMessage);
             return null;
         }
 
         runScriptJob(
                 shell(event),
-                "Start New Release",
+                commandTitle(),
                 project,
-                buildRequest(repoRoot, "StartNewRelease.sh", flowService().buildStartReleaseArgs(group, branchName)),
+                buildRequest(repoRoot, scriptFileName(), flowService().buildStartReleaseArgs(group, branchName)),
                 true);
         return null;
+    }
+
+    protected String commandTitle() {
+        return "Start New Release(Old)";
+    }
+
+    protected String scriptFileName() {
+        return "StartNewRelease.sh";
     }
 
     private List<String> listReleaseBranches(String repoRoot, String group) throws ExecutionException {

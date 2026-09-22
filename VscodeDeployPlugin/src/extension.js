@@ -39,6 +39,7 @@ const COMMAND_UPDATE_SKILLS = 'extension.UpdateSkills'
 const COMMAND_TOGGLE_CODEX_MODEL = 'extension.ToggleCodexGptDeepSeek'
 const GET_SKILLS_SCRIPT = 'GetSkills.sh'
 const UPDATE_SKILLS_SCRIPT = 'UpdateSkills.sh'
+const GET_API_VERSION_SCRIPT = 'GetApiVersion.sh'
 const GET_HOTFIX_BRANCH_SCRIPT = 'GetHotfixBranch.sh'
 const CODEX_MODEL_TOGGLE_SCRIPT = 'CodexGptDeepSeek.sh'
 const DEEPSEEK_CODEX_SETUP_URL = 'https://api-docs.deepseek.com/zh-cn/quick_start/agent_integrations/codex'
@@ -58,7 +59,10 @@ const gitFlowScriptByCommand = {
     'extension.RebaseFeature': 'RebaseFeature.sh',
     'extension.GitMergeRequest': 'GitMergeRequest.sh',
     'extension.MavenChange': 'MavenChange.sh',
+    'extension.StartNewApi': 'StartNewApi.sh',
+    'extension.GetApiVersion': GET_API_VERSION_SCRIPT,
     'extension.StartNewRelease': 'StartNewRelease.sh',
+    'extension.StartNewReleaseNew': 'ReadyToRelease.sh',
     'extension.FinishRelease': 'FinishRelease.sh',
     'extension.StartNewHotfix': 'StartNewHotfix.sh',
     'extension.FinishHotfix': 'FinishRelease.sh'
@@ -660,8 +664,8 @@ async function confirmFinishFeature (groupName) {
     return showModalYesNoDialog(`是否已在gitlab中MR到develop-${groupName}，并完成了Merge操作？继续流程只会删除本地的feature分支。`)
 }
 
-async function confirmMavenChangeForRelease () {
-    return showModalYesNoDialog('确认好准备提测了吗？是否已执行FinishFeature删除本地多余的feature分支？\n\n1. StartNewRelease只能在提测时执行一次，maven项目会自动更新pom.xml版本，并打上-RC1后缀。\n2. 后续无需再次打release分支，直接在release分支上进行bug的修复。如需升级maven版本，执行MavenChange操作即可。')
+async function confirmStartRelease () {
+    return showModalYesNoDialog('确认好准备提测了吗？是否已执行FinishFeature删除本地多余的feature分支？')
 }
 
 async function confirmOpsReleaseDone () {
@@ -676,7 +680,7 @@ async function confirmFinishHotfixUsageNotice () {
     return showModalYesNoDialog('只有Maintainer角色才有权限操作，请确认你对该项目是否有Maintainer权限？\n\n此功能仅限于解决CICD自动化merge代码时出现冲突的场景。解决完冲突后，再到项目的Pipeline里面重新执行对应的job即可。')
 }
 
-/** StartNewRelease / StartNewHotfix：当前目录树任意 pom.xml 含 -SNAPSHOT 时需用户确认，取消则中断。 */
+/** StartNewHotfix：当前目录树任意 pom.xml 含 -SNAPSHOT 时需用户确认，取消则中断。 */
 async function confirmPomSnapshotIfPresent (rootPath) {
     if (!pomXmlContainsSnapshot(rootPath)) {
         return true
@@ -944,8 +948,7 @@ function isMavenProject (rootPath) {
         return false
     }
     try {
-        const pomContent = fs.readFileSync(pomPath, 'utf8')
-        return /<project[\s>]/.test(pomContent)
+        return /<project[\s>]/.test(fs.readFileSync(pomPath, 'utf8'))
     } catch (err) {
         debugLog('read pom.xml failed', err && err.message ? err.message : String(err))
         return false
@@ -961,8 +964,7 @@ function collectMavenRootsUnder (dirPath, result) {
         result.push(normalizePath(dirPath))
     }
     try {
-        const names = fs.readdirSync(dirPath)
-        for (const name of names) {
+        for (const name of fs.readdirSync(dirPath)) {
             if (name === '.git') continue
             const childPath = path.join(dirPath, name)
             if (fs.statSync(childPath).isDirectory()) {
@@ -974,45 +976,179 @@ function collectMavenRootsUnder (dirPath, result) {
     }
 }
 
-/** 返回 git 根下所有含有效 pom.xml 的 Maven 项目根目录列表。 */
 function getMavenRootsUnder (gitRootPath) {
     const roots = []
     collectMavenRootsUnder(gitRootPath, roots)
     return roots
 }
 
-/**
- * 从 git 根往下找包含 pathContained 的 Maven 项目根，返回路径最短的（最外层）。
- * 若选中路径即为 git 根且根下无 pom.xml、仅子目录有 Maven 项目，则返回 null，由调用方根据 getMavenRootsUnder 做回退（单选或多选）。
- * @param {string} gitRootPath - git 根目录
- * @param {string} pathContained - 当前选中的路径（工作区目录或文件所在目录）
- * @returns {string|null} 最外层的 Maven 项目根路径，未找到返回 null
- */
-function pathContains (parentPath, childPath, caseInsensitive) {
-    const sep = '/'
-    const parentWithSep = parentPath.endsWith(sep) ? parentPath : parentPath + sep
-    if (!caseInsensitive) {
-        return childPath === parentPath || childPath.startsWith(parentWithSep)
+function getFlattenMavenModules (gitRootPath) {
+    return getMavenRootsUnder(gitRootPath)
+        .filter(rootPath => {
+            try {
+                return /<artifactId>\s*flatten-maven-plugin\s*<\/artifactId>/.test(fs.readFileSync(path.join(rootPath, 'pom.xml'), 'utf8'))
+            } catch (err) {
+                return false
+            }
+        })
+        .sort((left, right) => {
+            const leftApi = /-api$/i.test(path.basename(left))
+            const rightApi = /-api$/i.test(path.basename(right))
+            if (leftApi !== rightApi) return leftApi ? -1 : 1
+            return left.localeCompare(right)
+        })
+}
+
+function toRelativeModulePath (rootPath, modulePath) {
+    const relativePath = normalizePath(path.relative(rootPath, modulePath))
+    return relativePath || '.'
+}
+
+async function askApiModuleSelection (rootPath, title, placeholder, allowManualInput) {
+    const modules = getFlattenMavenModules(rootPath)
+    if (modules.length === 0 && !allowManualInput) {
+        vscode.window.showErrorMessage('未找到包含 flatten-maven-plugin 的 Maven 模块。')
+        return null
     }
-    const p = parentWithSep.toLowerCase()
-    const c = childPath.toLowerCase()
-    return c === parentPath.toLowerCase() || c.startsWith(p)
+    const items = modules.map(modulePath => ({
+        label: toRelativeModulePath(rootPath, modulePath),
+        description: modulePath,
+        value: modulePath
+    }))
+    return await new Promise(resolve => {
+        const quickPick = vscode.window.createQuickPick()
+        const disposables = []
+        let settled = false
+        const finish = result => {
+            if (settled) return
+            settled = true
+            disposables.forEach(disposable => disposable.dispose())
+            quickPick.hide()
+            quickPick.dispose()
+            resolve(result)
+        }
+
+        quickPick.ignoreFocusOut = true
+        quickPick.canSelectMany = false
+        quickPick.title = title
+        quickPick.placeholder = placeholder
+        quickPick.items = items
+        quickPick.selectedItems = items.slice(0, 1)
+        disposables.push(quickPick.onDidAccept(() => {
+            const manualInput = allowManualInput ? String(quickPick.value || '').trim() : ''
+            finish({
+                manualInput,
+                modulePaths: manualInput ? [] : (quickPick.selectedItems[0] ? [quickPick.selectedItems[0].value] : [])
+            })
+        }))
+        disposables.push(quickPick.onDidHide(() => finish(null)))
+        quickPick.show()
+    })
+}
+
+async function askGetApiVersionTargets (rootPath) {
+    return await askApiModuleSelection(
+        rootPath,
+        '选择要查询版本的 API 模块',
+        '默认选择第一个模块；也可直接输入 artifactId 或 groupId:artifactId，输入后优先使用',
+        true
+    )
+}
+
+async function confirmStartNewApiModules (rootPath) {
+    const modulePaths = getFlattenMavenModules(rootPath)
+    if (modulePaths.length === 0) {
+        vscode.window.showErrorMessage('未找到包含 flatten-maven-plugin 的 Maven 模块。')
+        return null
+    }
+    const items = modulePaths.map(modulePath => ({
+        label: toRelativeModulePath(rootPath, modulePath),
+        description: '将发布'
+    }))
+    return await new Promise(resolve => {
+        const quickPick = vscode.window.createQuickPick()
+        const disposables = []
+        let settled = false
+        let restoringAllItems = false
+        const finish = result => {
+            if (settled) return
+            settled = true
+            disposables.forEach(disposable => disposable.dispose())
+            quickPick.hide()
+            quickPick.dispose()
+            resolve(result)
+        }
+
+        quickPick.ignoreFocusOut = true
+        quickPick.canSelectMany = true
+        quickPick.title = '确认要发布的 API 模块'
+        quickPick.placeholder = '以下模块将全部发布，不能取消单个模块'
+        quickPick.items = items
+        quickPick.selectedItems = items
+        disposables.push(quickPick.onDidChangeSelection(() => {
+            if (restoringAllItems || quickPick.selectedItems.length === items.length) {
+                return
+            }
+            restoringAllItems = true
+            quickPick.selectedItems = items
+            restoringAllItems = false
+        }))
+        disposables.push(quickPick.onDidAccept(() => finish(modulePaths)))
+        disposables.push(quickPick.onDidHide(() => finish(null)))
+        quickPick.show()
+    })
+}
+
+async function askStartNewApiKind () {
+    const selected = await vscode.window.showQuickPick([
+        { label: 'release', description: '正式版本', value: 'release' },
+        { label: 'snapshot', description: '开发联调版本', value: 'snapshot' }
+    ], {
+        ignoreFocusOut: true,
+        canPickMany: false,
+        title: '选择 API 发布类型'
+    })
+    return selected ? selected.value : null
+}
+
+async function askStartNewApiVersion (rootPath, getApiVersionPath, modulePath, publicationKind) {
+    const moduleArgument = toRelativeModulePath(rootPath, modulePath)
+    let suggestedVersion
+    try {
+        const result = await runScriptCaptureOutput(rootPath, getApiVersionPath, ['--suggest', moduleArgument, publicationKind])
+        suggestedVersion = String(result.stdout || '').trim().split(/\r?\n/).pop()
+    } catch (err) {
+        await showErrorWithCopy('获取 API 建议版本失败。', buildExecErrorMessage(err))
+        return null
+    }
+    const version = await vscode.window.showInputBox({
+        ignoreFocusOut: true,
+        title: '确认 API 版本',
+        prompt: '可手动调整版本号。',
+        value: suggestedVersion,
+        validateInput: text => {
+            const value = String(text || '').trim()
+            if (!/^\d+\.\d+\.\d+(?:-SNAPSHOT)?$/.test(value)) return '版本必须为 x.y.z 或 x.y.z-SNAPSHOT。'
+            if (publicationKind === 'release' && /-SNAPSHOT$/i.test(value)) return 'release 版本不能以 -SNAPSHOT 结尾。'
+            if (publicationKind === 'snapshot' && !/-SNAPSHOT$/i.test(value)) return 'snapshot 版本必须以 -SNAPSHOT 结尾。'
+            return ''
+        }
+    })
+    return version ? String(version).trim() : null
 }
 
 function getMavenProjectRootPath (gitRootPath, pathContained) {
-    const roots = getMavenRootsUnder(gitRootPath)
     const normalizedContained = normalizePath(path.resolve(pathContained))
     const caseInsensitive = process.platform === 'win32'
     let bestRoot = null
     let bestPathLength = Number.MAX_SAFE_INTEGER
-    const sep = '/'
-    for (const root of roots) {
+    for (const root of getMavenRootsUnder(gitRootPath)) {
         const normalizedRoot = normalizePath(path.resolve(root))
-        const underThisRoot = normalizedContained === normalizedRoot ||
-            (caseInsensitive
-                ? pathContains(normalizedRoot, normalizedContained, true)
-                : normalizedContained.startsWith(normalizedRoot + sep))
-        if (underThisRoot && normalizedRoot.length < bestPathLength) {
+        const rootWithSeparator = normalizedRoot.endsWith('/') ? normalizedRoot : normalizedRoot + '/'
+        const isContained = caseInsensitive
+            ? normalizedContained.toLowerCase() === normalizedRoot.toLowerCase() || normalizedContained.toLowerCase().startsWith(rootWithSeparator.toLowerCase())
+            : normalizedContained === normalizedRoot || normalizedContained.startsWith(rootWithSeparator)
+        if (isContained && normalizedRoot.length < bestPathLength) {
             bestRoot = normalizedRoot
             bestPathLength = normalizedRoot.length
         }
@@ -1025,12 +1161,10 @@ function getMavenVersionFromPom (rootPath) {
     if (!fs.existsSync(pomPath)) {
         return null
     }
-
     try {
-        const pomContent = fs.readFileSync(pomPath, 'utf8')
-        const contentWithoutComments = pomContent.replace(/<!--[\s\S]*?-->/g, '')
-        const contentWithoutParent = contentWithoutComments.replace(/<parent>[\s\S]*?<\/parent>/g, '')
-        const matched = contentWithoutParent.match(/<version>\s*([^<\s]+)\s*<\/version>/)
+        const withoutComments = fs.readFileSync(pomPath, 'utf8').replace(/<!--[\s\S]*?-->/g, '')
+        const withoutParent = withoutComments.replace(/<parent>[\s\S]*?<\/parent>/g, '')
+        const matched = withoutParent.match(/<version>\s*([^<\s]+)\s*<\/version>/)
         return matched ? matched[1].trim() : null
     } catch (err) {
         debugLog('parse pom version failed', err && err.message ? err.message : String(err))
@@ -1043,56 +1177,33 @@ function buildSuggestedMavenVersion (currentVersion, changeType) {
     if (!raw) {
         return changeType === 'snapshot' ? '1.0.1-SNAPSHOT' : null
     }
-
     if (changeType === 'snapshot') {
-        // 如果有 - 字符，去掉 - 后面的内容，得到 base x.y.z
-        const baseVersion = raw.includes('-') ? raw.split('-')[0].trim() : raw.replace(/-SNAPSHOT$/i, '')
+        const baseVersion = raw.includes('-') ? raw.split('-')[0].trim() : raw
         const semverParts = parseSemverVersion(baseVersion)
-        const nextVersion = semverParts
-            ? `${semverParts[0]}.${semverParts[1]}.${semverParts[2] + 1}`
-            : '1.0.1'
+        const nextVersion = semverParts ? `${semverParts[0]}.${semverParts[1]}.${semverParts[2] + 1}` : '1.0.1'
         return `${nextVersion}-SNAPSHOT`
     }
-
-    // release
     const rcMatch = raw.match(/-RC(\d+)$/i)
     if (rcMatch) {
-        const base = raw.replace(/-RC\d+$/i, '')
-        const num = parseInt(rcMatch[1], 10)
-        return `${base}-RC${num + 1}`
+        return `${raw.replace(/-RC\d+$/i, '')}-RC${parseInt(rcMatch[1], 10) + 1}`
     }
-    if (/-SNAPSHOT$/i.test(raw)) {
-        const base = raw.replace(/-SNAPSHOT$/i, '')
-        return `${base}-RC1`
-    }
-    return null
+    return /-SNAPSHOT$/i.test(raw) ? `${raw.replace(/-SNAPSHOT$/i, '')}-RC1` : null
 }
 
 function isValidMavenVersionText (versionText) {
-    const mavenVersionRule = /^\d+\.\d+\.\d+(?:-SNAPSHOT|-RC\d+)?$/
-    return mavenVersionRule.test(String(versionText || '').trim())
+    return /^\d+\.\d+\.\d+(?:-SNAPSHOT|-RC\d+)?$/.test(String(versionText || '').trim())
 }
 
 async function askMavenChangeType () {
-    const options = [
-        {
-            label: 'release',
-            description: '默认选项',
-            value: 'release'
-        },
-        {
-            label: 'snapshot',
-            value: 'snapshot'
-        }
-    ]
-
-    const selected = await vscode.window.showQuickPick(options, {
+    const selected = await vscode.window.showQuickPick([
+        { label: 'release', description: '默认选项', value: 'release' },
+        { label: 'snapshot', value: 'snapshot' }
+    ], {
         ignoreFocusOut: true,
         canPickMany: false,
         title: 'Select Maven change type',
         placeHolder: 'Choose snapshot or release'
     })
-
     if (!selected) {
         vscode.window.showErrorMessage('Please select maven change type, task aborted.')
         return null
@@ -1102,16 +1213,8 @@ async function askMavenChangeType () {
 
 async function askMavenChangeVersion (rootPath, changeType) {
     const currentPomVersion = getMavenVersionFromPom(rootPath)
-    if (changeType === 'release') {
-        const hasRc = /-RC\d+$/i.test(String(currentPomVersion || ''))
-        const hasSnapshot = /-SNAPSHOT$/i.test(String(currentPomVersion || ''))
-        if (!hasRc && !hasSnapshot) {
-            vscode.window.showErrorMessage('你只能基于RC或SNAPSHOT进行操作')
-            return null
-        }
-    }
     const suggestedVersion = buildSuggestedMavenVersion(currentPomVersion, changeType)
-    if (changeType === 'release' && suggestedVersion == null) {
+    if (changeType === 'release' && suggestedVersion === null) {
         vscode.window.showErrorMessage('你只能基于RC或SNAPSHOT进行操作')
         return null
     }
@@ -1120,43 +1223,27 @@ async function askMavenChangeVersion (rootPath, changeType) {
         placeHolder: 'Please input maven version',
         prompt: `Please input maven version (${changeType}).`,
         value: suggestedVersion || '',
-        validateInput: function (text) {
+        validateInput: text => {
             const value = String(text || '').trim()
-            if (!value) {
-                return 'Please input maven version.'
-            }
-            if (!isValidMavenVersionText(value)) {
-                return 'Maven version must be x.y.z, x.y.z-SNAPSHOT or x.y.z-RCN (N为数字).'
-            }
-            if (changeType === 'release' && /-SNAPSHOT$/i.test(value)) {
-                return 'Release version cannot end with -SNAPSHOT.'
-            }
-            if (changeType === 'snapshot' && !/-SNAPSHOT$/i.test(value)) {
-                return 'Snapshot version must end with -SNAPSHOT.'
-            }
+            if (!value) return 'Please input maven version.'
+            if (!isValidMavenVersionText(value)) return 'Maven version must be x.y.z, x.y.z-SNAPSHOT or x.y.z-RCN (N为数字).'
+            if (changeType === 'release' && /-SNAPSHOT$/i.test(value)) return 'Release version cannot end with -SNAPSHOT.'
+            if (changeType === 'snapshot' && !/-SNAPSHOT$/i.test(value)) return 'Snapshot version must end with -SNAPSHOT.'
             return ''
         }
     })
-
     if (!inputVersion) {
         vscode.window.showErrorMessage('Please input maven version, task aborted.')
         return null
     }
-
-    const normalizedVersion = String(inputVersion).trim()
-    if (!isValidMavenVersionText(normalizedVersion)) {
+    const mavenVersion = String(inputVersion).trim()
+    if (!isValidMavenVersionText(mavenVersion) ||
+        (changeType === 'release' && /-SNAPSHOT$/i.test(mavenVersion)) ||
+        (changeType === 'snapshot' && !/-SNAPSHOT$/i.test(mavenVersion))) {
         vscode.window.showErrorMessage('Invalid maven version format, task aborted.')
         return null
     }
-    if (changeType === 'release' && /-SNAPSHOT$/i.test(normalizedVersion)) {
-        vscode.window.showErrorMessage('Release version cannot end with -SNAPSHOT, task aborted.')
-        return null
-    }
-    if (changeType === 'snapshot' && !/-SNAPSHOT$/i.test(normalizedVersion)) {
-        vscode.window.showErrorMessage('Snapshot version must end with -SNAPSHOT, task aborted.')
-        return null
-    }
-    return normalizedVersion
+    return mavenVersion
 }
 
 async function askFinishReleaseBranchAll (rootPath) {
@@ -1695,6 +1782,20 @@ function buildAiCodeReviewScriptArgs (commitRange) {
     return normalizedCommitRange ? [normalizedCommitRange] : []
 }
 
+/** 建立 API 版本查询脚本参数。 */
+function buildGetApiVersionScriptArgs (apiName) {
+    const normalizedApiName = String(apiName || '').trim()
+    return normalizedApiName ? [normalizedApiName] : []
+}
+
+/** 建立多个 Maven 模块的 API 版本查询脚本参数。 */
+function buildGetApiVersionModuleScriptArgs (modulePaths) {
+    const normalizedModulePaths = Array.isArray(modulePaths)
+        ? modulePaths.map(value => String(value || '').trim()).filter(Boolean)
+        : []
+    return normalizedModulePaths.length > 0 ? ['--module', ...normalizedModulePaths] : []
+}
+
 /** 解析 GetSkills.sh 输出的 action scope skills... 严格协议。 */
 function parseSkillsOutput (outputText) {
     const skills = []
@@ -1799,8 +1900,8 @@ async function executeGitFlowCommand (commandId, resourceUri) {
         throw new Error(`Unsupported command: ${commandId}`)
     }
     debugLog('resolve command script', { commandId, scriptName })
-    // FinishRelease/FinishHotfix 自己会从分支名解析 groupName，不需要先选 group。
-    const commandRequiresGroup = commandId !== 'extension.GenerateCommitMessage' && commandId !== 'extension.AiCodeReview' && commandId !== COMMAND_UPDATE_SKILLS && commandId !== 'extension.FinishRelease' && commandId !== 'extension.FinishHotfix'
+    // FinishRelease/FinishHotfix 自己会从分支名解析 groupName，Start New Api 不使用 groupName。
+    const commandRequiresGroup = commandId !== 'extension.GenerateCommitMessage' && commandId !== 'extension.AiCodeReview' && commandId !== COMMAND_UPDATE_SKILLS && commandId !== 'extension.StartNewApi' && commandId !== 'extension.GetApiVersion' && commandId !== 'extension.FinishRelease' && commandId !== 'extension.FinishHotfix'
     const groupName = commandRequiresGroup ? await ensureGroupNameConfigured() : null
     if (commandRequiresGroup && !groupName) {
         return { executed: false, groupName: null }
@@ -1830,10 +1931,10 @@ async function executeGitFlowCommand (commandId, resourceUri) {
         }
         scriptArgs.push(featureName)
     }
-    if (commandId === 'extension.StartNewRelease') {
-        const confirmedMavenChange = await confirmMavenChangeForRelease()
-        if (!confirmedMavenChange) {
-            debugLog('start release aborted: maven change not confirmed')
+    if (commandId === 'extension.StartNewRelease' || commandId === 'extension.StartNewReleaseNew') {
+        const confirmedStartRelease = await confirmStartRelease()
+        if (!confirmedStartRelease) {
+            debugLog('start release aborted by confirmation')
             return { executed: false, groupName }
         }
     }
@@ -1934,7 +2035,7 @@ async function executeGitFlowCommand (commandId, resourceUri) {
         }
     }
 
-    if (commandId !== 'extension.GenerateCommitMessage' && commandId !== 'extension.AiCodeReview' && commandId !== COMMAND_UPDATE_SKILLS && commandId !== 'extension.MavenChange' && commandId !== 'extension.RebaseFeature') {
+    if (commandId !== 'extension.GenerateCommitMessage' && commandId !== 'extension.AiCodeReview' && commandId !== COMMAND_UPDATE_SKILLS && commandId !== 'extension.StartNewApi' && commandId !== 'extension.GetApiVersion' && commandId !== 'extension.RebaseFeature') {
         await gitCheck(rootPath)
     }
     const scriptPath = await resolveScriptPath(rootPath, scriptName)
@@ -1955,12 +2056,7 @@ async function executeGitFlowCommand (commandId, resourceUri) {
         }
         scriptArgs.push(currentBranch)
     }
-    if (commandId === 'extension.StartNewRelease') {
-        const snapshotOk = await confirmPomSnapshotIfPresent(rootPath)
-        if (!snapshotOk) {
-            debugLog('start release aborted: pom SNAPSHOT not confirmed')
-            return { executed: false, groupName }
-        }
+    if (commandId === 'extension.StartNewRelease' || commandId === 'extension.StartNewReleaseNew') {
         const releaseName = await askStartReleaseName(rootPath, groupName)
         if (!releaseName) {
             return { executed: false, groupName }
@@ -1993,37 +2089,28 @@ async function executeGitFlowCommand (commandId, resourceUri) {
     }
     if (commandId === 'extension.MavenChange') {
         let mavenRootPath = getMavenProjectRootPath(rootPath, selectedPath)
-        if (!mavenRootPath) {
-            const normalizedSelected = normalizePath(path.resolve(selectedPath))
-            const normalizedGitRoot = normalizePath(path.resolve(rootPath))
-            if (normalizedSelected === normalizedGitRoot) {
-                const allRoots = getMavenRootsUnder(rootPath)
-                if (allRoots.length === 1) {
-                    mavenRootPath = allRoots[0]
-                } else if (allRoots.length > 1) {
-                    const picks = allRoots.map(r => ({
-                        label: path.basename(r),
-                        description: r,
-                        value: r
-                    }))
-                    const chosen = await vscode.window.showQuickPick(picks, {
-                        ignoreFocusOut: true,
-                        title: '选择要执行 Maven Change 的项目',
-                        placeHolder: '当前为仓库根且存在多个 Maven 子项目，请选择其一'
-                    })
-                    if (!chosen) {
-                        return { executed: false, groupName }
-                    }
-                    mavenRootPath = chosen.value
+        if (!mavenRootPath && normalizePath(path.resolve(selectedPath)) === normalizePath(path.resolve(rootPath))) {
+            const allRoots = getMavenRootsUnder(rootPath)
+            if (allRoots.length === 1) {
+                mavenRootPath = allRoots[0]
+            } else if (allRoots.length > 1) {
+                const selected = await vscode.window.showQuickPick(allRoots.map(value => ({
+                    label: path.basename(value),
+                    description: value,
+                    value
+                })), {
+                    ignoreFocusOut: true,
+                    title: '选择要执行 Maven Change 的项目',
+                    placeHolder: '当前为仓库根且存在多个 Maven 子项目，请选择其一'
+                })
+                if (!selected) {
+                    return { executed: false, groupName }
                 }
+                mavenRootPath = selected.value
             }
         }
-        if (!mavenRootPath) {
-            vscode.window.showErrorMessage(`在当前选择目录及其上级目录中未找到有效的 Maven 项目（缺少可用 pom.xml）。请先选择子项目目录后重试。`)
-            return { executed: false, groupName }
-        }
-        if (!isMavenProject(mavenRootPath)) {
-            vscode.window.showErrorMessage(`${normalizePath(mavenRootPath)} is not a maven project, task aborted.`)
+        if (!mavenRootPath || !isMavenProject(mavenRootPath)) {
+            vscode.window.showErrorMessage('在当前选择目录及其上级目录中未找到有效的 Maven 项目（缺少可用 pom.xml）。请先选择子项目目录后重试。')
             return { executed: false, groupName }
         }
         const changeType = await askMavenChangeType()
@@ -2037,10 +2124,54 @@ async function executeGitFlowCommand (commandId, resourceUri) {
         scriptArgs.push(mavenVersion)
         const confirmedToRun = await confirmRunScript(commandId, mavenRootPath, scriptPath, scriptArgs)
         if (!confirmedToRun) {
-            debugLog('script execution cancelled by user', { commandId, scriptPath, scriptArgs })
             return { executed: false, groupName }
         }
         runScriptInTerminal(mavenRootPath, scriptPath, scriptArgs)
+        return { executed: true, groupName }
+    }
+    if (commandId === 'extension.GetApiVersion') {
+        const targets = await askGetApiVersionTargets(rootPath)
+        if (!targets) {
+            return { executed: false, groupName }
+        }
+        if (targets.manualInput) {
+            scriptArgs.push(...buildGetApiVersionScriptArgs(targets.manualInput))
+        } else if (targets.modulePaths.length > 0) {
+            scriptArgs.push(...buildGetApiVersionModuleScriptArgs(
+                targets.modulePaths.map(modulePath => toRelativeModulePath(rootPath, modulePath))
+            ))
+        } else {
+            vscode.window.showErrorMessage('请选择至少一个 API 模块，或输入 Maven 坐标。')
+            return { executed: false, groupName }
+        }
+    }
+    if (commandId === 'extension.StartNewApi') {
+        const getApiVersionPath = normalizePath(path.join(path.dirname(scriptPath), GET_API_VERSION_SCRIPT))
+        if (!fs.existsSync(getApiVersionPath)) {
+            await myPlugin.downloadScripts(`${getRootUrl()}/${GET_API_VERSION_SCRIPT}`, getApiVersionPath)
+        }
+        const modulePaths = await confirmStartNewApiModules(rootPath)
+        if (!modulePaths) {
+            return { executed: false, groupName }
+        }
+        const publicationKind = await askStartNewApiKind()
+        if (!publicationKind) {
+            return { executed: false, groupName }
+        }
+        const version = await askStartNewApiVersion(rootPath, getApiVersionPath, modulePaths[0], publicationKind)
+        if (!version) {
+            return { executed: false, groupName }
+        }
+        scriptArgs.push('--publish')
+        for (const modulePath of modulePaths) {
+            scriptArgs.push(toRelativeModulePath(rootPath, modulePath), version)
+        }
+        const confirmedToRun = await confirmRunScript(commandId, rootPath, scriptPath, scriptArgs)
+        if (!confirmedToRun) {
+            debugLog('script execution cancelled by user', { commandId, scriptPath, scriptArgs })
+            return { executed: false, groupName }
+        }
+        runScriptInTerminal(rootPath, scriptPath, scriptArgs)
         return { executed: true, groupName }
     }
     if (commandId === 'extension.FinishRelease') {
@@ -2192,6 +2323,11 @@ module.exports = {
     splitBaseExecCommands,
     extractBaseExecCommandsFromGitlabCi,
     buildAiCodeReviewScriptArgs,
+    buildGetApiVersionScriptArgs,
+    buildGetApiVersionModuleScriptArgs,
+    getFlattenMavenModules,
+    toRelativeModulePath,
+    gitFlowScriptByCommand,
     parseHotfixBranchOutput,
     parseSkillsOutput,
     buildUpdateSkillsScriptArgs

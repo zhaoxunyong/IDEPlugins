@@ -72,6 +72,7 @@ public class ZeroGitFlowHandler {
     private static final Pattern FEATURE_SUFFIX_PATTERN = Pattern.compile("^\\d+-\\S.*$");
     private static final Pattern SEMVER_PATTERN = Pattern.compile("^(\\d+)\\.(\\d+)\\.(\\d+)$");
     private static final Pattern MAVEN_VERSION_PATTERN = Pattern.compile("^(\\d+)\\.(\\d+)\\.(\\d+)(-SNAPSHOT|-RC\\d+)?$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern FLATTEN_MAVEN_PLUGIN_PATTERN = Pattern.compile("<artifactId>\\s*flatten-maven-plugin\\s*</artifactId>");
     private static final Pattern XML_COMMENT_PATTERN = Pattern.compile("<!--.*?-->", Pattern.DOTALL);
     private static final Pattern PROPERTY_REFERENCE_PATTERN = Pattern.compile("\\$\\{([^}]+)}");
     private static final Pattern PROPERTY_ENTRY_PATTERN = Pattern.compile("<([A-Za-z0-9_.-]+)>(.*?)</\\1>", Pattern.DOTALL);
@@ -330,6 +331,169 @@ public class ZeroGitFlowHandler {
         });
     }
 
+    public void startNewApi() throws Exception {
+        debugLog("command triggered", "Start New Api");
+        String rootPath = getRootPath();
+        runWithScriptInBackground(rootPath, "StartNewApi.sh", (rPath, script) -> {
+            List<String> modulePaths = findFlattenMavenModules(rPath);
+            if (modulePaths.isEmpty()) {
+                Messages.showErrorDialog(project, "未找到包含 flatten-maven-plugin 的 Maven 模块。", "ZeroGit: Start New Api");
+                return;
+            }
+            if (!confirmStartNewApiModules(modulePaths)) {
+                return;
+            }
+            String publicationKind = chooseMavenChangeType();
+            if (StringUtils.isBlank(publicationKind)) {
+                return;
+            }
+            String getVersionScript = CommandUtils.processZeroGitScript(rPath, "GetApiVersion.sh");
+            String firstModulePath = modulePaths.get(0);
+            ExecuteResult versionResult = DeployCmdExecuter.exec(
+                    rPath, getVersionScript, Lists.newArrayList("--suggest", firstModulePath, publicationKind), true);
+            if (versionResult.getCode() != 0) {
+                throw new DeployPluginException("获取 API 建议版本失败：" + StringUtils.defaultString(versionResult.getResult()));
+            }
+            String version = Messages.showInputDialog(
+                    "请输入 API 版本号（可手动调整）",
+                    "ZeroGit: Start New Api",
+                    Messages.getInformationIcon(),
+                    lastNonBlankLine(versionResult.getResult()),
+                    null
+            );
+            if (StringUtils.isBlank(version)) {
+                return;
+            }
+            String normalizedVersion = version.trim();
+            if (!isValidStartNewApiVersion(normalizedVersion, publicationKind)) {
+                throw new DeployPluginException("版本格式或发布类型不正确。");
+            }
+            List<String> args = Lists.newArrayList("--publish");
+            for (String modulePath : modulePaths) {
+                args.add(modulePath);
+                args.add(normalizedVersion);
+            }
+            confirmAndRunInTerminal("Start New Api", rPath, script, args);
+        });
+    }
+
+    private List<String> findFlattenMavenModules(String rootPath) {
+        List<String> modulePaths = new ArrayList<>();
+        collectFlattenMavenModules(new File(rootPath), new File(rootPath), modulePaths);
+        modulePaths.sort((left, right) -> {
+            boolean leftApi = left.toLowerCase(Locale.ROOT).endsWith("-api");
+            boolean rightApi = right.toLowerCase(Locale.ROOT).endsWith("-api");
+            if (leftApi != rightApi) {
+                return leftApi ? -1 : 1;
+            }
+            return left.compareTo(right);
+        });
+        return modulePaths;
+    }
+
+    private boolean confirmStartNewApiModules(List<String> modulePaths) {
+        JPanel modules = new JPanel();
+        modules.setLayout(new BoxLayout(modules, BoxLayout.Y_AXIS));
+        for (String modulePath : modulePaths) {
+            JCheckBox checkBox = new JCheckBox(modulePath, true);
+            checkBox.setEnabled(false);
+            modules.add(checkBox);
+        }
+        JScrollPane scrollPane = new JScrollPane(modules);
+        scrollPane.setPreferredSize(new java.awt.Dimension(480, 300));
+        return JOptionPane.showConfirmDialog(null, scrollPane, "确认要发布的 API 模块（全部发布）",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) == JOptionPane.OK_OPTION;
+    }
+
+    private void collectFlattenMavenModules(File root, File current, List<String> modulePaths) {
+        File pomFile = new File(current, "pom.xml");
+        if (pomFile.isFile()) {
+            try {
+                String pom = Files.readString(pomFile.toPath(), StandardCharsets.UTF_8);
+                if (FLATTEN_MAVEN_PLUGIN_PATTERN.matcher(pom).find()) {
+                    String relativePath = root.toPath().relativize(current.toPath()).toString().replace(File.separatorChar, '/');
+                    modulePaths.add(StringUtils.isBlank(relativePath) ? "." : relativePath);
+                }
+            } catch (IOException ignored) {
+                // 忽略无法读取的 POM，让用户选择其余有效模块。
+            }
+        }
+        File[] children = current.listFiles(File::isDirectory);
+        if (children == null) {
+            return;
+        }
+        for (File child : children) {
+            if (!".git".equals(child.getName()) && !"target".equals(child.getName())) {
+                collectFlattenMavenModules(root, child, modulePaths);
+            }
+        }
+    }
+
+    private boolean isValidStartNewApiVersion(String version, String publicationKind) {
+        boolean snapshot = StringUtils.endsWithIgnoreCase(StringUtils.trimToEmpty(version), "-SNAPSHOT");
+        return MAVEN_VERSION_PATTERN.matcher(StringUtils.trimToEmpty(version)).matches()
+                && !StringUtils.containsIgnoreCase(version, "-RC")
+                && ("snapshot".equals(publicationKind) == snapshot);
+    }
+
+    private String lastNonBlankLine(String output) {
+        String[] lines = StringUtils.defaultString(output).split("\\R");
+        for (int index = lines.length - 1; index >= 0; index--) {
+            if (StringUtils.isNotBlank(lines[index])) {
+                return lines[index].trim();
+            }
+        }
+        throw new DeployPluginException("GetApiVersion.sh 未返回建议版本。");
+    }
+
+    public void getApiVersion() throws Exception {
+        debugLog("command triggered", "Get API Version");
+        String rootPath = getRootPath();
+        List<String> args = chooseGetApiVersionArgs(rootPath);
+        if (args.isEmpty()) {
+            return;
+        }
+        CommandUtils.clearZeroGitScriptCache();
+        String script = CommandUtils.processZeroGitScript(rootPath, "GetApiVersion.sh");
+        confirmAndRunInTerminal("Get API Version", rootPath, script, args);
+    }
+
+    private List<String> chooseGetApiVersionArgs(String rootPath) {
+        List<String> modulePaths = findFlattenMavenModules(rootPath);
+        JComboBox<String> moduleSelector = new JComboBox<>(modulePaths.toArray(new String[0]));
+        JTextField manualInput = new JTextField();
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.add(new JLabel("选择要查询版本的 API 模块"));
+        panel.add(moduleSelector);
+        panel.add(new JLabel("或手动输入 artifactId 或 groupId:artifactId（输入后优先）"));
+        panel.add(manualInput);
+        if (JOptionPane.showConfirmDialog(null, panel, "ZeroGit: Get API Version",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) {
+            return Collections.emptyList();
+        }
+        String apiArtifactName = normalizeApiArtifactName(manualInput.getText());
+        if (StringUtils.isNotBlank(apiArtifactName)) {
+            return Lists.newArrayList(apiArtifactName);
+        }
+        String modulePath = (String) moduleSelector.getSelectedItem();
+        if (StringUtils.isBlank(modulePath)) {
+            Messages.showErrorDialog(project, "请选择至少一个 API 模块，或输入 Maven 坐标。", "ZeroGit: Get API Version");
+            return Collections.emptyList();
+        }
+        return Lists.newArrayList("--module", modulePath);
+    }
+
+    /**
+     * 规范化 API 制品名称。
+     *
+     * @param apiArtifactName 用户输入的制品名称
+     * @return 去除首尾空白后的制品名称
+     */
+    static String normalizeApiArtifactName(String apiArtifactName) {
+        return StringUtils.trimToEmpty(apiArtifactName);
+    }
+
     public void generateCommitMessage() throws Exception {
         debugLog("command triggered", "Generate Commit Message");
         String rootPath = getRootPath();
@@ -425,13 +589,21 @@ public class ZeroGitFlowHandler {
     }
 
     public void startNewRelease() throws Exception {
-        debugLog("command triggered", "Start New Release");
+        startNewRelease("Start New Release(Old)", "StartNewRelease.sh");
+    }
+
+    public void startNewReleaseNew() throws Exception {
+        startNewRelease("Start New Release(New)", "ReadyToRelease.sh");
+    }
+
+    private void startNewRelease(String commandName, String scriptFileName) throws Exception {
+        debugLog("command triggered", commandName);
         String groupName = requireGroupName();
-        if (!yes("确认好准备提测了吗？是否已执行FinishFeature删除本地多余的feature分支？\n\n1. StartNewRelease只能在提测时执行一次，maven项目会自动更新pom.xml版本，并打上-RC1后缀。\n2. 后续无需再次打release分支，直接在release分支上进行bug的修复。如需升级maven版本，执行MavenChange操作即可。", "ZeroGit: Start New Release")) {
+        if (!yes("确认好准备提测了吗？是否已执行FinishFeature删除本地多余的feature分支？", "ZeroGit: " + commandName)) {
             return;
         }
         String rootPath = getRootPath();
-        runWithGitCheckInBackground(rootPath, "StartNewRelease.sh", (rPath, script) -> {
+        runWithGitCheckInBackground(rootPath, scriptFileName, (rPath, script) -> {
             if (!confirmPomSnapshotIfPresent(rootPath)) {
                 return;
             }
@@ -464,7 +636,7 @@ public class ZeroGitFlowHandler {
                             + "2. 最新的 release：" + latestReleaseVersion + "\n"
                             + "3. 最新的 hotfix：" + latestHotfixVersion + "\n"
                             + "建议 release 版本：" + suggested + "。请输入 release 版本。",
-                    "ZeroGit: Start New Release",
+                    "ZeroGit: " + commandName,
                     Messages.getInformationIcon(),
                     prefix + suggested,
                     nonEmptyValidator()
@@ -480,7 +652,7 @@ public class ZeroGitFlowHandler {
             ensureVersionNotExists(version, releases, "release");
             ensureVersionNotExists(version, hotfixes, "hotfix");
 
-            confirmAndRunInTerminal("Start New Release", rPath, script, Lists.newArrayList(groupName, value));
+            confirmAndRunInTerminal(commandName, rPath, script, Lists.newArrayList(groupName, value));
         });
     }
 

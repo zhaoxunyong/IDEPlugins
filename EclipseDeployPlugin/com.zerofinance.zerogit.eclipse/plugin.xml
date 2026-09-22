@@ -20,7 +20,15 @@
     <command
       id="com.zerofinance.zerogit.eclipse.commands.mavenChange"
       categoryId="com.zerofinance.zerogit.eclipse.commands.category"
-      name="Maven Change"/>
+      name="Maven Change(Old)"/>
+    <command
+      id="com.zerofinance.zerogit.eclipse.commands.startNewApi"
+      categoryId="com.zerofinance.zerogit.eclipse.commands.category"
+      name="Start New Api(New)"/>
+    <command
+      id="com.zerofinance.zerogit.eclipse.commands.getApiVersion"
+      categoryId="com.zerofinance.zerogit.eclipse.commands.category"
+      name="Get API Version"/>
     <command
       id="com.zerofinance.zerogit.eclipse.commands.startNewFeature"
       categoryId="com.zerofinance.zerogit.eclipse.commands.category"
@@ -40,7 +48,11 @@
     <command
       id="com.zerofinance.zerogit.eclipse.commands.startNewRelease"
       categoryId="com.zerofinance.zerogit.eclipse.commands.category"
-      name="Start New Release"/>
+      name="Start New Release(Old)"/>
+    <command
+      id="com.zerofinance.zerogit.eclipse.commands.startNewReleaseNew"
+      categoryId="com.zerofinance.zerogit.eclipse.commands.category"
+      name="Start New Release(New)"/>
     <command
       id="com.zerofinance.zerogit.eclipse.commands.finishRelease"
       categoryId="com.zerofinance.zerogit.eclipse.commands.category"
@@ -82,6 +94,12 @@
       class="com.zerofinance.zerogit.eclipse.actions.MavenChangeHandler"
       commandId="com.zerofinance.zerogit.eclipse.commands.mavenChange"/>
     <handler
+      class="com.zerofinance.zerogit.eclipse.actions.StartNewApiHandler"
+      commandId="com.zerofinance.zerogit.eclipse.commands.startNewApi"/>
+    <handler
+      class="com.zerofinance.zerogit.eclipse.actions.GetApiVersionHandler"
+      commandId="com.zerofinance.zerogit.eclipse.commands.getApiVersion"/>
+    <handler
       class="com.zerofinance.zerogit.eclipse.actions.StartNewFeatureHandler"
       commandId="com.zerofinance.zerogit.eclipse.commands.startNewFeature"/>
     <handler
@@ -96,6 +114,9 @@
     <handler
       class="com.zerofinance.zerogit.eclipse.actions.StartNewReleaseHandler"
       commandId="com.zerofinance.zerogit.eclipse.commands.startNewRelease"/>
+    <handler
+      class="com.zerofinance.zerogit.eclipse.actions.StartNewReleaseNewHandler"
+      commandId="com.zerofinance.zerogit.eclipse.commands.startNewReleaseNew"/>
     <handler
       class="com.zerofinance.zerogit.eclipse.actions.FinishReleaseHandler"
       commandId="com.zerofinance.zerogit.eclipse.commands.finishRelease"/>
@@ -122,7 +143,13 @@
           label="Maven">
           <command
             commandId="com.zerofinance.zerogit.eclipse.commands.mavenChange"
-            label="Maven Change"/>
+            label="Maven Change(Old)"/>
+          <command
+            commandId="com.zerofinance.zerogit.eclipse.commands.startNewApi"
+            label="Start New Api(New)"/>
+          <command
+            commandId="com.zerofinance.zerogit.eclipse.commands.getApiVersion"
+            label="Get API Version"/>
         </menu>
         <menu
           id="com.zerofinance.zerogit.eclipse.menu.feature"
@@ -145,7 +172,10 @@
           label="Release">
           <command
             commandId="com.zerofinance.zerogit.eclipse.commands.startNewRelease"
-            label="Start New Release"/>
+            label="Start New Release(Old)"/>
+          <command
+            commandId="com.zerofinance.zerogit.eclipse.commands.startNewReleaseNew"
+            label="Start New Release(New)"/>
           <command
             commandId="com.zerofinance.zerogit.eclipse.commands.finishRelease"
             label="Finish Release"/>
