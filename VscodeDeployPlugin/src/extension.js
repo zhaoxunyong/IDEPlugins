@@ -992,6 +992,10 @@ function setDefaultApiModuleQuickPickItem (quickPick, items) {
     quickPick.activeItems = items.slice(0, 1)
 }
 
+function isApiReleaseBranch (branch) {
+    return /^(?:release|hotfix)\//.test(String(branch || ''))
+}
+
 async function askApiModuleSelection (rootPath, title, placeholder, allowManualInput) {
     const modules = getFlattenMavenModules(rootPath)
     if (modules.length === 0 && !allowManualInput) {
@@ -2191,8 +2195,8 @@ async function executeGitFlowCommand (commandId, resourceUri) {
         }
         if (publicationKind === 'release') {
             const currentBranch = await getCurrentBranch(rootPath)
-            if (!currentBranch.startsWith('release/')) {
-                vscode.window.showErrorMessage('必须基于release分支才能发布release api。')
+            if (!isApiReleaseBranch(currentBranch)) {
+                vscode.window.showErrorMessage('必须基于release或hotfix分支才能发布release api。')
                 return { executed: false, groupName }
             }
         }
@@ -2345,6 +2349,7 @@ module.exports = {
     buildGetApiVersionModuleScriptArgs,
     parseReleaseVersionsOutput,
     getFlattenMavenModules,
+    isApiReleaseBranch,
     setDefaultApiModuleQuickPickItem,
     toRelativeModulePath,
     gitFlowScriptByCommand,

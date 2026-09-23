@@ -72,6 +72,7 @@ public class ZeroGitFlowHandler {
     private static final Pattern FEATURE_SUFFIX_PATTERN = Pattern.compile("^\\d+-\\S.*$");
     private static final Pattern SEMVER_PATTERN = Pattern.compile("^(\\d+)\\.(\\d+)\\.(\\d+)$");
     private static final Pattern MAVEN_VERSION_PATTERN = Pattern.compile("^(\\d+)\\.(\\d+)\\.(\\d+)(-SNAPSHOT|-RC\\d+)?$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern RELEASE_BRANCH_PATTERN = Pattern.compile("^release/[^/]+/\\d+\\.\\d+\\.\\d+$");
     private static final Pattern FLATTEN_MAVEN_PLUGIN_PATTERN = Pattern.compile("<artifactId>\\s*flatten-maven-plugin\\s*</artifactId>");
     private static final Pattern XML_COMMENT_PATTERN = Pattern.compile("<!--.*?-->", Pattern.DOTALL);
     private static final Pattern PROPERTY_REFERENCE_PATTERN = Pattern.compile("\\$\\{([^}]+)}");
@@ -347,6 +348,10 @@ public class ZeroGitFlowHandler {
             if (StringUtils.isBlank(publicationKind)) {
                 return;
             }
+            if ("release".equals(publicationKind) && !isApiReleaseBranch(getCurrentBranch(rPath))) {
+                Messages.showErrorDialog(project, "必须基于release或hotfix分支才能发布release api。", "ZeroGit: Start New Api");
+                return;
+            }
             String firstModulePath = modulePaths.get(0);
             ExecuteResult versionResult = DeployCmdExecuter.exec(
                     rPath, script, Lists.newArrayList("--suggest", firstModulePath, publicationKind), true);
@@ -364,6 +369,10 @@ public class ZeroGitFlowHandler {
                 return;
             }
             String normalizedVersion = version.trim();
+            if ("0.0.0-SNAPSHOT".equalsIgnoreCase(normalizedVersion)) {
+                Messages.showErrorDialog(project, "0.0.0-SNAPSHOT 仅用于 API 与 release 的对应关系台账，不能发布。", "ZeroGit: Start New Api");
+                return;
+            }
             if (!isValidStartNewApiVersion(normalizedVersion, publicationKind)) {
                 throw new DeployPluginException("版本格式或发布类型不正确。");
             }
@@ -428,11 +437,16 @@ public class ZeroGitFlowHandler {
         }
     }
 
-    private boolean isValidStartNewApiVersion(String version, String publicationKind) {
+    static boolean isValidStartNewApiVersion(String version, String publicationKind) {
         boolean snapshot = StringUtils.endsWithIgnoreCase(StringUtils.trimToEmpty(version), "-SNAPSHOT");
         return MAVEN_VERSION_PATTERN.matcher(StringUtils.trimToEmpty(version)).matches()
+                && !"0.0.0-SNAPSHOT".equalsIgnoreCase(StringUtils.trimToEmpty(version))
                 && !StringUtils.containsIgnoreCase(version, "-RC")
                 && ("snapshot".equals(publicationKind) == snapshot);
+    }
+
+    static boolean isApiReleaseBranch(String branch) {
+        return StringUtils.startsWith(branch, "release/") || StringUtils.startsWith(branch, "hotfix/");
     }
 
     private String lastNonBlankLine(String output) {
@@ -448,39 +462,86 @@ public class ZeroGitFlowHandler {
     public void getApiVersion() throws Exception {
         debugLog("command triggered", "Get API Version");
         String rootPath = getRootPath();
-        List<String> args = chooseGetApiVersionArgs(rootPath);
+        CommandUtils.clearZeroGitScriptCache();
+        String script = CommandUtils.processZeroGitScript(rootPath, "GetApiVersion.sh");
+        List<String> args = chooseGetApiVersionArgs(rootPath, script);
         if (args.isEmpty()) {
             return;
         }
-        CommandUtils.clearZeroGitScriptCache();
-        String script = CommandUtils.processZeroGitScript(rootPath, "GetApiVersion.sh");
         runInTerminalAndNotify("Get API Version", rootPath, script, args);
     }
 
-    private List<String> chooseGetApiVersionArgs(String rootPath) {
+    private List<String> chooseGetApiVersionArgs(String rootPath, String script) throws Exception {
         List<String> modulePaths = findFlattenMavenModules(rootPath);
         JComboBox<String> moduleSelector = new JComboBox<>(modulePaths.toArray(new String[0]));
         JTextField manualInput = new JTextField();
+        List<String> releaseVersions = loadReleaseVersions(rootPath, script);
+        releaseVersions.add(0, "");
+        JComboBox<String> releaseSelector = new JComboBox<>(releaseVersions.toArray(new String[0]));
+        releaseSelector.setEditable(true);
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.add(new JLabel("选择要查询版本的 API 模块"));
         panel.add(moduleSelector);
         panel.add(new JLabel("或手动输入 artifactId 或 groupId:artifactId（输入后优先）"));
         panel.add(manualInput);
+        panel.add(new JLabel("选择或输入 API 对应的 release 分支（可选，留空按最新版本查询）"));
+        panel.add(releaseSelector);
         if (JOptionPane.showConfirmDialog(null, panel, "ZeroGit: Get API Version",
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) {
             return Collections.emptyList();
         }
         String apiArtifactName = normalizeApiArtifactName(manualInput.getText());
-        if (StringUtils.isNotBlank(apiArtifactName)) {
-            return Lists.newArrayList(apiArtifactName);
-        }
         String modulePath = (String) moduleSelector.getSelectedItem();
-        if (StringUtils.isBlank(modulePath)) {
-            Messages.showErrorDialog(project, "请选择至少一个 API 模块，或输入 Maven 坐标。", "ZeroGit: Get API Version");
+        String releaseVersion = StringUtils.trimToEmpty(String.valueOf(releaseSelector.getEditor().getItem()));
+        if (!isValidReleaseVersion(releaseVersion)) {
+            Messages.showErrorDialog(project, "release 分支格式必须为 release/<组>/<版本>。", "ZeroGit: Get API Version");
             return Collections.emptyList();
         }
-        return Lists.newArrayList("--module", modulePath);
+        List<String> args = buildGetApiVersionArgs(apiArtifactName, modulePath, releaseVersion);
+        if (args.isEmpty()) {
+            Messages.showErrorDialog(project, "请选择至少一个 API 模块，或输入 Maven 坐标。", "ZeroGit: Get API Version");
+        }
+        return args;
+    }
+
+    private List<String> loadReleaseVersions(String rootPath, String script) throws Exception {
+        ExecuteResult result = DeployCmdExecuter.exec(
+                rootPath, script, Lists.newArrayList("--release-versions"), true);
+        if (result.getCode() != 0) {
+            throw new DeployPluginException("获取远端 release 版本失败：" + StringUtils.defaultString(result.getResult()));
+        }
+        List<String> versions = new ArrayList<>();
+        for (String value : splitLines(result.getResult())) {
+            if (isValidReleaseVersion(value) && !versions.contains(value)) {
+                versions.add(value);
+            }
+        }
+        return versions;
+    }
+
+    static List<String> buildGetApiVersionArgs(String apiArtifactName, String modulePath, String releaseVersion) {
+        List<String> args = new ArrayList<>();
+        String target = StringUtils.isNotBlank(apiArtifactName) ? apiArtifactName.trim() : StringUtils.trimToEmpty(modulePath);
+        if (StringUtils.isBlank(target)) {
+            return args;
+        }
+        if (StringUtils.isNotBlank(releaseVersion)) {
+            args.add("--release-version");
+            args.add(releaseVersion.trim());
+        }
+        if (StringUtils.isNotBlank(apiArtifactName)) {
+            args.add(target);
+        } else {
+            args.add("--module");
+            args.add(target);
+        }
+        return args;
+    }
+
+    static boolean isValidReleaseVersion(String releaseVersion) {
+        return StringUtils.isBlank(releaseVersion)
+                || RELEASE_BRANCH_PATTERN.matcher(releaseVersion.trim()).matches();
     }
 
     /**
