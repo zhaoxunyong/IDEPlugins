@@ -1,6 +1,6 @@
 # `zerofinance-git` IntelliJ IDEA 插件产品说明（当前实现）
 
-本文档按 `IdeaDeployPlugin` 当前代码同步更新，基线为仓库当前实现（校对日期：2026-09-22，对应插件版本 `2.0.16`）。  
+本文档按 `IdeaDeployPlugin` 当前代码同步更新，基线为仓库当前实现（校对日期：2026-09-22，对应插件版本 `2.0.15`）。  
 旧版文档把 IDEA 插件描述成“待对齐 VS Code 的 7 个命令重构目标”，这一说法已经过期；当前 IDEA 插件已经落地为完整的 ZeroGit 工具集。
 
 ---
@@ -206,7 +206,7 @@
 - 调用 `StartNewApi.sh --publish <modulePath> <version> [<modulePath> <version> ...]` 统一发布
 - 发布确认中的上一版本：release 取最新正式版本，snapshot 取最新 SNAPSHOT 版本
 - 多个 API 模块使用同一版本号时，确认前仅以第一个模块查询版本与 Nexus 占用；脚本以一次 Maven reactor 构建并上传，上传后仍逐模块回读制品完整性
-- 批量发布确认页会列出全部模块且只确认一次；版本占用二次校验失败直接中止，不再二次确认；脚本会在构建上传前打印 Maven 命令并显示处理中提示
+- 批量发布确认页会列出全部模块且只确认一次；版本占用二次校验失败直接中止，不再二次确认；脚本会在构建上传前打印 Maven 命令并显示处理中提示，全部制品回读成功后会列出每个模块的 Maven 坐标和版本
 - 唯一 Maven `clean deploy` 使用 `-Dmaven.test.skip=true -Dspotbugs.skip=true -Djacoco.skip=true -Dpmd.skip=true`
 - 建议版本由同一个 `StartNewApi.sh --suggest` 生成，不依赖 `GetApiVersion.sh`
 
@@ -336,7 +336,7 @@ IDEA 插件中，以下命令不会先跑 `gitCheck`：
 
 ## 9. 与旧版文档相比的关键更新
 
-本次同步（2.0.7 → 2.0.16）修正了以下过期信息：
+本次同步（2.0.7 → 2.0.15）修正了以下过期信息：
 
 1. IDEA 插件已是 **14 个功能入口**（新增 `Update Skills`），不是“13 个”，更不是“待实现的 7 命令对齐项目”
 2. `AI Code Review` 支持指定提交范围（单提交 / commit 范围 / 留空=已暂存变更）

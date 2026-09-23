@@ -40,8 +40,7 @@
 
     <change-notes><![CDATA[
     <ul>
-        <li>2.0.16 : Added "Start New Api" action. </li>
-        <li>2.0.15 : Fixed some issues. </li>
+        <li>2.0.15 : Added "Start New Api" action. </li>
         <li>2.0.14 : Added "Codex GPT&lt;-&gt;DeepSeek" action. </li>
         <li>2.0.13 : Fixed some issues. </li>
         <li>2.0.12 : Fixed some issues. </li>

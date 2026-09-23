@@ -207,7 +207,7 @@ Eclipse 插件不破坏该扩展机制，与 IDEA / VS Code 在脚本层面一�
 - 调用 `StartNewApi.sh --publish <modulePath> <version> [<modulePath> <version> ...]` 统一发布
 - 发布确认中的上一版本：release 取最新正式版本，snapshot 取最新 SNAPSHOT 版本
 - 多个 API 模块使用同一版本号时，确认前仅以第一个模块查询版本与 Nexus 占用；脚本以一次 Maven reactor 构建并上传，上传后仍逐模块回读制品完整性
-- 批量发布确认页会列出全部模块且只确认一次；版本占用二次校验失败直接中止，不再二次确认；脚本会在构建上传前打印 Maven 命令并显示处理中提示
+- 批量发布确认页会列出全部模块且只确认一次；版本占用二次校验失败直接中止，不再二次确认；脚本会在构建上传前打印 Maven 命令并显示处理中提示，全部制品回读成功后会列出每个模块的 Maven 坐标和版本
 - 唯一 Maven `clean deploy` 使用 `-Dmaven.test.skip=true -Dspotbugs.skip=true -Djacoco.skip=true -Dpmd.skip=true`
 - 建议版本由同一个 `StartNewApi.sh --suggest` 生成，不依赖 `GetApiVersion.sh`
 
