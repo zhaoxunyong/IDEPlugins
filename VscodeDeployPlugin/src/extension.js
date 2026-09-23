@@ -919,6 +919,13 @@ function compareSemverVersionDesc (leftVersion, rightVersion) {
     return compareSemverPartsDesc(leftParts, rightParts)
 }
 
+function parseReleaseVersionsOutput (outputText) {
+    return [...new Set(String(outputText || '').split(/\r?\n/)
+        .map(value => value.trim())
+        .filter(value => /^release\/[^/]+\/\d+\.\d+\.\d+$/.test(value)))]
+        .sort((left, right) => compareSemverVersionDesc(left.slice(left.lastIndexOf('/') + 1), right.slice(right.lastIndexOf('/') + 1)) || left.localeCompare(right))
+}
+
 function isMavenProject (rootPath) {
     const pomPath = path.join(rootPath, 'pom.xml')
     if (!fs.existsSync(pomPath)) {
@@ -981,6 +988,10 @@ function toRelativeModulePath (rootPath, modulePath) {
     return relativePath || '.'
 }
 
+function setDefaultApiModuleQuickPickItem (quickPick, items) {
+    quickPick.activeItems = items.slice(0, 1)
+}
+
 async function askApiModuleSelection (rootPath, title, placeholder, allowManualInput) {
     const modules = getFlattenMavenModules(rootPath)
     if (modules.length === 0 && !allowManualInput) {
@@ -1010,7 +1021,7 @@ async function askApiModuleSelection (rootPath, title, placeholder, allowManualI
         quickPick.title = title
         quickPick.placeholder = placeholder
         quickPick.items = items
-        quickPick.selectedItems = items.slice(0, 1)
+        setDefaultApiModuleQuickPickItem(quickPick, items)
         disposables.push(quickPick.onDidAccept(() => {
             const manualInput = allowManualInput ? String(quickPick.value || '').trim() : ''
             finish({
@@ -1030,6 +1041,58 @@ async function askGetApiVersionTargets (rootPath) {
         '默认选择第一个模块；也可直接输入 artifactId 或 groupId:artifactId，输入后优先使用',
         true
     )
+}
+
+async function askApiReleaseVersion (rootPath, scriptPath, required) {
+    let versions
+    try {
+        const result = await runScriptCaptureOutput(rootPath, scriptPath, ['--release-versions'])
+        versions = parseReleaseVersionsOutput(result.stdout)
+    } catch (err) {
+        await showErrorWithCopy('获取远端 release 版本失败。', buildExecErrorMessage(err))
+        return null
+    }
+    if (required && versions.length === 0) {
+        vscode.window.showErrorMessage('未找到 release/<groupName>/<x.y.z> 远端分支。')
+        return null
+    }
+    const items = versions.map(version => ({ label: version, value: version }))
+    if (!required) {
+        items.unshift({ label: '不关联 release 版本', description: '按当前最新 API 版本查询', value: '' })
+    }
+    return await new Promise(resolve => {
+        const quickPick = vscode.window.createQuickPick()
+        const disposables = []
+        let settled = false
+        const finish = result => {
+            if (settled) return
+            settled = true
+            disposables.forEach(disposable => disposable.dispose())
+            quickPick.hide()
+            quickPick.dispose()
+            resolve(result)
+        }
+
+        quickPick.ignoreFocusOut = true
+        quickPick.canSelectMany = false
+        quickPick.title = required ? '选择 API 对应的 release 分支' : '选择 API 对应的 release 分支（可选）'
+        quickPick.placeholder = required ? '选择或输入 release/<组>/<版本>' : '默认不关联；输入 release/<组>/<版本> 时优先使用'
+        quickPick.items = items
+        disposables.push(quickPick.onDidAccept(() => {
+            const manualInput = String(quickPick.value || '').trim()
+            if (manualInput) {
+                if (!/^release\/[^/]+\/\d+\.\d+\.\d+$/.test(manualInput)) {
+                    vscode.window.showErrorMessage('release 分支格式必须为 release/<组>/<版本>。')
+                    return
+                }
+                finish(manualInput)
+                return
+            }
+            finish(quickPick.selectedItems[0] ? quickPick.selectedItems[0].value : null)
+        }))
+        disposables.push(quickPick.onDidHide(() => finish(null)))
+        quickPick.show()
+    })
 }
 
 async function confirmStartNewApiModules (rootPath) {
@@ -1106,6 +1169,7 @@ async function askStartNewApiVersion (rootPath, startNewApiPath, modulePath, pub
         validateInput: text => {
             const value = String(text || '').trim()
             if (!/^\d+\.\d+\.\d+(?:-SNAPSHOT)?$/.test(value)) return '版本必须为 x.y.z 或 x.y.z-SNAPSHOT。'
+            if (value === '0.0.0-SNAPSHOT') return '0.0.0-SNAPSHOT 仅用于 API 与 release 的对应关系台账，不能发布。'
             if (publicationKind === 'release' && /-SNAPSHOT$/i.test(value)) return 'release 版本不能以 -SNAPSHOT 结尾。'
             if (publicationKind === 'snapshot' && !/-SNAPSHOT$/i.test(value)) return 'snapshot 版本必须以 -SNAPSHOT 结尾。'
             return ''
@@ -2098,6 +2162,13 @@ async function executeGitFlowCommand (commandId, resourceUri) {
         if (!targets) {
             return { executed: false, groupName }
         }
+        const releaseVersion = await askApiReleaseVersion(rootPath, scriptPath, false)
+        if (releaseVersion === null) {
+            return { executed: false, groupName }
+        }
+        if (releaseVersion) {
+            scriptArgs.push('--release-version', releaseVersion)
+        }
         if (targets.manualInput) {
             scriptArgs.push(...buildGetApiVersionScriptArgs(targets.manualInput))
         } else if (targets.modulePaths.length > 0) {
@@ -2117,6 +2188,13 @@ async function executeGitFlowCommand (commandId, resourceUri) {
         const publicationKind = await askStartNewApiKind()
         if (!publicationKind) {
             return { executed: false, groupName }
+        }
+        if (publicationKind === 'release') {
+            const currentBranch = await getCurrentBranch(rootPath)
+            if (!currentBranch.startsWith('release/')) {
+                vscode.window.showErrorMessage('必须基于release分支才能发布release api。')
+                return { executed: false, groupName }
+            }
         }
         const version = await askStartNewApiVersion(rootPath, scriptPath, modulePaths[0], publicationKind)
         if (!version) {
@@ -2265,7 +2343,9 @@ module.exports = {
     buildAiCodeReviewScriptArgs,
     buildGetApiVersionScriptArgs,
     buildGetApiVersionModuleScriptArgs,
+    parseReleaseVersionsOutput,
     getFlattenMavenModules,
+    setDefaultApiModuleQuickPickItem,
     toRelativeModulePath,
     gitFlowScriptByCommand,
     parseHotfixBranchOutput,
