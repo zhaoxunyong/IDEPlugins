@@ -12,6 +12,7 @@ repositories {
 
 dependencies {
     implementation("org.apache.commons:commons-exec:1.3")
+    implementation("commons-lang:commons-lang:2.6")
     implementation("org.yaml:snakeyaml:2.2")
     testImplementation("junit:junit:4.13.2")
 }
